@@ -80,3 +80,9 @@ flutter analyze
 flutter test
 flutter build web --release --dart-define=VENDZA_API_BASE_URL=https://api.example.com/api/v1
 ```
+
+## Builds automatiques
+
+GitHub Actions produit les APK/AAB Android, valide iOS et publie l'image Web
+utilisee par Dokploy a chaque push sur `main`. La configuration des variables,
+des signatures et de Dokploy est decrite dans [CI_CD.md](CI_CD.md).

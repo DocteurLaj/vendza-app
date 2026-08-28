@@ -26,7 +26,7 @@ fun requireReleaseSigningConfigured() {
     if (!keystorePropertiesFile.exists()) {
         throw GradleException(
             "Release build blocked: Android signing is not configured. " +
-                "Missing android/key.properties. See docs/RELEASE_SIGNING.md.",
+                "Missing android/key.properties. See CI_CD.md.",
         )
     }
     val required = listOf("keyAlias", "keyPassword", "storeFile", "storePassword")

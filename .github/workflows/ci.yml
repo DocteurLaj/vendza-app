@@ -1,29 +1,191 @@
-name: Flutter CI
+name: Vendza CI/CD
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+env:
+  FLUTTER_VERSION: 3.44.2
+  VENDZA_API_BASE_URL: ${{ vars.VENDZA_API_BASE_URL || 'https://vendza-vendzaapi-lenoer-604821-72-60-90-32.sslip.io/api/v1' }}
+  VENDZA_MEDIA_BASE_URL: ${{ vars.VENDZA_MEDIA_BASE_URL || 'https://vendza-vendzaminiostorage-tx8h0h-c106eb-72-60-90-32.sslip.io/vendza-images' }}
+  GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID || '' }}
+  GOOGLE_IOS_CLIENT_ID: ${{ vars.GOOGLE_IOS_CLIENT_ID || '' }}
+
 jobs:
   validate:
+    name: Analyze and test
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.44.2
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
-      - name: Build Web release
+
+  android:
+    name: Android APK and AAB
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+
+      - name: Configure Android release signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+        run: |
+          if [[ -z "$ANDROID_KEYSTORE_BASE64" || -z "$ANDROID_KEY_ALIAS" || -z "$ANDROID_KEY_PASSWORD" || -z "$ANDROID_STORE_PASSWORD" ]]; then
+            echo "::error::Configure ANDROID_KEYSTORE_BASE64, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD and ANDROID_STORE_PASSWORD in GitHub Actions secrets."
+            exit 1
+          fi
+
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=upload-keystore.jks\n' \
+            "$ANDROID_STORE_PASSWORD" \
+            "$ANDROID_KEY_PASSWORD" \
+            "$ANDROID_KEY_ALIAS" \
+            > android/key.properties
+
+      - name: Build release APK
         run: >-
-          flutter build web --release
-          --dart-define=VENDZA_API_BASE_URL=https://api.example.com/api/v1
-          --dart-define=GOOGLE_WEB_CLIENT_ID=000000000000-example.apps.googleusercontent.com
+          flutter build apk --release
+          --build-number=${{ github.run_number }}
+          --dart-define=VENDZA_API_BASE_URL=${{ env.VENDZA_API_BASE_URL }}
+          --dart-define=VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
+          --dart-define=GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
+
+      - name: Build release AAB
+        run: >-
+          flutter build appbundle --release
+          --build-number=${{ github.run_number }}
+          --dart-define=VENDZA_API_BASE_URL=${{ env.VENDZA_API_BASE_URL }}
+          --dart-define=VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
+          --dart-define=GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vendza-android-${{ github.run_number }}
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove signing material
+        if: always()
+        shell: bash
+        run: rm -f android/key.properties android/app/upload-keystore.jks
+
+  ios-validation:
+    name: iOS unsigned validation
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build iOS without code signing
+        run: >-
+          flutter build ios --release --no-codesign
+          --build-number=${{ github.run_number }}
+          --dart-define=VENDZA_API_BASE_URL=${{ env.VENDZA_API_BASE_URL }}
+          --dart-define=VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
+          --dart-define=GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
+          --dart-define=GOOGLE_IOS_CLIENT_ID=${{ env.GOOGLE_IOS_CLIENT_ID }}
+      - name: Package unsigned iOS application
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app build/ios/vendza-ios-unsigned.zip
+      - name: Upload unsigned iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vendza-ios-unsigned-${{ github.run_number }}
+          path: build/ios/vendza-ios-unsigned.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  web-image:
+    name: Web image and Dokploy
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve lowercase image name
+        id: image
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and publish Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
+          build-args: |
+            FLUTTER_VERSION=${{ env.FLUTTER_VERSION }}
+            VENDZA_API_BASE_URL=${{ env.VENDZA_API_BASE_URL }}
+            VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
+            GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trigger Dokploy deployment
+        shell: bash
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+        run: |
+          if [[ -z "$DOKPLOY_URL" || -z "$DOKPLOY_API_TOKEN" || -z "$DOKPLOY_APPLICATION_ID" ]]; then
+            echo "::notice::Web image published. Add the three DOKPLOY_* secrets to enable automatic deployment."
+            exit 0
+          fi
+
+          curl --fail --silent --show-error \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/application.deploy" \
+            --header "accept: application/json" \
+            --header "Content-Type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "{\"applicationId\":\"${DOKPLOY_APPLICATION_ID}\"}"

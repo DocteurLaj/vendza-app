@@ -5,6 +5,7 @@ FROM debian:bookworm-slim AS build
 
 ARG FLUTTER_VERSION
 ARG VENDZA_API_BASE_URL
+ARG VENDZA_MEDIA_BASE_URL=""
 ARG GOOGLE_WEB_CLIENT_ID=""
 
 RUN apt-get update \
@@ -28,6 +29,7 @@ RUN test -n "${VENDZA_API_BASE_URL}" \
     && case "${VENDZA_API_BASE_URL}" in https://*) ;; *) exit 1 ;; esac \
     && flutter build web --release \
       --dart-define=VENDZA_API_BASE_URL="${VENDZA_API_BASE_URL}" \
+      --dart-define=VENDZA_MEDIA_BASE_URL="${VENDZA_MEDIA_BASE_URL}" \
       --dart-define=GOOGLE_WEB_CLIENT_ID="${GOOGLE_WEB_CLIENT_ID}"
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
