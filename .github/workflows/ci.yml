@@ -38,6 +38,8 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -106,6 +108,20 @@ jobs:
             build/app/outputs/bundle/release/*.aab
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish APK for vendza.online
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/*.apk dist/vendza.apk
+          if gh release view android >/dev/null 2>&1; then
+            gh release upload android dist/vendza.apk --clobber
+          else
+            gh release create android dist/vendza.apk \
+              --title "Vendza Android" \
+              --notes "Dernier APK Android. Le bouton Télécharger de vendza.online pointe ici."
+          fi
 
       - name: Remove signing material
         if: always()
