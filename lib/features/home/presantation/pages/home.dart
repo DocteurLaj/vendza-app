@@ -44,39 +44,41 @@ void openHomeProduct(
   );
 }
 
-List<StoreModel> _homeStoreRail(List<StoreModel> featured, {int limit = 8}) {
-  final result = <StoreModel>[];
+List<StoreModel> _fillStoreRail(
+  List<StoreModel> preferred,
+  List<StoreModel> catalog, {
+  int limit = 8,
+  Set<String> excludeIds = const {},
+  bool allowReuse = false,
+}) {
   final seen = <String>{};
-  void add(StoreModel store) {
+  final result = <StoreModel>[];
+
+  bool add(StoreModel store) {
+    if (result.length >= limit) return false;
     final key = store.id.isNotEmpty ? store.id : store.name;
-    if (key.isEmpty || !seen.add(key)) return;
+    if (key.isEmpty || !seen.add(key)) return true;
     result.add(store);
+    return true;
   }
 
-  for (final store in featured) {
-    add(store);
+  for (final store in preferred) {
+    if (excludeIds.contains(store.id)) continue;
+    if (!add(store)) return result;
   }
-  for (final store in homeStores) {
-    if (result.length >= limit) break;
-    add(store);
+  for (final store in catalog) {
+    if (excludeIds.contains(store.id)) continue;
+    if (!add(store)) return result;
+  }
+  if (!allowReuse || catalog.isEmpty) return result;
+  for (final store in catalog) {
+    if (!add(store)) return result;
   }
   return result;
 }
 
 List<ProductModel> _activeCatalogProducts() {
   return homeProducts.where((product) => product.isActive).toList();
-}
-
-List<ProductModel> _takeUnused(
-  List<ProductModel> source,
-  Set<String> usedIds, {
-  int? limit,
-}) {
-  final unused = source
-      .where((product) => !usedIds.contains(product.id))
-      .toList();
-  if (limit == null) return unused;
-  return unused.take(limit).toList();
 }
 
 List<ProductModel> _fillHomeSection(
@@ -86,12 +88,33 @@ List<ProductModel> _fillHomeSection(
   int? limit,
   bool allowReuse = false,
 }) {
-  if (feed.isNotEmpty) return feed;
-  final unused = _takeUnused(catalog, usedIds, limit: limit);
-  if (unused.isNotEmpty) return unused;
-  if (!allowReuse || catalog.isEmpty) return const [];
-  if (limit == null) return List<ProductModel>.from(catalog);
-  return catalog.take(limit).toList();
+  final seen = <String>{};
+  final result = <ProductModel>[];
+
+  bool add(ProductModel product) {
+    if (limit != null && result.length >= limit) return false;
+    final id = product.id;
+    if (id.isEmpty || !seen.add(id)) return true;
+    result.add(product);
+    return true;
+  }
+
+  for (final product in feed) {
+    if (!add(product)) return result;
+  }
+
+  for (final product in catalog) {
+    if (usedIds.contains(product.id)) continue;
+    if (!add(product)) return result;
+  }
+
+  if (!allowReuse || catalog.isEmpty) return result;
+  if (limit == null && result.isNotEmpty) return result;
+
+  for (final product in catalog) {
+    if (!add(product)) return result;
+  }
+  return result;
 }
 
 class HomePage extends StatefulWidget {
@@ -426,7 +449,7 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
   @override
   Widget build(BuildContext context) {
     final sections = HomeSectionsView(homeFeed);
-    final featuredStores = _homeStoreRail(sections.stores);
+    final featuredStores = _fillStoreRail(sections.stores, homeStores);
     final catalogProducts = _activeCatalogProducts();
     final usedProductIds = <String>{};
     final promotionProducts = _fillHomeSection(
@@ -457,14 +480,16 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
       usedProductIds,
       allowReuse: true,
     );
-    final featuredFeedIds = sections.stores
+    final featuredStoreIds = featuredStores
         .map((store) => store.id)
         .where((id) => id.isNotEmpty)
         .toSet();
-    final discoverStores = homeStores
-        .where((store) => !featuredFeedIds.contains(store.id))
-        .take(8)
-        .toList();
+    final discoverStores = _fillStoreRail(
+      const [],
+      homeStores,
+      excludeIds: featuredStoreIds,
+      allowReuse: true,
+    );
     final visibleDiscoverProducts = discoverProducts
         .take(_visibleProductCount)
         .toList();

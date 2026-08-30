@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/session/liked_products_store.dart';
@@ -20,6 +19,7 @@ import 'package:vendza/shared/widgets/dialog/show_app_popup.dart';
 import 'package:vendza/core/services/media/app_image_picker.dart';
 import 'package:vendza/core/services/product_event_api_service.dart';
 import 'package:vendza/core/services/share/app_share_service.dart';
+import 'package:vendza/core/services/share/whatsapp_seller_chat.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 
 class ProductDetailPage extends StatefulWidget {
@@ -164,10 +164,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       );
       return;
     }
-    final uri = Uri.tryParse(link);
-    if (uri == null ||
-        !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (!mounted) return;
+    final opened = await WhatsappSellerChat.open(
+      whatsappLink: link,
+      productId: product.id,
+      productName: product.name,
+      priceLabel: formatProductPriceLabel(displayedPrice),
+      imageUrl: displayedImage,
+    );
+    if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Impossible d\'ouvrir WhatsApp.')),
       );

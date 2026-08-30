@@ -52,6 +52,7 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? body,
     bool authenticated = false,
+    Duration? timeout,
   }) {
     return _send(
       (authenticated) => _httpClient.post(
@@ -61,6 +62,7 @@ class ApiClient {
       ),
       authenticated: authenticated,
       path: path,
+      timeout: timeout,
     );
   }
 
@@ -219,12 +221,13 @@ class ApiClient {
     required bool authenticated,
     required String path,
     bool retried = false,
+    Duration? timeout,
   }) async {
     late http.Response response;
     try {
-      response = await request(authenticated).timeout(_timeout);
+      response = await request(authenticated).timeout(timeout ?? _timeout);
     } on TimeoutException {
-      throw const ApiException(message: 'La requete a expire.');
+      throw const ApiException(message: 'La requete a expire.', statusCode: 408);
     } on http.ClientException catch (error) {
       throw ApiException(message: error.message);
     }
@@ -242,6 +245,7 @@ class ApiClient {
           authenticated: authenticated,
           path: path,
           retried: true,
+          timeout: timeout,
         );
       }
     }

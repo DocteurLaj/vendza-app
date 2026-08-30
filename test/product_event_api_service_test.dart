@@ -12,6 +12,7 @@ class _ThrowingApiClient extends ApiClient {
     String path, {
     Map<String, dynamic>? body,
     bool authenticated = false,
+    Duration? timeout,
   }) async {
     throw const ApiException(message: 'network down');
   }
@@ -26,6 +27,7 @@ class _RecordingApiClient extends ApiClient {
     String path, {
     Map<String, dynamic>? body,
     bool authenticated = false,
+    Duration? timeout,
   }) async {
     lastPath = path;
     lastBody = body;

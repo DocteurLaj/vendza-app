@@ -483,25 +483,36 @@ class ProductDetailHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppColors.textPrimary(context),
-                  fontSize: 21,
-                  fontWeight: FontWeight.w800,
-                  height: 1.15,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final chipMaxWidth = (constraints.maxWidth * 0.42).clamp(
+              96.0,
+              148.0,
+            );
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppColors.textPrimary(context),
+                      fontSize: 21,
+                      fontWeight: FontWeight.w800,
+                      height: 1.15,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            ProductOwnerStoreLink(product: product),
-          ],
+                const SizedBox(width: 8),
+                ProductOwnerStoreLink(
+                  product: product,
+                  maxExpandedWidth: chipMaxWidth,
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 6),
         ProductPriceText(
@@ -671,9 +682,14 @@ class ProductDetailActionButtons extends StatelessWidget {
 }
 
 class ProductOwnerStoreLink extends StatefulWidget {
-  const ProductOwnerStoreLink({super.key, required this.product});
+  const ProductOwnerStoreLink({
+    super.key,
+    required this.product,
+    required this.maxExpandedWidth,
+  });
 
   final ProductModel product;
+  final double maxExpandedWidth;
 
   @override
   State<ProductOwnerStoreLink> createState() => _ProductOwnerStoreLinkState();
@@ -749,15 +765,17 @@ class _ProductOwnerStoreLinkState extends State<ProductOwnerStoreLink> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
-              constraints: const BoxConstraints(maxWidth: 154),
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+              constraints: BoxConstraints(
+                maxWidth: widget.maxExpandedWidth,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
               decoration: BoxDecoration(
                 color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: AppColors.border(context)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
+                    color: Colors.black.withValues(alpha: 0.12),
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
@@ -769,37 +787,29 @@ class _ProductOwnerStoreLinkState extends State<ProductOwnerStoreLink> {
                   ClipOval(
                     child: ProductDetailStoreImage(imageUrl: storeImage),
                   ),
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
-                    child: _showStoreName
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const SizedBox(width: 7),
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 96),
-                                child: Text(
-                                  displayStoreName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: AppColors.textPrimary(context),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.arrow_forward_ios,
-                                color: AppColors.iconAccent(context),
-                                size: 10,
-                              ),
-                            ],
-                          )
-                        : const SizedBox.shrink(),
-                  ),
+                  if (_showStoreName) ...[
+                    const SizedBox(width: 7),
+                    Flexible(
+                      child: Text(
+                        displayStoreName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        style: TextStyle(
+                          color: AppColors.textPrimary(context),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          height: 1.1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: AppColors.iconAccent(context),
+                      size: 10,
+                    ),
+                  ],
                 ],
               ),
             ),

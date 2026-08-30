@@ -8,7 +8,7 @@ class AuthCard extends StatelessWidget {
   const AuthCard({
     super.key,
     required this.title,
-    required this.subtitle,
+    this.subtitle = '',
     required this.children,
     this.heightFactor = 0.58,
   });
@@ -245,17 +245,19 @@ class _AuthCardBody extends StatelessWidget {
             letterSpacing: -0.4,
           ),
         ),
-        SizedBox(height: isShortScreen ? 4 : 6),
-        Text(
-          subtitle,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textSecondary(context),
-            fontSize: isShortScreen ? 12.5 : 13,
-            height: 1.35,
-            fontWeight: FontWeight.w500,
+        if (subtitle.isNotEmpty) ...[
+          SizedBox(height: isShortScreen ? 4 : 6),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textSecondary(context),
+              fontSize: isShortScreen ? 12.5 : 13,
+              height: 1.35,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-        ),
+        ],
         SizedBox(height: sectionGap),
         ...children,
       ],

@@ -85,7 +85,6 @@ class _LoginPageState extends State<LoginPage> {
       compactHeaderHeightFactor: 0.42,
       child: AuthCard(
         title: AppStrings.login,
-        subtitle: 'Connectez-vous pour retrouver vos boutiques et produits.',
         heightFactor: 0.62,
         children: [
           MyTextField(
