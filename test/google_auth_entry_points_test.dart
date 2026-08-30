@@ -35,6 +35,11 @@ void main() {
   testWidgets('registration requires terms before Google Sign-In', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     GoogleAuthConfig.debugIsConfiguredOverride = true;
     await tester.pumpWidget(const MaterialApp(home: RegisterPage()));
     final googleButton = tester.widget<OutlinedButton>(
@@ -42,6 +47,8 @@ void main() {
     );
     expect(googleButton.onPressed, isNull);
 
+    await tester.ensureVisible(find.byType(Checkbox));
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(Checkbox));
     await tester.pump();
 

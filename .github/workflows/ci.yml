@@ -48,6 +48,7 @@ jobs:
       - run: flutter pub get
 
       - name: Configure Android release signing
+        id: signing
         shell: bash
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -56,8 +57,9 @@ jobs:
           ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
         run: |
           if [[ -z "$ANDROID_KEYSTORE_BASE64" || -z "$ANDROID_KEY_ALIAS" || -z "$ANDROID_KEY_PASSWORD" || -z "$ANDROID_STORE_PASSWORD" ]]; then
-            echo "::error::Configure ANDROID_KEYSTORE_BASE64, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD and ANDROID_STORE_PASSWORD in GitHub Actions secrets."
-            exit 1
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Signing secrets missing. Building a debug APK you can install on a phone."
+            exit 0
           fi
 
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
@@ -66,8 +68,10 @@ jobs:
             "$ANDROID_KEY_PASSWORD" \
             "$ANDROID_KEY_ALIAS" \
             > android/key.properties
+          echo "signed=true" >> "$GITHUB_OUTPUT"
 
       - name: Build release APK
+        if: steps.signing.outputs.signed == 'true'
         run: >-
           flutter build apk --release
           --build-number=${{ github.run_number }}
@@ -75,7 +79,17 @@ jobs:
           --dart-define=VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
           --dart-define=GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
 
+      - name: Build debug APK
+        if: steps.signing.outputs.signed != 'true'
+        run: >-
+          flutter build apk --debug
+          --build-number=${{ github.run_number }}
+          --dart-define=VENDZA_API_BASE_URL=${{ env.VENDZA_API_BASE_URL }}
+          --dart-define=VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
+          --dart-define=GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
+
       - name: Build release AAB
+        if: steps.signing.outputs.signed == 'true'
         run: >-
           flutter build appbundle --release
           --build-number=${{ github.run_number }}
