@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/session/liked_products_store.dart';
 import 'package:vendza/core/constants/colors.dart';
+import 'package:vendza/core/services/api_exception.dart';
+import 'package:vendza/features/order/data/models/order_model.dart';
+import 'package:vendza/features/order/data/services/order_api_service.dart';
+import 'package:vendza/shared/utils/phone_number.dart';
 import 'package:vendza/features/product/presentation/widgets/product_detail_widgets.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
 import 'package:vendza/features/store/data/services/product_management_service.dart';
@@ -14,6 +19,7 @@ import 'package:vendza/shared/widgets/dialog/show_app_popup.dart';
 import 'package:vendza/core/services/media/app_image_picker.dart';
 import 'package:vendza/core/services/product_event_api_service.dart';
 import 'package:vendza/core/services/share/app_share_service.dart';
+import 'package:vendza/core/services/share/whatsapp_seller_chat.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 
 class ProductDetailPage extends StatefulWidget {
@@ -40,6 +46,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   bool _actionsExpanded = false;
   bool _detailsExpanded = true;
   bool _isLiked = false;
+  bool _isBuying = false;
+  final _orderApi = OrderApiService();
 
   ProductModel get product => _product;
 
@@ -129,7 +137,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     await AppShareService.shareProduct(context, product);
   }
 
-  void _contactSeller() {
+  Future<void> _contactSeller() async {
     productEventApiService.trackSafely(
       eventType: 'contact_click',
       productId: product.id,
@@ -137,9 +145,75 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       position: widget.position,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Demande envoyee pour ${product.name}")),
+    final storeSocials = configuredStoreSocials(product.storeId);
+    final whatsapp = storeSocials
+        .where((item) => item.url != null && item.url!.contains('wa.me'))
+        .map((item) => item.url!)
+        .firstOrNull;
+    final store = stores.where((item) => item.id == product.storeId).firstOrNull;
+    final rawWhatsapp = whatsapp ?? store?.whatsappUrl.trim() ?? '';
+    final link = rawWhatsapp.startsWith('http')
+        ? rawWhatsapp
+        : whatsappUrlFromPhone(rawWhatsapp);
+    if (link.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aucun numero WhatsApp n\'est associe a ce store.'),
+        ),
+      );
+      return;
+    }
+    final opened = await WhatsappSellerChat.open(
+      whatsappLink: link,
+      productId: product.id,
+      productName: product.name,
+      priceLabel: formatProductPriceLabel(displayedPrice),
+      imageUrl: displayedImage,
     );
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d\'ouvrir WhatsApp.')),
+      );
+    }
+  }
+
+  Future<void> _buyProduct() async {
+    if (_isBuying || !product.isActive || widget.ownerMode) return;
+    if (!NetworkStatus.ensureOnline(context)) return;
+    final productId = int.tryParse(product.id);
+    if (productId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Produit invalide.')));
+      return;
+    }
+
+    setState(() => _isBuying = true);
+    try {
+      await _orderApi.createOrder(
+        items: [OrderItemRequest(productId: productId, quantity: 1)],
+        idempotencyKey: OrderApiService.newIdempotencyKey(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Commande envoyee au store.')),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible de passer la commande pour le moment.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isBuying = false);
+    }
   }
 
   Future<void> _openOwnerEditor() async {
@@ -270,11 +344,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       product: product,
                       displayedPrice: displayedPrice,
                       selectedVariantIndex: _selectedVariantIndex,
-                      socialItems: configuredStoreSocials(),
+                      socialItems: configuredStoreSocials(product.storeId),
                       isExpanded: _detailsExpanded,
                       minHeight: constraints.maxHeight - panelTop,
                       onVariantSelected: _selectVariant,
                       onContactSeller: _contactSeller,
+                      onBuy: _buyProduct,
+                      canBuy:
+                          !widget.ownerMode && product.isActive && !_isBuying,
+                      isBuying: _isBuying,
                     ),
                   ),
                 ),

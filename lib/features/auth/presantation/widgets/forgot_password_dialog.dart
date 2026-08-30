@@ -9,95 +9,126 @@ import 'package:vendza/features/auth/presantation/widgets/input_widget.dart';
 import 'package:vendza/shared/widgets/dialog/app_popup_actions.dart';
 import 'package:vendza/shared/widgets/dialog/show_app_popup.dart';
 
-Future<void> showForgotPasswordDialog(BuildContext context) {
-  final emailController = TextEditingController();
-  final authApiService = AuthApiService();
-  var isLoading = false;
-
-  return showAppPopup<void>(
+Future<void> showForgotPasswordDialog(BuildContext context) async {
+  final sent = await showAppPopup<bool>(
     context: context,
     size: PopupSize.small,
-    builder: (dialogContext) {
-      return StatefulBuilder(
-        builder: (context, setDialogState) => Material(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(22),
-          clipBehavior: Clip.antiAlias,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Mot de passe oubli\u00e9',
-                  style: AppTextStyles.pageTitle(context),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Entrez votre adresse email pour recevoir un lien de r\u00e9initialisation.',
-                  style: AppTextStyles.subtitle(
-                    context,
-                  ).copyWith(fontSize: 13, height: 1.35),
-                ),
-                const SizedBox(height: 16),
-                MyTextField(
-                  controller: emailController,
-                  hintText: 'Adresse email',
-                  obscureText: false,
-                  iconPrefix: Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.done,
-                  onDarkBackground: false,
-                ),
-                const SizedBox(height: 18),
-                AppPopupActions(
-                  cancelLabel: 'Annuler',
-                  confirmLabel: isLoading ? 'Envoi...' : 'Envoyer',
-                  spacing: 10,
-                  borderRadius: 12,
-                  onCancel: isLoading
-                      ? () {}
-                      : () => Navigator.pop(dialogContext),
-                  onConfirm: () async {
-                    if (isLoading) return;
-                    final email = emailController.text.trim();
-                    if (!isValidEmail(email)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Veuillez entrer une adresse email valide',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    setDialogState(() => isLoading = true);
-                    try {
-                      await authApiService.requestPasswordReset(email);
-                      if (!dialogContext.mounted) return;
-                      Navigator.pop(dialogContext);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Si un compte correspond, les instructions ont \u00e9t\u00e9 envoy\u00e9es.',
-                          ),
-                        ),
-                      );
-                    } on ApiException catch (error) {
-                      if (!dialogContext.mounted) return;
-                      setDialogState(() => isLoading = false);
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text(error.message)));
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
+    builder: (context) => const _ForgotPasswordDialog(),
+  );
+  if (sent == true && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Si un compte correspond, les instructions ont \u00e9t\u00e9 envoy\u00e9es.',
         ),
-      );
-    },
-  ).whenComplete(emailController.dispose);
+      ),
+    );
+  }
+}
+
+class _ForgotPasswordDialog extends StatefulWidget {
+  const _ForgotPasswordDialog();
+
+  @override
+  State<_ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
+}
+
+class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
+  final _emailController = TextEditingController();
+  final _authApiService = AuthApiService();
+  var _isLoading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_isLoading) return;
+    final email = _emailController.text.trim();
+    if (!isValidEmail(email)) {
+      setState(() => _error = 'Veuillez entrer une adresse email valide');
+      return;
+    }
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      await _authApiService.requestPasswordReset(email);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = error.message;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.card(context),
+      borderRadius: BorderRadius.circular(22),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Mot de passe oubli\u00e9',
+              style: AppTextStyles.pageTitle(context),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Entrez votre adresse email pour recevoir un lien de r\u00e9initialisation.',
+              style: AppTextStyles.subtitle(
+                context,
+              ).copyWith(fontSize: 13, height: 1.35),
+            ),
+            const SizedBox(height: 16),
+            MyTextField(
+              controller: _emailController,
+              hintText: 'Adresse email',
+              obscureText: false,
+              iconPrefix: Icons.email_outlined,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.done,
+              onDarkBackground: false,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _error!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+            ],
+            const SizedBox(height: 18),
+            AppPopupActions(
+              cancelLabel: 'Annuler',
+              confirmLabel: _isLoading ? 'Envoi...' : 'Envoyer',
+              spacing: 10,
+              borderRadius: 12,
+              onCancel: _isLoading ? () {} : () => Navigator.pop(context, false),
+              onConfirm: _submit,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

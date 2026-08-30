@@ -13,7 +13,6 @@ import 'package:vendza/shared/widgets/dialog/app_popup_actions.dart';
 import 'package:vendza/shared/widgets/dialog/show_app_popup.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 
-
 class SubscriptionPage extends StatefulWidget {
   const SubscriptionPage({super.key});
 

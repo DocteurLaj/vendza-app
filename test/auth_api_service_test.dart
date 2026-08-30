@@ -1,10 +1,30 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vendza/core/services/api_client.dart';
 import 'package:vendza/core/services/api_endpoints.dart';
+import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/services/api_token_store.dart';
 import 'package:vendza/features/auth/data/services/auth_api_service.dart';
 
 import 'fakes/memory_secure_storage.dart';
+
+class _StatusApiClient extends ApiClient {
+  _StatusApiClient(this.statusCode);
+
+  final int statusCode;
+
+  @override
+  Future<dynamic> post(
+    String path, {
+    Map<String, dynamic>? body,
+    bool authenticated = false,
+    Duration? timeout,
+  }) async {
+    throw ApiException(
+      message: 'Une erreur est survenue.',
+      statusCode: statusCode,
+    );
+  }
+}
 
 class _FakeApiClient extends ApiClient {
   String? lastPath;
@@ -15,6 +35,7 @@ class _FakeApiClient extends ApiClient {
     String path, {
     Map<String, dynamic>? body,
     bool authenticated = false,
+    Duration? timeout,
   }) async {
     lastPath = path;
     lastBody = body;
@@ -88,6 +109,18 @@ void main() {
 
     expect(apiClient.lastPath, ApiEndpoints.authForgotPassword);
     expect(apiClient.lastBody, {'email': 'buyer@example.com'});
+  });
+
+  test('forgot password treats a timeout as success', () async {
+    final service = AuthApiService(client: _StatusApiClient(408));
+
+    await service.requestPasswordReset('buyer@example.com');
+  });
+
+  test('forgot password treats a gateway error as success', () async {
+    final service = AuthApiService(client: _StatusApiClient(502));
+
+    await service.requestPasswordReset('buyer@example.com');
   });
 
   test('reset password sends token and new password', () async {

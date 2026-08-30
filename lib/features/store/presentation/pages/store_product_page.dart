@@ -69,7 +69,9 @@ class _StoreProductPageState extends State<StoreProductPage> {
     return ValueListenableBuilder<int>(
       valueListenable: catalogRevision,
       builder: (context, _, _) {
-        final List<SocialItem> configuredSocials = configuredStoreSocials();
+        final List<SocialItem> configuredSocials = configuredStoreSocials(
+          widget.store.id,
+        );
         final visibleProducts = searchProductsInList(
           _searchQuery,
           activeProductsForDetailStore(widget.store),

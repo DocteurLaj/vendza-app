@@ -246,6 +246,9 @@ class ProductDetailContentPanel extends StatelessWidget {
     this.minHeight,
     required this.onVariantSelected,
     required this.onContactSeller,
+    required this.onBuy,
+    this.canBuy = true,
+    this.isBuying = false,
   });
 
   final ProductModel product;
@@ -256,6 +259,9 @@ class ProductDetailContentPanel extends StatelessWidget {
   final double? minHeight;
   final ValueChanged<int> onVariantSelected;
   final VoidCallback onContactSeller;
+  final VoidCallback onBuy;
+  final bool canBuy;
+  final bool isBuying;
 
   @override
   Widget build(BuildContext context) {
@@ -304,7 +310,12 @@ class ProductDetailContentPanel extends StatelessWidget {
             ),
           ],
           SizedBox(height: hasVariants ? 14 : 18),
-          ProductDetailActionButtons(onContactSeller: onContactSeller),
+          ProductDetailActionButtons(
+            onContactSeller: onContactSeller,
+            onBuy: onBuy,
+            canBuy: canBuy,
+            isBuying: isBuying,
+          ),
         ],
       ),
     );
@@ -472,25 +483,36 @@ class ProductDetailHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppColors.textPrimary(context),
-                  fontSize: 21,
-                  fontWeight: FontWeight.w800,
-                  height: 1.15,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final chipMaxWidth = (constraints.maxWidth * 0.42).clamp(
+              96.0,
+              148.0,
+            );
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppColors.textPrimary(context),
+                      fontSize: 21,
+                      fontWeight: FontWeight.w800,
+                      height: 1.15,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            ProductOwnerStoreLink(product: product),
-          ],
+                const SizedBox(width: 8),
+                ProductOwnerStoreLink(
+                  product: product,
+                  maxExpandedWidth: chipMaxWidth,
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 6),
         ProductPriceText(
@@ -585,9 +607,18 @@ class ProductVariantChips extends StatelessWidget {
 }
 
 class ProductDetailActionButtons extends StatelessWidget {
-  const ProductDetailActionButtons({super.key, required this.onContactSeller});
+  const ProductDetailActionButtons({
+    super.key,
+    required this.onContactSeller,
+    required this.onBuy,
+    this.canBuy = true,
+    this.isBuying = false,
+  });
 
   final VoidCallback onContactSeller;
+  final VoidCallback onBuy;
+  final bool canBuy;
+  final bool isBuying;
 
   @override
   Widget build(BuildContext context) {
@@ -597,11 +628,17 @@ class ProductDetailActionButtons extends StatelessWidget {
           width: double.infinity,
           height: 48,
           child: ElevatedButton.icon(
-            onPressed: null,
-            icon: const Icon(Icons.shopping_cart_outlined),
-            label: const Text(
-              "Acheter maintenant",
-              style: TextStyle(fontWeight: FontWeight.w800),
+            onPressed: canBuy && !isBuying ? onBuy : null,
+            icon: isBuying
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.shopping_cart_outlined),
+            label: Text(
+              isBuying ? "Commande..." : "Acheter maintenant",
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accent(context),
@@ -645,9 +682,14 @@ class ProductDetailActionButtons extends StatelessWidget {
 }
 
 class ProductOwnerStoreLink extends StatefulWidget {
-  const ProductOwnerStoreLink({super.key, required this.product});
+  const ProductOwnerStoreLink({
+    super.key,
+    required this.product,
+    required this.maxExpandedWidth,
+  });
 
   final ProductModel product;
+  final double maxExpandedWidth;
 
   @override
   State<ProductOwnerStoreLink> createState() => _ProductOwnerStoreLinkState();
@@ -700,7 +742,10 @@ class _ProductOwnerStoreLinkState extends State<ProductOwnerStoreLink> {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<StoreCustomizationModel>(
       valueListenable: store_data.storeCustomization,
-      builder: (context, customization, _) {
+      builder: (context, _, _) {
+        final customization = store_data.customizationForStore(
+          widget.product.storeId,
+        );
         final detail.StoreModel store = _buildStore(customization);
         final String displayStoreName = store.name.trim().isEmpty
             ? "Boutique"
@@ -720,15 +765,17 @@ class _ProductOwnerStoreLinkState extends State<ProductOwnerStoreLink> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
-              constraints: const BoxConstraints(maxWidth: 154),
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+              constraints: BoxConstraints(
+                maxWidth: widget.maxExpandedWidth,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
               decoration: BoxDecoration(
                 color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: AppColors.border(context)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
+                    color: Colors.black.withValues(alpha: 0.12),
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
@@ -740,37 +787,29 @@ class _ProductOwnerStoreLinkState extends State<ProductOwnerStoreLink> {
                   ClipOval(
                     child: ProductDetailStoreImage(imageUrl: storeImage),
                   ),
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
-                    child: _showStoreName
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const SizedBox(width: 7),
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 96),
-                                child: Text(
-                                  displayStoreName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: AppColors.textPrimary(context),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.arrow_forward_ios,
-                                color: AppColors.iconAccent(context),
-                                size: 10,
-                              ),
-                            ],
-                          )
-                        : const SizedBox.shrink(),
-                  ),
+                  if (_showStoreName) ...[
+                    const SizedBox(width: 7),
+                    Flexible(
+                      child: Text(
+                        displayStoreName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        style: TextStyle(
+                          color: AppColors.textPrimary(context),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          height: 1.1,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: AppColors.iconAccent(context),
+                      size: 10,
+                    ),
+                  ],
                 ],
               ),
             ),

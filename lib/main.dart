@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/monitoring/error_reporter.dart';
 import 'package:vendza/core/services/api_config.dart';
 import 'package:vendza/core/services/api_token_store.dart';
@@ -14,6 +15,7 @@ Future<void> main() async {
   await ErrorReporter.ensureInitialized();
   // Local secure storage only — no network session restore here.
   await apiTokenStore.restore();
+  await NetworkStatus.start();
   runApp(const MyApp());
 }
 

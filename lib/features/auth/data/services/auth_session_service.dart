@@ -1,4 +1,5 @@
 import 'package:vendza/core/catalog/catalog_repository.dart';
+import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/services/api_client.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/services/api_token_store.dart';
@@ -97,15 +98,18 @@ class AuthSessionService {
     }
 
     try {
-      await _synchronizeUser();
+      await _synchronizeUser(clearBeforeSync: false);
       return true;
-    } on ApiException {
-      // ApiClient already attempted a single refresh for authenticated 401s.
-      await _invalidateLocalSession();
-      return false;
-    } on Object {
-      await _invalidateLocalSession();
-      return false;
+    } on ApiException catch (error) {
+      if (isConfirmedAuthFailure(error)) {
+        await _invalidateLocalSession();
+        return false;
+      }
+      NetworkStatus.reportError(error);
+      return hasRefresh || _tokenStore.hasAccessToken;
+    } on Object catch (error) {
+      NetworkStatus.reportError(error);
+      return hasRefresh || _tokenStore.hasAccessToken;
     }
   }
 
@@ -118,8 +122,15 @@ class AuthSessionService {
     try {
       await _authApiService.refresh(refreshToken: refreshToken);
       return _tokenStore.hasAccessToken;
-    } on Object {
-      await _invalidateLocalSession();
+    } on ApiException catch (error) {
+      if (isConfirmedAuthFailure(error)) {
+        await _invalidateLocalSession();
+        return false;
+      }
+      NetworkStatus.reportError(error);
+      return false;
+    } on Object catch (error) {
+      NetworkStatus.reportError(error);
       return false;
     }
   }
@@ -165,10 +176,18 @@ class AuthSessionService {
     clearCurrentUser();
   }
 
-  Future<void> _synchronizeUser() async {
-    // Drop previous account's private catalog before loading this session.
-    _sessionCleaner();
+  Future<void> _synchronizeUser({bool clearBeforeSync = true}) async {
+    // A new login must never expose the previous account's private catalog.
+    // During startup restore, keep the current in-memory state until the
+    // server has actually confirmed the session; a network outage must not
+    // erase an otherwise usable session.
+    if (clearBeforeSync) {
+      _sessionCleaner();
+    }
     final profile = await _authApiService.me();
+    if (!clearBeforeSync) {
+      _sessionCleaner();
+    }
     final email = (profile['email'] as String?)?.trim() ?? '';
     final fullName = (profile['fullName'] as String?)?.trim();
     final displayName = fullName == null || fullName.isEmpty

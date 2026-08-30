@@ -1,3 +1,5 @@
+import 'package:characters/characters.dart';
+
 class UserModel {
   final int? userId;
   final String name;
@@ -32,13 +34,17 @@ class UserModel {
         .toList();
     if (parts.isEmpty) {
       final emailPrefix = email.split('@').first.trim();
-      if (emailPrefix.isEmpty) return '?';
-      return emailPrefix[0].toUpperCase();
+      final initial = _graphemeInitial(emailPrefix);
+      return initial.isEmpty ? '?' : initial;
     }
     if (parts.length == 1) {
-      return parts.first[0].toUpperCase();
+      final initial = _graphemeInitial(parts.first);
+      return initial.isEmpty ? '?' : initial;
     }
-    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    final first = _graphemeInitial(parts.first);
+    final last = _graphemeInitial(parts.last);
+    if (first.isEmpty && last.isEmpty) return '?';
+    return '$first$last';
   }
 
   UserModel copyWith({
@@ -62,4 +68,10 @@ class UserModel {
       urlimage: urlimage ?? this.urlimage,
     );
   }
+}
+
+String _graphemeInitial(String value) {
+  final chars = value.trim().characters;
+  if (chars.isEmpty) return '';
+  return chars.first.toUpperCase();
 }

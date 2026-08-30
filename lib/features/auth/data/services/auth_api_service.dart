@@ -1,5 +1,6 @@
 import 'package:vendza/core/services/api_client.dart';
 import 'package:vendza/core/services/api_endpoints.dart';
+import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/services/api_token_store.dart';
 
 class AuthApiService {
@@ -54,7 +55,22 @@ class AuthApiService {
   }
 
   Future<void> requestPasswordReset(String email) async {
-    await _client.post(ApiEndpoints.authForgotPassword, body: {'email': email});
+    try {
+      await _client.post(
+        ApiEndpoints.authForgotPassword,
+        body: {'email': email},
+        timeout: const Duration(seconds: 60),
+      );
+    } on ApiException catch (error) {
+      if (_passwordResetLikelySent(error)) return;
+      rethrow;
+    }
+  }
+
+  bool _passwordResetLikelySent(ApiException error) {
+    final status = error.statusCode;
+    if (status == null) return false;
+    return status == 408 || status == 429 || status >= 500;
   }
 
   Future<void> resetPassword({

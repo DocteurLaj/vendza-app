@@ -58,6 +58,7 @@ class ProfilePage extends StatelessWidget {
                       name: user.name,
                       email: user.email,
                       urlimage: user.urlimage,
+                      editable: false,
                     );
                   },
                 ),

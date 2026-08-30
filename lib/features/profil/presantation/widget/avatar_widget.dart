@@ -13,7 +13,7 @@ class AvatarWidget extends StatefulWidget {
     required this.name,
     required this.email,
     required this.urlimage,
-    this.editable = true,
+    this.editable = false,
     this.showIdentity = true,
     this.showEditLabel = true,
     this.radius = 54,
@@ -279,20 +279,15 @@ class _AvatarFallback extends StatelessWidget {
     return ColoredBox(
       color: compact ? AppColors.softSurface(context) : AppColors.graybg,
       child: Center(
-        child: initials.trim().isEmpty
-            ? Icon(
-                Icons.person_outline,
-                color: AppColors.accent(context),
-                size: radius,
-              )
-            : Text(
-                initials,
-                style: TextStyle(
-                  color: AppColors.accent(context),
-                  fontSize: radius * 0.62,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+        child: Text(
+          initials.trim().isEmpty ? '?' : initials,
+          style: TextStyle(
+            color: AppColors.accent(context),
+            fontSize: radius * 0.9,
+            fontWeight: FontWeight.w900,
+            height: 1,
+          ),
+        ),
       ),
     );
   }

@@ -86,7 +86,9 @@ void updateManagedProduct(ProductModel updatedProduct) {
 
   if (updatedProduct.storeId == ownerPrimaryStoreId ||
       isOwnedStoreId(updatedProduct.storeId)) {
-    final customization = store_data.storeCustomization.value;
+    final customization = store_data.customizationForStore(
+      updatedProduct.storeId,
+    );
     final featuredProducts = updatedProduct.isActive
         ? customization.featuredProducts.map((product) {
             return product.id == updatedProduct.id ? updatedProduct : product;
@@ -95,7 +97,8 @@ void updateManagedProduct(ProductModel updatedProduct) {
               .where((product) => product.id != updatedProduct.id)
               .toList();
 
-    store_data.updateStoreCustomization(
+    store_data.updateStoreCustomizationForStore(
+      updatedProduct.storeId,
       customization.copyWith(featuredProducts: featuredProducts),
     );
   }
@@ -117,8 +120,9 @@ void deleteManagedProduct(ProductModel product) {
 
   if (product.storeId == ownerPrimaryStoreId ||
       isOwnedStoreId(product.storeId)) {
-    final customization = store_data.storeCustomization.value;
-    store_data.updateStoreCustomization(
+    final customization = store_data.customizationForStore(product.storeId);
+    store_data.updateStoreCustomizationForStore(
+      product.storeId,
       customization.copyWith(
         featuredProducts: customization.featuredProducts
             .where((item) => item.id != product.id)

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:vendza/core/catalog/catalog_repository.dart';
+import 'package:vendza/core/connectivity/offline_banner.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/deep_link/deep_link_service.dart';
@@ -98,40 +99,47 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
         final useRail = AppBreakpoints.useNavigationRail(constraints.maxWidth);
 
         return Scaffold(
-          body: Row(
+          body: Column(
             children: [
-              if (useRail)
-                ValueListenableBuilder<bool>(
-                  valueListenable: notificationsEnabledStore,
-                  builder: (context, notificationsEnabled, _) {
-                    return ValueListenableBuilder<List<NotificationModel>>(
-                      valueListenable: notificationStore,
-                      builder: (context, notifications, _) {
-                        final unreadCount = notificationsEnabled
-                            ? unreadNotificationCount(notifications)
-                            : 0;
-
-                        return _buildNavigationRail(
-                          context: context,
-                          unreadCount: unreadCount,
-                        );
-                      },
-                    );
-                  },
-                ),
-              if (useRail)
-                VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: AppColors.border(context),
-                ),
+              const OfflineBanner(),
               Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: KeyedSubtree(
-                    key: ValueKey(index),
-                    child: pages[index],
-                  ),
+                child: Row(
+                  children: [
+                    if (useRail)
+                      ValueListenableBuilder<bool>(
+                        valueListenable: notificationsEnabledStore,
+                        builder: (context, notificationsEnabled, _) {
+                          return ValueListenableBuilder<List<NotificationModel>>(
+                            valueListenable: notificationStore,
+                            builder: (context, notifications, _) {
+                              final unreadCount = notificationsEnabled
+                                  ? unreadNotificationCount(notifications)
+                                  : 0;
+
+                              return _buildNavigationRail(
+                                context: context,
+                                unreadCount: unreadCount,
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    if (useRail)
+                      VerticalDivider(
+                        width: 1,
+                        thickness: 1,
+                        color: AppColors.border(context),
+                      ),
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child: KeyedSubtree(
+                          key: ValueKey(index),
+                          child: pages[index],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

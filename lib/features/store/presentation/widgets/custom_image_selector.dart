@@ -19,7 +19,7 @@ class CustomImageSelector extends StatelessWidget {
   final String subtitle;
   final String imageUrl;
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final double height;
 
   @override

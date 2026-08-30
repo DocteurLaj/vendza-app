@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
+import 'package:vendza/features/order/presentation/pages/store_orders_page.dart';
 import 'package:vendza/features/cathegory/data/services/data_exemple.dart'
     as cathegory_data;
 import 'package:vendza/features/cathegory/presentation/pages/cathegory_page.dart';
@@ -63,6 +65,19 @@ class _MyStoreProductPageState extends State<MyStoreProductPage> {
       ),
     );
     if (mounted) setState(() {});
+  }
+
+  Future<void> _openSocial(BuildContext context, String? url) async {
+    final raw = url?.trim() ?? '';
+    if (raw.isEmpty) return;
+    final uri = Uri.tryParse(raw);
+    if (uri == null) return;
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Impossible d'ouvrir ce lien")),
+      );
+    }
   }
 
   Future<void> _openOwnerProduct(ProductModel product) async {
@@ -153,28 +168,29 @@ class _MyStoreProductPageState extends State<MyStoreProductPage> {
                         const Expanded(child: SearchBarWidget()),
                         const SizedBox(width: 20),
                         Row(
-                          children: socials.map((social) {
-                            if (social.gradient != null) {
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 10),
-                                child: ShaderMask(
-                                  shaderCallback: (bounds) =>
-                                      social.gradient!.createShader(bounds),
-                                  child: FaIcon(
+                          children: configuredStoreSocials(widget.store.id).map((
+                            social,
+                          ) {
+                            final icon = social.gradient != null
+                                ? ShaderMask(
+                                    shaderCallback: (bounds) =>
+                                        social.gradient!.createShader(bounds),
+                                    child: FaIcon(
+                                      social.icon,
+                                      color: Colors.white,
+                                      size: 35,
+                                    ),
+                                  )
+                                : FaIcon(
                                     social.icon,
-                                    color: Colors.white,
+                                    color: social.color,
                                     size: 35,
-                                  ),
-                                ),
-                              );
-                            }
-
+                                  );
                             return Padding(
                               padding: const EdgeInsets.only(right: 10),
-                              child: FaIcon(
-                                social.icon,
-                                color: social.color,
-                                size: 35,
+                              child: GestureDetector(
+                                onTap: () => _openSocial(context, social.url),
+                                child: icon,
                               ),
                             );
                           }).toList(),
@@ -236,16 +252,31 @@ class _MyStoreProductPageState extends State<MyStoreProductPage> {
                             },
                           ),
                           ActionButton(
-                            icon: Icons.settings_outlined,
-                            label: "Custom",
+                            icon: Icons.receipt_long_outlined,
+                            label: "Commandes",
                             onTap: () {
                               Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      StoreOrdersPage(store: widget.store),
+                                ),
+                              );
+                            },
+                          ),
+                          ActionButton(
+                            icon: Icons.settings_outlined,
+                            label: "Custom",
+                            onTap: () async {
+                              activateStoreCustomization(widget.store.id);
+                              await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) =>
                                       CustomPage(store: widget.store),
                                 ),
                               );
+                              if (mounted) setState(() {});
                             },
                           ),
                         ],

@@ -7,6 +7,7 @@ import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/home/data/models/home_feed_model.dart';
 import 'package:vendza/features/home/data/models/store_model.dart';
 import 'package:vendza/features/home/data/services/data_exemple.dart';
+import 'package:vendza/features/home/presantation/pages/home_product_list_page.dart';
 import 'package:vendza/features/home/presantation/widgets/home_search_filter_bar.dart';
 import 'package:vendza/features/product/presentation/pages/product_detail_page.dart';
 import 'package:vendza/features/store/presentation/pages/all_stores_page.dart';
@@ -41,6 +42,79 @@ void openHomeProduct(
       ),
     ),
   );
+}
+
+List<StoreModel> _fillStoreRail(
+  List<StoreModel> preferred,
+  List<StoreModel> catalog, {
+  int limit = 8,
+  Set<String> excludeIds = const {},
+  bool allowReuse = false,
+}) {
+  final seen = <String>{};
+  final result = <StoreModel>[];
+
+  bool add(StoreModel store) {
+    if (result.length >= limit) return false;
+    final key = store.id.isNotEmpty ? store.id : store.name;
+    if (key.isEmpty || !seen.add(key)) return true;
+    result.add(store);
+    return true;
+  }
+
+  for (final store in preferred) {
+    if (excludeIds.contains(store.id)) continue;
+    if (!add(store)) return result;
+  }
+  for (final store in catalog) {
+    if (excludeIds.contains(store.id)) continue;
+    if (!add(store)) return result;
+  }
+  if (!allowReuse || catalog.isEmpty) return result;
+  for (final store in catalog) {
+    if (!add(store)) return result;
+  }
+  return result;
+}
+
+List<ProductModel> _activeCatalogProducts() {
+  return homeProducts.where((product) => product.isActive).toList();
+}
+
+List<ProductModel> _fillHomeSection(
+  List<ProductModel> feed,
+  List<ProductModel> catalog,
+  Set<String> usedIds, {
+  int? limit,
+  bool allowReuse = false,
+}) {
+  final seen = <String>{};
+  final result = <ProductModel>[];
+
+  bool add(ProductModel product) {
+    if (limit != null && result.length >= limit) return false;
+    final id = product.id;
+    if (id.isEmpty || !seen.add(id)) return true;
+    result.add(product);
+    return true;
+  }
+
+  for (final product in feed) {
+    if (!add(product)) return result;
+  }
+
+  for (final product in catalog) {
+    if (usedIds.contains(product.id)) continue;
+    if (!add(product)) return result;
+  }
+
+  if (!allowReuse || catalog.isEmpty) return result;
+  if (limit == null && result.isNotEmpty) return result;
+
+  for (final product in catalog) {
+    if (!add(product)) return result;
+  }
+  return result;
 }
 
 class HomePage extends StatefulWidget {
@@ -256,8 +330,8 @@ class _HomeDefaultContent extends StatefulWidget {
 }
 
 class _HomeDefaultContentState extends State<_HomeDefaultContent> {
-  static const int _initialVisibleProducts = 4;
-  static const int _productsPerLoad = 4;
+  static const int _initialVisibleProducts = 16;
+  static const int _productsPerLoad = 8;
   static const double _discoverTileExtent = 154;
 
   final ScrollController _scrollController = ScrollController();
@@ -375,11 +449,47 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
   @override
   Widget build(BuildContext context) {
     final sections = HomeSectionsView(homeFeed);
-    final featuredStores = sections.stores;
-    final promotionProducts = sections.tendances;
-    final storyProducts = sections.newest;
-    final popularProducts = sections.popular;
-    final discoverProducts = sections.discover;
+    final featuredStores = _fillStoreRail(sections.stores, homeStores);
+    final catalogProducts = _activeCatalogProducts();
+    final usedProductIds = <String>{};
+    final promotionProducts = _fillHomeSection(
+      sections.tendances,
+      catalogProducts,
+      usedProductIds,
+      limit: 8,
+    );
+    usedProductIds.addAll(promotionProducts.map((product) => product.id));
+    final storyProducts = _fillHomeSection(
+      sections.newest,
+      catalogProducts,
+      usedProductIds,
+      limit: 8,
+    );
+    usedProductIds.addAll(storyProducts.map((product) => product.id));
+    final popularProducts = _fillHomeSection(
+      sections.popular,
+      catalogProducts,
+      usedProductIds,
+      limit: 8,
+      allowReuse: true,
+    );
+    usedProductIds.addAll(popularProducts.map((product) => product.id));
+    final discoverProducts = _fillHomeSection(
+      sections.discover,
+      catalogProducts,
+      usedProductIds,
+      allowReuse: true,
+    );
+    final featuredStoreIds = featuredStores
+        .map((store) => store.id)
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final discoverStores = _fillStoreRail(
+      const [],
+      homeStores,
+      excludeIds: featuredStoreIds,
+      allowReuse: true,
+    );
     final visibleDiscoverProducts = discoverProducts
         .take(_visibleProductCount)
         .toList();
@@ -418,12 +528,26 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
                       StoreSectionWidget(stores: featuredStores),
                     ],
                     if (promotionProducts.isNotEmpty) ...[
-                      ShowTitle(text: "Tendances"),
+                      ShowTitle(
+                        text: "Tendances",
+                        onActionTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => HomeProductListPage(
+                                title: "Tendances",
+                                products: promotionProducts,
+                                section: 'trending',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                       _PromotionCarousel(products: promotionProducts),
                     ],
                     if (storyProducts.isNotEmpty)
                       _StoryProductsStrip(products: storyProducts),
-                    if (sections.discoverStores.isNotEmpty) ...[
+                    if (discoverStores.isNotEmpty) ...[
                       ShowTitle(
                         text: "Decouvrir des stores",
                         actionLabel: "Voir tout le store",
@@ -436,7 +560,7 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
                           );
                         },
                       ),
-                      _StoreDiscoveryRail(stores: sections.discoverStores),
+                      _StoreDiscoveryRail(stores: discoverStores),
                     ],
                     if (popularProducts.isNotEmpty) ...[
                       ShowTitle(text: "Articles Populaires", showAction: false),
@@ -462,6 +586,8 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
                     if (verticalDiscoverProducts.isNotEmpty)
                       _ProgressiveDiscoverSections(
                         products: verticalDiscoverProducts,
+                        stores: discoverStores,
+                        promoProducts: promotionProducts,
                       ),
                     if (canLoadMore || _isLoadingMore)
                       _LoadMoreProductsButton(
@@ -1182,12 +1308,18 @@ class _TrendingRailState extends State<_TrendingRail> {
 }
 
 class _ProgressiveDiscoverSections extends StatelessWidget {
-  const _ProgressiveDiscoverSections({required this.products});
+  const _ProgressiveDiscoverSections({
+    required this.products,
+    this.stores = const [],
+    this.promoProducts = const [],
+  });
 
   static const int _gridChunkSize = 10;
   static const int _horizontalChunkSize = 6;
 
   final List<ProductModel> products;
+  final List<StoreModel> stores;
+  final List<ProductModel> promoProducts;
 
   @override
   Widget build(BuildContext context) {
@@ -1196,6 +1328,8 @@ class _ProgressiveDiscoverSections extends StatelessWidget {
     final sections = <Widget>[];
     int startIndex = 0;
     int horizontalSectionIndex = 0;
+    var insertedStores = false;
+    var insertedPromos = false;
 
     while (startIndex < products.length) {
       final gridEnd = (startIndex + _gridChunkSize).clamp(0, products.length);
@@ -1217,6 +1351,33 @@ class _ProgressiveDiscoverSections extends StatelessWidget {
       }
       startIndex = gridEnd;
 
+      if (!insertedStores && stores.isNotEmpty && gridProducts.isNotEmpty) {
+        insertedStores = true;
+        sections.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppSizes.padding + 8,
+                  ),
+                  child: Text(
+                    "Decouvrir des stores",
+                    style: AppTextStyles.sectionTitle(
+                      context,
+                    ).copyWith(fontSize: 14, fontWeight: FontWeight.w900),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _StoreDiscoveryRail(stores: stores),
+              ],
+            ),
+          ),
+        );
+      }
+
       if (startIndex >= products.length) break;
 
       final horizontalEnd = (startIndex + _horizontalChunkSize).clamp(
@@ -1234,6 +1395,18 @@ class _ProgressiveDiscoverSections extends StatelessWidget {
         );
       }
       startIndex = horizontalEnd;
+
+      if (!insertedPromos &&
+          promoProducts.isNotEmpty &&
+          startIndex < products.length) {
+        insertedPromos = true;
+        sections.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 6),
+            child: _PromotionCarousel(products: promoProducts),
+          ),
+        );
+      }
     }
 
     return Column(children: sections);
@@ -1430,9 +1603,12 @@ class _DynamicProductPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFF2F6F4),
+      color: AppColors.softSurface(context),
       alignment: Alignment.center,
-      child: const Icon(Icons.inventory_2_outlined, color: AppColors.primary),
+      child: Icon(
+        Icons.inventory_2_outlined,
+        color: AppColors.accent(context),
+      ),
     );
   }
 }
@@ -1971,9 +2147,9 @@ class _ResultImagePlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFF2F6F4),
+      color: AppColors.softSurface(context),
       alignment: Alignment.center,
-      child: Icon(icon, color: AppColors.primary, size: 24),
+      child: Icon(icon, color: AppColors.accent(context), size: 24),
     );
   }
 }

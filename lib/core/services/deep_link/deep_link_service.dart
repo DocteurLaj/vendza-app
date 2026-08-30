@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:vendza/core/services/deep_link/catalog_lookup.dart';
 import 'package:vendza/features/auth/presantation/pages/reset_password_page.dart';
@@ -45,11 +46,16 @@ class DeepLinkService {
   Uri? _pendingUri;
   bool _navigationReady = false;
   bool _authNavigationReady = false;
+  bool _resetRouteOpen = false;
+
+  bool get isResetRouteOpen => _resetRouteOpen;
 
   Future<void> init() async {
     final initialUri = await _appLinks.getInitialLink();
     if (initialUri != null) {
       _handleUri(initialUri);
+    } else if (kIsWeb) {
+      _handleUri(Uri.base);
     }
 
     _subscription = _appLinks.uriLinkStream.listen(_handleUri);
@@ -85,11 +91,16 @@ class DeepLinkService {
   }
 
   void _handleUri(Uri uri) {
-    if (_navigationReady) {
-      _navigate(uri);
+    final target = parseDeepLink(uri);
+    if (target == null) return;
+    final canNavigate = target is ResetPasswordDeepLink
+        ? _authNavigationReady
+        : _navigationReady;
+    if (!canNavigate) {
+      _pendingUri = uri;
       return;
     }
-    _pendingUri = uri;
+    _navigate(uri);
   }
 
   DeepLinkTarget? parseDeepLink(Uri uri) {
@@ -106,27 +117,36 @@ class DeepLinkService {
         return DeepLinkTarget.store(id);
       }
       if (host == 'reset-password') {
-        final token = uri.queryParameters['token'];
-        if (token != null && token.isNotEmpty) {
-          return DeepLinkTarget.resetPassword(token);
-        }
+        return DeepLinkTarget.resetPassword(uri.queryParameters['token'] ?? '');
       }
     }
 
-    if ((uri.scheme == 'https' || uri.scheme == 'http') &&
-        uri.host == 'vendza.app') {
+    final webHost = uri.host.toLowerCase();
+    const vendzaWebHosts = {
+      'vendza.app',
+      'www.vendza.app',
+      'vendza.online',
+      'www.vendza.online',
+    };
+    final isLocalDebugHost =
+        kDebugMode && (webHost == 'localhost' || webHost == '127.0.0.1');
+    final isTrustedWebHost =
+        vendzaWebHosts.contains(webHost) || isLocalDebugHost;
+    final isAllowedWebScheme =
+        uri.scheme == 'https' || (isLocalDebugHost && uri.scheme == 'http');
+
+    if (isAllowedWebScheme && isTrustedWebHost) {
       final segments = uri.pathSegments;
-      if (segments.length >= 2 && segments[0] == 'p') {
-        return DeepLinkTarget.product(segments[1]);
-      }
-      if (segments.length >= 2 && segments[0] == 'store') {
-        return DeepLinkTarget.store(segments[1]);
-      }
-      if (segments.length == 1 && segments[0] == 'reset-password') {
-        final token = uri.queryParameters['token'];
-        if (token != null && token.isNotEmpty) {
-          return DeepLinkTarget.resetPassword(token);
+      if (vendzaWebHosts.contains(webHost)) {
+        if (segments.length >= 2 && segments[0] == 'p') {
+          return DeepLinkTarget.product(segments[1]);
         }
+        if (segments.length >= 2 && segments[0] == 'store') {
+          return DeepLinkTarget.store(segments[1]);
+        }
+      }
+      if (segments.isNotEmpty && segments.first == 'reset-password') {
+        return DeepLinkTarget.resetPassword(uri.queryParameters['token'] ?? '');
       }
     }
 
@@ -167,6 +187,7 @@ class DeepLinkService {
           ),
         );
       case ResetPasswordDeepLink(:final token):
+        _resetRouteOpen = true;
         navigator.pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (context) => ResetPasswordPage(token: token),

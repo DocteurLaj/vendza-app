@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/shared/models/social_item.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
@@ -81,7 +82,19 @@ class StoreToolbarSocialIcons extends StatelessWidget {
               )
             : FaIcon(social.icon, color: social.color, size: 27);
 
-        return Padding(padding: const EdgeInsets.only(left: 12), child: icon);
+        return Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: GestureDetector(
+            onTap: () async {
+              final raw = social.url?.trim() ?? '';
+              if (raw.isEmpty) return;
+              final uri = Uri.tryParse(raw);
+              if (uri == null) return;
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            },
+            child: icon,
+          ),
+        );
       }).toList(),
     );
   }
