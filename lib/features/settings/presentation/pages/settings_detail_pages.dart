@@ -1,24 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/colors.dart';
-import 'package:vendza/core/theme/app_text_styles.dart';
+import 'package:vendza/core/constants/site_links.dart';
+import 'package:vendza/core/session/current_user_store.dart';
 import 'package:vendza/core/session/notifications_enabled_store.dart';
+import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/core/theme/theme_controller.dart';
 import 'package:vendza/features/settings/presentation/pages/delete_account_page.dart';
+import 'package:vendza/shared/widgets/bouton/button.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 
-const String _supportPhone = "+243970000000";
-const String _supportEmail = "support@vendza.app";
-const String _aboutUrl = "https://vendza.app";
-
 Future<void> _openExternalLink(BuildContext context, String value) async {
-  final Uri? uri = Uri.tryParse(value);
-  if (uri == null) return;
+  final bool opened = await SiteLinks.open(value);
+  if (!opened && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Impossible d'ouvrir ce lien")),
+    );
+  }
+}
 
-  final bool opened = await launchUrl(
-    uri,
-    mode: LaunchMode.externalApplication,
-  );
+Future<void> _openExternalUri(BuildContext context, Uri uri) async {
+  final bool opened = await SiteLinks.openUri(uri);
   if (!opened && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Impossible d'ouvrir ce lien")),
@@ -180,20 +182,67 @@ class PrivacySettingsPage extends StatefulWidget {
 }
 
 class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
-  final TextEditingController emailController = TextEditingController(
-    text: "john.doe@gmail.com",
-  );
+  late final TextEditingController emailController;
   final TextEditingController currentPasswordController =
       TextEditingController();
   final TextEditingController newPasswordController = TextEditingController();
   bool showPassword = false;
+  bool _isSaving = false;
+
+  bool get _canSave {
+    final email = emailController.text.trim();
+    final current = currentPasswordController.text;
+    final next = newPasswordController.text;
+    if (_isSaving) return false;
+    if (!email.contains('@')) return false;
+    if (current.isEmpty && next.isEmpty) return false;
+    return current.isNotEmpty && next.length >= 8;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    emailController = TextEditingController(
+      text: currentUserStore.value.email,
+    );
+    emailController.addListener(_onFieldChanged);
+    currentPasswordController.addListener(_onFieldChanged);
+    newPasswordController.addListener(_onFieldChanged);
+  }
+
+  void _onFieldChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
-    emailController.dispose();
-    currentPasswordController.dispose();
-    newPasswordController.dispose();
+    emailController
+      ..removeListener(_onFieldChanged)
+      ..dispose();
+    currentPasswordController
+      ..removeListener(_onFieldChanged)
+      ..dispose();
+    newPasswordController
+      ..removeListener(_onFieldChanged)
+      ..dispose();
     super.dispose();
+  }
+
+  Future<void> _savePrivacy() async {
+    if (!_canSave || _isSaving) return;
+    if (!NetworkStatus.ensureOnline(context)) return;
+    setState(() => _isSaving = true);
+    await Future<void>.delayed(const Duration(milliseconds: 280));
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Le changement de mot de passe depuis les paramètres n’est pas encore disponible. Utilisez Mot de passe oublié.',
+        ),
+      ),
+    );
   }
 
   @override
@@ -235,32 +284,32 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 48,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Modifications enregistrees")),
-              );
-            },
-            icon: const Icon(Icons.check_circle_outline),
-            label: const Text(
-              "Enregistrer",
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent(context),
-              foregroundColor: AppColors.isDark(context)
-                  ? AppColors.darkBackground
-                  : Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+          width: double.infinity,
+          child: AppBouton(
+            text: "Enregistrer",
+            loadingText: "Enregistrement...",
+            onPressed: _savePrivacy,
+            enabled: _canSave,
+            isLoading: _isSaving,
           ),
         ),
         const SizedBox(height: 24),
         _ActionSettingsTile(
+          icon: Icons.policy_outlined,
+          title: "Politique de confidentialite",
+          subtitle: "Lire la page sur vendza.online",
+          onTap: () => _openExternalLink(context, SiteLinks.privacy),
+        ),
+        const SizedBox(height: 10),
+        _ActionSettingsTile(
+          icon: Icons.gavel_outlined,
+          title: "Conditions d'utilisation",
+          subtitle: "Regles d'usage de Vendza",
+          onTap: () => _openExternalLink(context, SiteLinks.terms),
+        ),
+        const SizedBox(height: 10),
+        _ActionSettingsTile(
+          key: const ValueKey('delete-account-settings-entry'),
           icon: Icons.delete_forever_outlined,
           title: "Supprimer mon compte",
           subtitle: "Anonymisation definitive de vos donnees personnelles",
@@ -284,34 +333,35 @@ class SupportSettingsPage extends StatelessWidget {
       title: "Support",
       children: [
         _ActionSettingsTile(
+          icon: Icons.email_outlined,
+          title: "Email",
+          subtitle: "Envoyer un message au support",
+          trailing: SiteLinks.supportEmail,
+          onTap: () => _openExternalUri(context, SiteLinks.mailtoSupport()),
+        ),
+        const SizedBox(height: 10),
+        _ActionSettingsTile(
           icon: Icons.chat_outlined,
           title: "WhatsApp",
-          subtitle: "Contacter un agent directement",
-          trailing: _supportPhone,
+          subtitle: SiteLinks.hasSupportWhatsApp
+              ? "Contacter un agent directement"
+              : "Le numero public n'est pas encore renseigne",
+          trailing: SiteLinks.hasSupportWhatsApp ? SiteLinks.supportWhatsApp : null,
           onTap: () {
-            final phone = _supportPhone.replaceAll(RegExp(r"[^0-9]"), "");
-            _openExternalLink(context, "https://wa.me/$phone");
+            final whatsapp = SiteLinks.whatsappUri;
+            if (whatsapp != null) {
+              _openExternalUri(context, whatsapp);
+              return;
+            }
+            _openExternalLink(context, SiteLinks.contact);
           },
         ),
         const SizedBox(height: 10),
         _ActionSettingsTile(
-          icon: Icons.email_outlined,
-          title: "Email",
-          subtitle: "Envoyer un message au support",
-          trailing: _supportEmail,
-          onTap: () {
-            _openExternalLink(
-              context,
-              "mailto:$_supportEmail?subject=Support%20Vendza",
-            );
-          },
-        ),
-        const SizedBox(height: 10),
-        const _ActionSettingsTile(
-          icon: Icons.phone_outlined,
-          title: "Numero mobile",
-          subtitle: "Agent support Vendza",
-          trailing: _supportPhone,
+          icon: Icons.language_outlined,
+          title: "Page contact",
+          subtitle: "vendza.online/contact",
+          onTap: () => _openExternalLink(context, SiteLinks.contact),
         ),
       ],
     );
@@ -327,23 +377,37 @@ class FeedbackSettingsPage extends StatefulWidget {
 
 class _FeedbackSettingsPageState extends State<FeedbackSettingsPage> {
   final TextEditingController feedbackController = TextEditingController();
+  bool _isSubmitting = false;
+
+  bool get _canSubmit =>
+      !_isSubmitting && feedbackController.text.trim().isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    feedbackController.addListener(_onFeedbackChanged);
+  }
+
+  void _onFeedbackChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
-    feedbackController.dispose();
+    feedbackController
+      ..removeListener(_onFeedbackChanged)
+      ..dispose();
     super.dispose();
   }
 
-  void _submitFeedback() {
-    final feedback = feedbackController.text.trim();
-    if (feedback.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Ecrivez votre feedback avant d'envoyer")),
-      );
-      return;
-    }
-
+  Future<void> _submitFeedback() async {
+    if (!_canSubmit) return;
+    if (!NetworkStatus.ensureOnline(context)) return;
+    setState(() => _isSubmitting = true);
+    await Future<void>.delayed(const Duration(milliseconds: 280));
+    if (!mounted) return;
     feedbackController.clear();
+    setState(() => _isSubmitting = false);
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text("Merci pour votre feedback")));
@@ -370,24 +434,13 @@ class _FeedbackSettingsPageState extends State<FeedbackSettingsPage> {
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 48,
-          child: ElevatedButton.icon(
+          width: double.infinity,
+          child: AppBouton(
+            text: "Soumettre",
+            loadingText: "Envoi...",
             onPressed: _submitFeedback,
-            icon: const Icon(Icons.send_outlined),
-            label: const Text(
-              "Soumettre",
-              style: TextStyle(fontWeight: FontWeight.w800),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent(context),
-              foregroundColor: AppColors.isDark(context)
-                  ? AppColors.darkBackground
-                  : Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+            enabled: _canSubmit,
+            isLoading: _isSubmitting,
           ),
         ),
       ],
@@ -405,10 +458,37 @@ class AboutSettingsPage extends StatelessWidget {
       children: [
         _ActionSettingsTile(
           icon: Icons.open_in_new_outlined,
-          title: "Ouvrir la page web",
-          subtitle: "Lien configurable plus tard",
-          trailing: _aboutUrl,
-          onTap: () => _openExternalLink(context, _aboutUrl),
+          title: "A propos",
+          subtitle: "C'est quoi Vendza",
+          onTap: () => _openExternalLink(context, SiteLinks.about),
+        ),
+        const SizedBox(height: 10),
+        _ActionSettingsTile(
+          icon: Icons.menu_book_outlined,
+          title: "En savoir plus",
+          subtitle: "Boutiques, commandes, compte",
+          onTap: () => _openExternalLink(context, SiteLinks.learnMore),
+        ),
+        const SizedBox(height: 10),
+        _ActionSettingsTile(
+          icon: Icons.gavel_outlined,
+          title: "Conditions d'utilisation",
+          subtitle: "Regles d'usage",
+          onTap: () => _openExternalLink(context, SiteLinks.terms),
+        ),
+        const SizedBox(height: 10),
+        _ActionSettingsTile(
+          icon: Icons.policy_outlined,
+          title: "Politique de confidentialite",
+          subtitle: "Donnees et compte",
+          onTap: () => _openExternalLink(context, SiteLinks.privacy),
+        ),
+        const SizedBox(height: 10),
+        _ActionSettingsTile(
+          icon: Icons.download_outlined,
+          title: "Telecharger l'application",
+          subtitle: "APK Android",
+          onTap: () => _openExternalLink(context, SiteLinks.download),
         ),
       ],
     );
@@ -487,6 +567,7 @@ class _SwitchSettingsTile extends StatelessWidget {
 
 class _ActionSettingsTile extends StatelessWidget {
   const _ActionSettingsTile({
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,

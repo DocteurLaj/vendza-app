@@ -184,10 +184,15 @@ void main() {
   testWidgets('privacy settings expose delete-account entry point', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(const MaterialApp(home: PrivacySettingsPage()));
     expect(find.text('Supprimer mon compte'), findsOneWidget);
 
-    await tester.tap(find.text('Supprimer mon compte'));
+    await tester.tap(find.byKey(const ValueKey('delete-account-settings-entry')));
     await tester.pumpAndSettle();
     expect(find.byType(DeleteAccountPage), findsOneWidget);
   });
