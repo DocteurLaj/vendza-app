@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:vendza/core/services/api_exception.dart';
 
 bool isNetworkFailure(Object error) {
@@ -56,5 +56,18 @@ class NetworkStatus {
     if (isNetworkFailure(error) && !isConfirmedAuthFailure(error)) {
       reportOffline();
     }
+  }
+
+  /// Returns false and shows a message when the device is offline.
+  static bool ensureOnline(BuildContext context) {
+    if (!isOffline.value) return true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Vous êtes hors connexion. Cette action nécessite Internet.',
+        ),
+      ),
+    );
+    return false;
   }
 }

@@ -246,6 +246,9 @@ class ProductDetailContentPanel extends StatelessWidget {
     this.minHeight,
     required this.onVariantSelected,
     required this.onContactSeller,
+    required this.onBuy,
+    this.canBuy = true,
+    this.isBuying = false,
   });
 
   final ProductModel product;
@@ -256,6 +259,9 @@ class ProductDetailContentPanel extends StatelessWidget {
   final double? minHeight;
   final ValueChanged<int> onVariantSelected;
   final VoidCallback onContactSeller;
+  final VoidCallback onBuy;
+  final bool canBuy;
+  final bool isBuying;
 
   @override
   Widget build(BuildContext context) {
@@ -304,7 +310,12 @@ class ProductDetailContentPanel extends StatelessWidget {
             ),
           ],
           SizedBox(height: hasVariants ? 14 : 18),
-          ProductDetailActionButtons(onContactSeller: onContactSeller),
+          ProductDetailActionButtons(
+            onContactSeller: onContactSeller,
+            onBuy: onBuy,
+            canBuy: canBuy,
+            isBuying: isBuying,
+          ),
         ],
       ),
     );
@@ -585,9 +596,18 @@ class ProductVariantChips extends StatelessWidget {
 }
 
 class ProductDetailActionButtons extends StatelessWidget {
-  const ProductDetailActionButtons({super.key, required this.onContactSeller});
+  const ProductDetailActionButtons({
+    super.key,
+    required this.onContactSeller,
+    required this.onBuy,
+    this.canBuy = true,
+    this.isBuying = false,
+  });
 
   final VoidCallback onContactSeller;
+  final VoidCallback onBuy;
+  final bool canBuy;
+  final bool isBuying;
 
   @override
   Widget build(BuildContext context) {
@@ -597,11 +617,17 @@ class ProductDetailActionButtons extends StatelessWidget {
           width: double.infinity,
           height: 48,
           child: ElevatedButton.icon(
-            onPressed: null,
-            icon: const Icon(Icons.shopping_cart_outlined),
-            label: const Text(
-              "Acheter maintenant",
-              style: TextStyle(fontWeight: FontWeight.w800),
+            onPressed: canBuy && !isBuying ? onBuy : null,
+            icon: isBuying
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.shopping_cart_outlined),
+            label: Text(
+              isBuying ? "Commande..." : "Acheter maintenant",
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accent(context),
@@ -700,7 +726,10 @@ class _ProductOwnerStoreLinkState extends State<ProductOwnerStoreLink> {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<StoreCustomizationModel>(
       valueListenable: store_data.storeCustomization,
-      builder: (context, customization, _) {
+      builder: (context, _, _) {
+        final customization = store_data.customizationForStore(
+          widget.product.storeId,
+        );
         final detail.StoreModel store = _buildStore(customization);
         final String displayStoreName = store.name.trim().isEmpty
             ? "Boutique"

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/config/google_auth_config.dart';
+import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/session/current_user_store.dart';
@@ -44,6 +45,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _register() async {
     if (_isLoading || _isGoogleLoading) return;
+    if (!NetworkStatus.ensureOnline(context)) return;
     final fullName = _nameController.text.trim();
     final email = _emailController.text.trim();
     final phone =

@@ -11,7 +11,6 @@ import 'package:vendza/features/home/data/services/home_feed_api_service.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
 import 'package:vendza/features/notification/data/services/notification_api_service.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
-import 'package:vendza/features/store/data/models/store_customization_model.dart';
 import 'package:vendza/features/store/data/services/product_api_service.dart';
 import 'package:vendza/features/store/data/services/store_api_service.dart';
 import 'package:vendza/features/store/data/services/store_customization_state.dart';
@@ -130,6 +129,7 @@ class CatalogRepository {
       homeProducts
         ..clear()
         ..addAll(mappedProducts);
+      await _hydratePublicStoreProducts(mappedStores);
 
       try {
         homeFeed = await _homeFeedApi.fetchFeed(storeNames: storeNames);
@@ -229,12 +229,7 @@ class CatalogRepository {
     favoriteStores.clear();
     likedProductIdsStore.value = <String>{};
     notificationStore.value = <NotificationModel>[];
-    storeCustomization.value = const StoreCustomizationModel(
-      name: '',
-      description: '',
-      coverImageUrl: '',
-      profileImageUrl: '',
-    );
+    syncStoreCustomizationFromCatalog();
     favoriteStoreChanges.value++;
     _notifyChanged();
   }
@@ -370,6 +365,43 @@ class CatalogRepository {
     }
     favoriteStoreChanges.value++;
     return true;
+  }
+
+  Future<void> _hydratePublicStoreProducts(List<ListStoreModel> stores) async {
+    const chunkSize = 6;
+    final targets = stores.take(24).toList();
+    for (var index = 0; index < targets.length; index += chunkSize) {
+      final chunk = targets.skip(index).take(chunkSize);
+      await Future.wait(chunk.map(_mergePublicStoreProducts));
+    }
+  }
+
+  Future<void> _mergePublicStoreProducts(ListStoreModel store) async {
+    final storeId = int.tryParse(store.id);
+    if (storeId == null) return;
+
+    try {
+      final response = await _productApi.productsForStore(storeId);
+      final storeProducts = _productApi
+          .parseProductsForStore(response, storeName: store.name)
+          .where((product) => product.isActive)
+          .toList();
+      if (storeProducts.isEmpty) return;
+
+      final existingIds = {
+        ...homeProducts.map((product) => product.id),
+        ...products.map((product) => product.id),
+      };
+      final fresh = storeProducts
+          .where((product) => !existingIds.contains(product.id))
+          .toList();
+      if (fresh.isEmpty) return;
+
+      homeProducts.addAll(fresh);
+      products.addAll(fresh);
+    } on Object {
+      // Best-effort: a single store must not block the home catalog.
+    }
   }
 
   Future<void> _loadProductsForStore(ListStoreModel store) async {

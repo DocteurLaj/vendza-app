@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
@@ -45,36 +46,44 @@ class _CustomPageState extends State<CustomPage> {
   @override
   void initState() {
     super.initState();
-    final customization = storeCustomization.value;
-    final shouldUseCustomization = isOwnedStoreId(widget.store.id);
+    activateStoreCustomization(widget.store.id);
+    final customization = customizationForStore(widget.store.id);
     _nameController = TextEditingController(
-      text: shouldUseCustomization ? customization.name : widget.store.name,
+      text: customization.name.isNotEmpty
+          ? customization.name
+          : widget.store.name,
     );
     _descriptionController = TextEditingController(
-      text: shouldUseCustomization
+      text: customization.description.isNotEmpty
           ? customization.description
           : widget.store.description,
     );
-    _initialWhatsapp = customization.whatsappUrl;
+    _initialWhatsapp = customization.whatsappUrl.isNotEmpty
+        ? customization.whatsappUrl
+        : widget.store.whatsappUrl;
     _instagramController = TextEditingController(
-      text: customization.instagramUrl,
+      text: customization.instagramUrl.isNotEmpty
+          ? customization.instagramUrl
+          : widget.store.instagramUrl,
     );
     _facebookController = TextEditingController(
-      text: customization.facebookUrl,
+      text: customization.facebookUrl.isNotEmpty
+          ? customization.facebookUrl
+          : widget.store.facebookUrl,
     );
     _coverUpload = ImageUploadController(
-      initialUrl: shouldUseCustomization
+      initialUrl: customization.coverImageUrl.isNotEmpty
           ? customization.coverImageUrl
           : widget.store.imageUrl,
       pickTitle: "Choisir la couverture",
     )..addListener(_onChanged);
     _profileUpload = ImageUploadController(
-      initialUrl: shouldUseCustomization
+      initialUrl: customization.profileImageUrl.isNotEmpty
           ? customization.profileImageUrl
           : widget.store.imageUrl,
       pickTitle: "Choisir la photo de profil",
     )..addListener(_onChanged);
-    _featuredProducts = shouldUseCustomization
+    _featuredProducts = customization.featuredProducts.isNotEmpty
         ? List.of(customization.featuredProducts)
         : activeProductsForStore(widget.store).take(2).toList();
   }
@@ -137,6 +146,7 @@ class _CustomPageState extends State<CustomPage> {
         _profileUpload.blocksSubmit) {
       return;
     }
+    if (!NetworkStatus.ensureOnline(context)) return;
     if (!isOwnedStoreId(widget.store.id)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -162,8 +172,10 @@ class _CustomPageState extends State<CustomPage> {
       return;
     }
 
-    final previousCover = storeCustomization.value.coverImageUrl;
-    final previousProfile = storeCustomization.value.profileImageUrl;
+    final previousCover = customizationForStore(widget.store.id).coverImageUrl;
+    final previousProfile = customizationForStore(
+      widget.store.id,
+    ).profileImageUrl;
     setState(() => _isSubmitting = true);
     try {
       final coverImage = _coverUpload.hasImage

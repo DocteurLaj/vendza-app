@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
@@ -132,6 +133,7 @@ class _AddStoreState extends State<AddStore> {
 
   Future<void> _createStore() async {
     if (_isSubmitting || _imageUpload.blocksSubmit) return;
+    if (!NetworkStatus.ensureOnline(context)) return;
 
     final trimmedName = _name.trim();
     final trimmedDescription = _description.trim();
@@ -336,17 +338,13 @@ class _AddStoreState extends State<AddStore> {
               ),
               Padding(
                 padding: const EdgeInsets.all(20),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: AppBouton(
-                      text: "Creer",
-                      loadingText: "Creation...",
-                      onPressed: _createStore,
-                      enabled: !_isSubmitting && !_imageUpload.blocksSubmit,
-                      isLoading: _isSubmitting,
-                    ),
+                child: Center(
+                  child: AppBouton(
+                    text: "Creer",
+                    loadingText: "Creation...",
+                    onPressed: _createStore,
+                    enabled: !_isSubmitting && !_imageUpload.blocksSubmit,
+                    isLoading: _isSubmitting,
                   ),
                 ),
               ),

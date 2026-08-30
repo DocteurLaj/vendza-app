@@ -25,6 +25,7 @@ class SubscriptionPage extends StatefulWidget {
 class _SubscriptionPageState extends State<SubscriptionPage> {
   int selectedIndex = 1;
   bool _comingSoonShown = false;
+  static const bool _offersEnabled = false;
 
   static final List<SubscriptionModel> _subscriptions = [
     SubscriptionModel(
@@ -77,9 +78,6 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_showComingSoon());
-    });
   }
 
   Future<void> _openAbout() async {
@@ -136,11 +134,47 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     unawaited(_showComingSoon(force: true));
   }
 
+  Widget _comingSoonBody(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Abonnements bientôt disponibles',
+                style: AppTextStyles.pageTitle(context),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "L'application est actuellement disponible gratuitement. Les abonnements seront prochainement proposés aux utilisateurs souhaitant accéder à davantage de fonctionnalités professionnelles.",
+                style: AppTextStyles.body(context),
+              ),
+              const SizedBox(height: 18),
+              AppPopupActions(
+                cancelLabel: 'En savoir plus',
+                confirmLabel: 'Compris',
+                onCancel: () {
+                  unawaited(_openAbout());
+                },
+                onConfirm: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Abonnement')),
-      body: LayoutBuilder(
+      body: _offersEnabled
+          ? LayoutBuilder(
         builder: (context, constraints) {
           final layoutMode = AppBreakpoints.authLayoutMode(
             constraints.maxWidth,
@@ -174,7 +208,8 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
             ),
           );
         },
-      ),
+      )
+          : _comingSoonBody(context),
     );
   }
 }

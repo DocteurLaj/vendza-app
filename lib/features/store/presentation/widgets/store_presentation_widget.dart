@@ -24,38 +24,41 @@ class StorePresentationWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<StoreCustomizationModel>(
       valueListenable: storeCustomization,
-      builder: (context, customization, _) {
-        final shouldUseCustomization = isOwnedStoreId(store.id);
+      builder: (context, _, _) {
+        final storeCustomizationData = customizationForStore(store.id);
+        final shouldUseCustomization =
+            storeCustomizationData.name.isNotEmpty ||
+            isOwnedStoreId(store.id);
         final displayName =
-            shouldUseCustomization && customization.name.isNotEmpty
-            ? customization.name
+            shouldUseCustomization && storeCustomizationData.name.isNotEmpty
+            ? storeCustomizationData.name
             : store.name;
         final displayDescription =
-            !shouldUseCustomization || customization.description.isEmpty
+            !shouldUseCustomization ||
+                storeCustomizationData.description.isEmpty
             ? store.getDescription()
-            : customization.description;
+            : storeCustomizationData.description;
         final coverImage =
-            !shouldUseCustomization || customization.coverImageUrl.isEmpty
+            !shouldUseCustomization ||
+                storeCustomizationData.coverImageUrl.isEmpty
             ? store.image
-            : customization.coverImageUrl;
+            : storeCustomizationData.coverImageUrl;
         final profileImage =
-            !shouldUseCustomization || customization.profileImageUrl.isEmpty
+            !shouldUseCustomization ||
+                storeCustomizationData.profileImageUrl.isEmpty
             ? coverImage
-            : customization.profileImageUrl;
+            : storeCustomizationData.profileImageUrl;
         final List<ProductModel> storeProducts = activeProductsForDetailStore(
           store,
         );
-        final List<ProductModel> featuredProducts = shouldUseCustomization
-            ? activeProducts(customization.featuredProducts)
+        final List<ProductModel> featuredProducts =
+            shouldUseCustomization &&
+                storeCustomizationData.featuredProducts.isNotEmpty
+            ? activeProducts(storeCustomizationData.featuredProducts)
             : storeProducts.take(4).toList();
-        final List<SocialItem> configuredCustomSocials =
-            configuredStoreSocials();
-        final List<SocialItem> configuredSocials =
-            configuredCustomSocials.isNotEmpty
-            ? configuredCustomSocials
-            : shouldUseCustomization
-            ? []
-            : socials;
+        final List<SocialItem> configuredSocials = configuredStoreSocials(
+          store.id,
+        );
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.center,

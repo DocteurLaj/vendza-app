@@ -37,6 +37,8 @@ class AppBouton extends StatelessWidget {
         ).withValues(alpha: 0.28),
         disabledForegroundColor: AppColors.textSecondary(context),
         padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 50),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       onPressed: canTap ? onPressed : null,

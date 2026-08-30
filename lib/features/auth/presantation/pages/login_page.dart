@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/config/google_auth_config.dart';
+import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/constants/strings.dart';
 import 'package:vendza/core/session/current_user_store.dart';
@@ -36,6 +37,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _login() async {
     if (_isLoading || _isGoogleLoading) return;
+    if (!NetworkStatus.ensureOnline(context)) return;
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     if (!isValidEmail(email)) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vendza/core/catalog/catalog_repository.dart';
+import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
@@ -86,6 +87,7 @@ class _AddProductState extends State<AddProduct> {
   Future<void> _saveProduct() async {
     if (_isSubmitting || _imageUpload.blocksSubmit) return;
     if (_variants.any((variant) => variant.image.blocksSubmit)) return;
+    if (!NetworkStatus.ensureOnline(context)) return;
 
     final String trimmedName = _name.trim();
     final String trimmedPrice = _price.trim();
@@ -330,8 +332,7 @@ class _AddProductState extends State<AddProduct> {
               ),
               Padding(
                 padding: const EdgeInsets.all(20),
-                child: SizedBox(
-                  width: double.infinity,
+                child: Center(
                   child: AppBouton(
                     text: "Ajouter",
                     loadingText: "Ajout...",
@@ -339,7 +340,9 @@ class _AddProductState extends State<AddProduct> {
                     enabled:
                         !_isSubmitting &&
                         !_imageUpload.blocksSubmit &&
-                        !_variants.any((variant) => variant.image.blocksSubmit),
+                        !_variants.any(
+                          (variant) => variant.image.blocksSubmit,
+                        ),
                     isLoading: _isSubmitting,
                   ),
                 ),

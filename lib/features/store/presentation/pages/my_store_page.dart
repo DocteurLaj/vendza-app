@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:vendza/core/utils/search/catalog_search.dart';
 import 'package:vendza/features/home/data/models/store_model.dart' as detail;
 import 'package:vendza/features/store/data/services/data_exemple.dart';
+import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
 import 'package:vendza/features/store/presentation/pages/add_store_page.dart';
 import 'package:vendza/features/store/presentation/pages/my_store_product_page.dart';
 import 'package:vendza/features/store/presentation/pages/store_detail_page.dart';
@@ -72,6 +73,39 @@ class _MyStorePageState extends State<MyStorePage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  0,
+                                  20,
+                                  16,
+                                ),
+                                child: ListTile(
+                                  tileColor: Theme.of(
+                                    context,
+                                  ).colorScheme.surface,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  leading: const Icon(
+                                    Icons.receipt_long_outlined,
+                                  ),
+                                  title: const Text('Mes commandes'),
+                                  subtitle: const Text(
+                                    'Voir les commandes passees',
+                                  ),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const BuyerOrdersPage(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
                               StoreListSection(
                                 title: "Mes favoris",
                                 stores: filteredFavorites,
@@ -110,26 +144,17 @@ class _MyStorePageState extends State<MyStorePage> {
                               ),
                               const SizedBox(height: 20),
                               Center(
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 360,
-                                  ),
-                                  child: SizedBox(
-                                    width: double.infinity,
-                                    child: AppBouton(
-                                      text: "Creer un store",
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                const AddStore(),
-                                          ),
-                                        );
-                                      },
-                                      enabled: true,
-                                    ),
-                                  ),
+                                child: AppBouton(
+                                  text: "Creer un store",
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const AddStore(),
+                                      ),
+                                    );
+                                  },
+                                  enabled: true,
                                 ),
                               ),
                               const SizedBox(height: 20),

@@ -21,6 +21,9 @@ export 'package:vendza/core/catalog/catalog_repository.dart'
 
 export 'package:vendza/features/store/data/services/store_customization_state.dart'
     show
+        activateStoreCustomization,
+        customizationForStore,
+        isCustomizationForStore,
         storeCustomization,
         syncStoreCustomizationFromCatalog,
         updateStoreCustomization,
@@ -45,20 +48,23 @@ Future<bool> toggleStoreFavorite(detail.StoreModel store) {
   return catalogRepository.toggleStoreFavorite(store.id);
 }
 
-List<SocialItem> configuredStoreSocials({ListStoreModel? store}) {
-  final customization = storeCustomization.value;
-  final useCustomization =
-      store == null || (store.id.isNotEmpty && isOwnedStoreId(store.id));
+List<SocialItem> configuredStoreSocials([String? storeId]) {
+  final id = storeId?.trim().isNotEmpty == true
+      ? storeId!.trim()
+      : activeCustomizationStoreId;
+  if (id == null || id.isEmpty) return const [];
 
-  final whatsapp = useCustomization
+  final store = storeRecordById(id);
+  final customization = customizationForStore(id);
+  final whatsapp = customization.whatsappUrl.trim().isNotEmpty
       ? customization.whatsappUrl
-      : store.whatsappUrl;
-  final instagram = useCustomization
+      : (store?.whatsappUrl ?? '');
+  final instagram = customization.instagramUrl.trim().isNotEmpty
       ? customization.instagramUrl
-      : store.instagramUrl;
-  final facebook = useCustomization
+      : (store?.instagramUrl ?? '');
+  final facebook = customization.facebookUrl.trim().isNotEmpty
       ? customization.facebookUrl
-      : store.facebookUrl;
+      : (store?.facebookUrl ?? '');
 
   final configuredSocials = <SocialItem>[];
 
@@ -112,13 +118,4 @@ String _normalizeSocialLink(String value, String baseUrl) {
   return '$baseUrl${trimmedValue.replaceFirst('@', '')}';
 }
 
-final List<SocialItem> socials = [
-  SocialItem(icon: FontAwesomeIcons.facebook, color: Colors.blue),
-  SocialItem(
-    icon: FontAwesomeIcons.instagram,
-    gradient: const LinearGradient(
-      colors: [Colors.purple, Colors.pink, Colors.orange, Colors.yellow],
-    ),
-  ),
-  SocialItem(icon: FontAwesomeIcons.whatsapp, color: Colors.green),
-];
+final List<SocialItem> socials = <SocialItem>[];
