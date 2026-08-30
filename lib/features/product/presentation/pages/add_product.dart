@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:vendza/core/constants/colors.dart';
-import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/core/catalog/catalog_repository.dart';
+import 'package:vendza/core/constants/colors.dart';
+import 'package:vendza/core/services/api_exception.dart';
+import 'package:vendza/core/theme/app_text_styles.dart';
+import 'package:vendza/core/upload/image_upload_controller.dart';
 import 'package:vendza/features/cathegory/data/services/data_exemple.dart'
     as cathegory_data;
 import 'package:vendza/features/store/data/services/data_exemple.dart';
-import 'package:vendza/features/store/presentation/widgets/custom_image_selector.dart';
 import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
 import 'package:vendza/shared/widgets/input/app_input_decoration.dart';
 import 'package:vendza/shared/widgets/input/from_fiel_widget.dart';
 import 'package:vendza/shared/widgets/input/from_section.dart';
-import 'package:vendza/core/services/media/app_image_picker.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/media/upload_image_slot.dart';
 
 class AddProduct extends StatefulWidget {
   const AddProduct({
@@ -35,63 +36,59 @@ class _AddProductState extends State<AddProduct> {
   String _price = "";
   String _currency = "CDF";
   String _category = "";
-  String _imageUrl = "";
   String? _nameError;
   String? _priceError;
   String? _imageError;
   bool _isSubmitting = false;
+  final _imageUpload = ImageUploadController(
+    pickTitle: "Choisir l'image du produit",
+  );
   final List<_VariantDraft> _variants = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _imageUpload.addListener(_onUploadChanged);
+  }
+
+  @override
+  void dispose() {
+    _imageUpload
+      ..removeListener(_onUploadChanged)
+      ..dispose();
+    for (final variant in _variants) {
+      variant.dispose();
+    }
+    super.dispose();
+  }
+
+  void _onUploadChanged() {
+    if (mounted) setState(() {});
+  }
 
   void _addVariant() {
     if (_isSubmitting) return;
     setState(() {
-      _variants.add(_VariantDraft(price: _price.trim(), currency: _currency));
+      final variant = _VariantDraft(price: _price.trim(), currency: _currency);
+      variant.image.addListener(_onUploadChanged);
+      _variants.add(variant);
     });
   }
 
   void _removeVariant(int index) {
     if (_isSubmitting) return;
     setState(() {
-      _variants.removeAt(index);
-    });
-  }
-
-  Future<void> _pickProductImage() async {
-    if (_isSubmitting) return;
-    final selectedImage = await pickAppImage(
-      context,
-      title: "Choisir l'image du produit",
-    );
-
-    if (selectedImage == null) return;
-    setState(() {
-      _imageUrl = selectedImage;
-      _imageError = null;
-    });
-  }
-
-  Future<void> _pickVariantImage(_VariantDraft variant, int index) async {
-    if (_isSubmitting) return;
-    final selectedImage = await pickAppImage(
-      context,
-      title: "Image de la variante ${index + 1}",
-    );
-
-    if (selectedImage == null) return;
-    setState(() {
-      variant.imageurl = selectedImage;
-      if (variant.name.trim().isNotEmpty) {
-        variant.error = null;
-      }
+      final variant = _variants.removeAt(index);
+      variant.dispose();
     });
   }
 
   Future<void> _saveProduct() async {
-    if (_isSubmitting) return;
+    if (_isSubmitting || _imageUpload.blocksSubmit) return;
+    if (_variants.any((variant) => variant.image.blocksSubmit)) return;
 
     final String trimmedName = _name.trim();
     final String trimmedPrice = _price.trim();
-    final String trimmedImageUrl = _imageUrl.trim();
 
     setState(() {
       _nameError = trimmedName.isEmpty
@@ -100,11 +97,11 @@ class _AddProductState extends State<AddProduct> {
       _priceError = trimmedPrice.isEmpty
           ? "Le prix du produit est obligatoire."
           : null;
-      _imageError = trimmedImageUrl.isEmpty
-          ? "Ajoutez une image pour créer ce produit."
-          : null;
+      _imageError = _imageUpload.hasImage
+          ? null
+          : "Ajoutez une image pour créer ce produit.";
       for (final variant in _variants) {
-        final hasImage = variant.imageurl.trim().isNotEmpty;
+        final hasImage = variant.image.hasImage;
         final hasName = variant.name.trim().isNotEmpty;
         variant.error = hasImage && !hasName
             ? "Ajoutez un nom pour cette variante ou retirez son image."
@@ -145,6 +142,22 @@ class _AddProductState extends State<AddProduct> {
 
     setState(() => _isSubmitting = true);
     try {
+      final imageUrl = await _imageUpload.ensureRemoteUrl();
+      final variationEntries = <MapEntry<String, Map<String, dynamic>>>[];
+      for (final variant in _variants) {
+        final model = variant.toModel();
+        if (model.name.isEmpty && !variant.image.hasImage) continue;
+        final variantImage = variant.image.hasImage
+            ? await variant.image.ensureRemoteUrl()
+            : '';
+        variationEntries.add(
+          MapEntry(model.name, {
+            'price': model.price,
+            'quantity': model.quantity,
+            'image': variantImage,
+          }),
+        );
+      }
       final product = await catalogRepository.createProduct(
         storeId: storeId,
         storeName: widget.storeName,
@@ -152,15 +165,21 @@ class _AddProductState extends State<AddProduct> {
         description: _description.trim(),
         price: parsedPrice,
         stock: 1,
-        imagePath: trimmedImageUrl,
+        imagePath: imageUrl,
+        variation: variationEntries.isEmpty
+            ? null
+            : Map.fromEntries(variationEntries),
       );
       if (!mounted) return;
       Navigator.pop(context, product);
     } on Object catch (error) {
       if (!mounted) return;
+      final message = error is ApiException
+          ? error.message
+          : "Impossible d'ajouter ce produit pour le moment.";
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -225,17 +244,10 @@ class _AddProductState extends State<AddProduct> {
               ),
               FormSection(
                 title: "Image",
-                child: CustomImageSelector(
-                  title: _imageUrl.isEmpty
-                      ? "Ajouter une image"
-                      : "Remplacer l'image",
-                  subtitle: "Appuyez pour choisir une image",
-                  imageUrl: _imageUrl,
-                  icon: _imageUrl.isEmpty
-                      ? Icons.add_a_photo_outlined
-                      : Icons.edit_outlined,
-                  onTap: _pickProductImage,
-                  height: 168,
+                child: UploadImageSlot(
+                  controller: _imageUpload,
+                  emptyTitle: "Ajouter une image",
+                  enabled: !_isSubmitting,
                 ),
               ),
               _FieldErrorText(message: _imageError),
@@ -295,17 +307,12 @@ class _AddProductState extends State<AddProduct> {
                               setState(() => variant.currency = value);
                             },
                           ),
-                          CustomImageSelector(
-                            title: variant.imageurl.isEmpty
-                                ? "Ajouter l'image"
-                                : "Remplacer l'image",
+                          UploadImageSlot(
+                            controller: variant.image,
+                            emptyTitle: "Ajouter l'image",
                             subtitle: "Variante ${index + 1}",
-                            imageUrl: variant.imageurl,
-                            icon: variant.imageurl.isEmpty
-                                ? Icons.add_a_photo_outlined
-                                : Icons.edit_outlined,
-                            onTap: () => _pickVariantImage(variant, index),
                             height: 118,
+                            enabled: !_isSubmitting,
                           ),
                         ],
                       ),
@@ -329,7 +336,10 @@ class _AddProductState extends State<AddProduct> {
                     text: "Ajouter",
                     loadingText: "Ajout...",
                     onPressed: _saveProduct,
-                    enabled: !_isSubmitting,
+                    enabled:
+                        !_isSubmitting &&
+                        !_imageUpload.blocksSubmit &&
+                        !_variants.any((variant) => variant.image.blocksSubmit),
                     isLoading: _isSubmitting,
                   ),
                 ),
@@ -573,13 +583,18 @@ class _ProductCategorySelector extends StatelessWidget {
 }
 
 class _VariantDraft {
-  _VariantDraft({this.price = "", this.currency = "CDF"});
+  _VariantDraft({this.price = "", this.currency = "CDF"})
+    : image = ImageUploadController(pickTitle: "Image de la variante");
 
   String name = "";
   String price;
   String currency;
-  String imageurl = "";
+  final ImageUploadController image;
   String? error;
+
+  void dispose() {
+    image.dispose();
+  }
 
   ProductVariantModel toModel() {
     final trimmedPrice = price.trim();
@@ -587,7 +602,7 @@ class _VariantDraft {
       name: name.trim(),
       price: trimmedPrice.isEmpty ? "" : "$trimmedPrice $currency",
       quantity: "",
-      imageurl: imageurl.trim(),
+      imageurl: image.remoteUrl ?? image.previewUrl,
     );
   }
 }

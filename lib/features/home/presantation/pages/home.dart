@@ -7,6 +7,7 @@ import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/home/data/models/home_feed_model.dart';
 import 'package:vendza/features/home/data/models/store_model.dart';
 import 'package:vendza/features/home/data/services/data_exemple.dart';
+import 'package:vendza/features/home/presantation/pages/home_product_list_page.dart';
 import 'package:vendza/features/home/presantation/widgets/home_search_filter_bar.dart';
 import 'package:vendza/features/product/presentation/pages/product_detail_page.dart';
 import 'package:vendza/features/store/presentation/pages/all_stores_page.dart';
@@ -418,7 +419,21 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
                       StoreSectionWidget(stores: featuredStores),
                     ],
                     if (promotionProducts.isNotEmpty) ...[
-                      ShowTitle(text: "Tendances"),
+                      ShowTitle(
+                        text: "Tendances",
+                        onActionTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => HomeProductListPage(
+                                title: "Tendances",
+                                products: promotionProducts,
+                                section: 'trending',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                       _PromotionCarousel(products: promotionProducts),
                     ],
                     if (storyProducts.isNotEmpty)

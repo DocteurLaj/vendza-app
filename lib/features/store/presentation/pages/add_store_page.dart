@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
+import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
+import 'package:vendza/core/upload/image_upload_controller.dart';
 import 'package:vendza/features/auth/data/services/auth_session_service.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
-import 'package:vendza/features/store/presentation/widgets/custom_image_selector.dart';
+import 'package:vendza/shared/utils/phone_number.dart';
+import 'package:vendza/shared/utils/social_url.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
+import 'package:vendza/shared/widgets/dialog/app_popup_actions.dart';
+import 'package:vendza/shared/widgets/dialog/city_picker_dialog.dart';
+import 'package:vendza/shared/widgets/dialog/show_app_popup.dart';
 import 'package:vendza/shared/widgets/input/from_fiel_widget.dart';
 import 'package:vendza/shared/widgets/input/from_section.dart';
-import 'package:vendza/shared/widgets/dialog/city_picker_dialog.dart';
-import 'package:vendza/core/services/media/app_image_picker.dart';
-import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/input/phone_number_field.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
+import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/media/upload_image_slot.dart';
 
 class AddStore extends StatefulWidget {
   const AddStore({super.key});
@@ -91,7 +98,6 @@ class _AddStoreState extends State<AddStore> {
 
   String _name = "";
   String _description = "";
-  String _imageUrl = "";
   String _city = "Lubumbashi";
   String _whatsapp = "";
   String _instagram = "";
@@ -99,28 +105,38 @@ class _AddStoreState extends State<AddStore> {
   String? _nameError;
   String? _descriptionError;
   String? _imageError;
+  String? _socialError;
   bool _isSubmitting = false;
+  final _imageUpload = ImageUploadController(
+    pickTitle: "Choisir l'image du store",
+  );
+  final _whatsappFieldKey = GlobalKey<PhoneNumberFieldState>();
 
-  Future<void> _pickStoreImage() async {
-    if (_isSubmitting) return;
-    final selectedImage = await pickAppImage(
-      context,
-      title: "Choisir l'image du store",
-    );
+  @override
+  void initState() {
+    super.initState();
+    _imageUpload.addListener(_onUploadChanged);
+  }
 
-    if (selectedImage == null) return;
-    setState(() {
-      _imageUrl = selectedImage;
-      _imageError = null;
-    });
+  @override
+  void dispose() {
+    _imageUpload
+      ..removeListener(_onUploadChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onUploadChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _createStore() async {
-    if (_isSubmitting) return;
+    if (_isSubmitting || _imageUpload.blocksSubmit) return;
 
     final trimmedName = _name.trim();
     final trimmedDescription = _description.trim();
-    final trimmedImageUrl = _imageUrl.trim();
+    final instagramError = validateInstagramUrl(_instagram);
+    final facebookError = validateFacebookUrl(_facebook);
 
     setState(() {
       _nameError = trimmedName.isEmpty
@@ -129,12 +145,18 @@ class _AddStoreState extends State<AddStore> {
       _descriptionError = trimmedDescription.isEmpty
           ? "La description du store est obligatoire."
           : null;
-      _imageError = trimmedImageUrl.isEmpty
-          ? "Ajoutez une image pour creer ce store."
-          : null;
+      _imageError = _imageUpload.hasImage
+          ? null
+          : "Ajoutez une image pour creer ce store.";
+      _socialError = instagramError ?? facebookError;
     });
 
-    final errors = [?_nameError, ?_descriptionError, ?_imageError];
+    final errors = [
+      ?_nameError,
+      ?_descriptionError,
+      ?_imageError,
+      ?_socialError,
+    ];
     if (errors.isNotEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -142,30 +164,95 @@ class _AddStoreState extends State<AddStore> {
       return;
     }
 
+    final whatsapp = _whatsappFieldKey.currentState?.value ??
+        parsePhoneNumber(_whatsapp);
+    if (!whatsapp.isValid && whatsapp.national.isEmpty) {
+      final skipWhatsapp = await _confirmMissingWhatsapp();
+      if (skipWhatsapp != true) {
+        if (!mounted) return;
+        final fieldContext = _whatsappFieldKey.currentContext;
+        if (fieldContext != null && fieldContext.mounted) {
+          await Scrollable.ensureVisible(
+            fieldContext,
+            duration: const Duration(milliseconds: 280),
+            alignment: 0.2,
+          );
+        }
+        return;
+      }
+    } else if (!whatsapp.isValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Le numero WhatsApp est incomplet.'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
     try {
-      // New accounts are buyers; upload/store APIs require seller.
+      final imageUrl = await _imageUpload.ensureRemoteUrl();
       await authSessionService.becomeSeller();
       await catalogRepository.createStore(
         name: trimmedName,
         description: trimmedDescription,
         address: _city.trim(),
-        imagePath: trimmedImageUrl,
-        whatsappUrl: _whatsapp.trim(),
-        instagramUrl: _instagram.trim(),
-        facebookUrl: _facebook.trim(),
+        imagePath: imageUrl,
+        whatsappUrl: whatsapp.e164.isEmpty ? null : whatsappUrlFromPhone(whatsapp.e164),
+        instagramUrl: _instagram.trim().isEmpty ? null : _instagram.trim(),
+        facebookUrl: _facebook.trim().isEmpty ? null : _facebook.trim(),
       );
       syncStoreCustomizationFromCatalog();
       if (!mounted) return;
       Navigator.pop(context);
     } on Object catch (error) {
       if (!mounted) return;
+      final message = error is ApiException
+          ? error.message
+          : "Impossible de creer le store pour le moment.";
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  Future<bool?> _confirmMissingWhatsapp() {
+    return showAppPopup<bool>(
+      context: context,
+      size: PopupSize.medium,
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Ajouter un numero WhatsApp ?',
+                style: AppTextStyles.pageTitle(context),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Un numero WhatsApp permet aux clients de vous contacter depuis la page du store et les details d’un produit. Vous pouvez continuer sans, mais c’est fortement recommandé.',
+                style: TextStyle(
+                  color: AppColors.textSecondary(context),
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 18),
+              AppPopupActions(
+                cancelLabel: 'Continuer sans numero WhatsApp',
+                confirmLabel: 'Ajouter un numero WhatsApp',
+                onCancel: () => Navigator.pop(context, true),
+                onConfirm: () => Navigator.pop(context, false),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -180,17 +267,10 @@ class _AddStoreState extends State<AddStore> {
             children: [
               FormSection(
                 title: "Image *",
-                child: CustomImageSelector(
-                  title: _imageUrl.isEmpty
-                      ? "Ajouter une image"
-                      : "Remplacer l'image",
-                  subtitle: "Appuyez pour choisir une image",
-                  imageUrl: _imageUrl,
-                  icon: _imageUrl.isEmpty
-                      ? Icons.add_a_photo_outlined
-                      : Icons.edit_outlined,
-                  onTap: _pickStoreImage,
-                  height: 168,
+                child: UploadImageSlot(
+                  controller: _imageUpload,
+                  emptyTitle: "Ajouter une image",
+                  enabled: !_isSubmitting,
                 ),
               ),
               _FieldErrorText(message: _imageError),
@@ -236,11 +316,11 @@ class _AddStoreState extends State<AddStore> {
                 title: "Moyens de contact",
                 children: [
                   const _OptionalContactNotice(),
-                  FormFieldWidget(
-                    label: "Whatsapp",
-                    hint: "Ex: +243900000000 ou wa.me/...",
-                    keyboardType: TextInputType.phone,
-                    onChanged: (value) => _whatsapp = value,
+                  PhoneNumberField(
+                    key: _whatsappFieldKey,
+                    label: "WhatsApp",
+                    enabled: !_isSubmitting,
+                    onChanged: (value) => _whatsapp = value.e164,
                   ),
                   FormFieldWidget(
                     label: "Instagram",
@@ -264,7 +344,7 @@ class _AddStoreState extends State<AddStore> {
                       text: "Creer",
                       loadingText: "Creation...",
                       onPressed: _createStore,
-                      enabled: !_isSubmitting,
+                      enabled: !_isSubmitting && !_imageUpload.blocksSubmit,
                       isLoading: _isSubmitting,
                     ),
                   ),

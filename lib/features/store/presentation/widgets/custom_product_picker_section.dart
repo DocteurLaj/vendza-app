@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
-import 'package:vendza/features/store/presentation/widgets/custom_image_selector.dart';
+import 'package:vendza/core/upload/image_upload_controller.dart';
 import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
+import 'package:vendza/shared/widgets/media/upload_image_slot.dart';
 
 class CustomProductPickerSection extends StatelessWidget {
   const CustomProductPickerSection({
@@ -93,16 +94,14 @@ class CustomFormSection extends StatelessWidget {
 class CustomMediaSection extends StatelessWidget {
   const CustomMediaSection({
     super.key,
-    required this.coverImageUrl,
-    required this.profileImageUrl,
-    required this.onPickCover,
-    required this.onPickProfile,
+    required this.coverController,
+    required this.profileController,
+    this.enabled = true,
   });
 
-  final String coverImageUrl;
-  final String profileImageUrl;
-  final VoidCallback onPickCover;
-  final VoidCallback onPickProfile;
+  final ImageUploadController coverController;
+  final ImageUploadController profileController;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -111,21 +110,25 @@ class CustomMediaSection extends StatelessWidget {
       subtitle: "Ajoute une couverture et une image de profil.",
       child: Column(
         children: [
-          CustomImageSelector(
-            title: "Image de couverture",
+          UploadImageSlot(
+            controller: coverController,
+            emptyTitle: "Image de couverture",
+            filledTitle: "Image de couverture",
             subtitle: "Changer la bannière du store",
-            imageUrl: coverImageUrl,
-            icon: Icons.image_outlined,
-            onTap: onPickCover,
+            emptyIcon: Icons.image_outlined,
+            filledIcon: Icons.image_outlined,
+            enabled: enabled,
           ),
           const SizedBox(height: 12),
-          CustomImageSelector(
-            title: "Photo de profil",
+          UploadImageSlot(
+            controller: profileController,
+            emptyTitle: "Photo de profil",
+            filledTitle: "Photo de profil",
             subtitle: "Changer le logo ou avatar",
-            imageUrl: profileImageUrl,
-            icon: Icons.storefront_outlined,
-            onTap: onPickProfile,
+            emptyIcon: Icons.storefront_outlined,
+            filledIcon: Icons.storefront_outlined,
             height: 104,
+            enabled: enabled,
           ),
         ],
       ),
@@ -136,12 +139,12 @@ class CustomMediaSection extends StatelessWidget {
 class CustomSocialLinksSection extends StatelessWidget {
   const CustomSocialLinksSection({
     super.key,
-    required this.whatsappController,
+    required this.whatsappField,
     required this.instagramController,
     required this.facebookController,
   });
 
-  final TextEditingController whatsappController;
+  final Widget whatsappField;
   final TextEditingController instagramController;
   final TextEditingController facebookController;
 
@@ -152,12 +155,7 @@ class CustomSocialLinksSection extends StatelessWidget {
       subtitle: "Ajoute seulement les liens que tu veux afficher.",
       child: Column(
         children: [
-          _CustomTextField(
-            controller: whatsappController,
-            label: "WhatsApp",
-            hintText: "Ex: +243900000000 ou lien wa.me",
-            prefixIcon: const FaIcon(FontAwesomeIcons.whatsapp, size: 19),
-          ),
+          whatsappField,
           const SizedBox(height: 12),
           _CustomTextField(
             controller: instagramController,

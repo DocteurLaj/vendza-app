@@ -4,6 +4,8 @@ import 'package:vendza/core/session/current_user_store.dart';
 import 'package:vendza/features/profil/data/model/user_model.dart';
 import 'package:vendza/features/profil/data/services/profile_api_service.dart';
 import 'package:vendza/features/profil/presantation/widget/avatar_widget.dart';
+import 'package:vendza/shared/utils/phone_number.dart';
+import 'package:vendza/shared/widgets/input/phone_number_field.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 
 class MyProfilePage extends StatelessWidget {
@@ -93,8 +95,8 @@ Future<void> _showEditProfileSheet(BuildContext context, UserModel user) {
   final firstnameController = TextEditingController(text: user.firstname);
   final lastnameController = TextEditingController(text: user.lastname);
   final emailController = TextEditingController(text: user.email);
-  final phoneController = TextEditingController(text: user.phoneNumber);
   final addressController = TextEditingController(text: user.address);
+  final phoneFieldKey = GlobalKey<PhoneNumberFieldState>();
 
   return showModalBottomSheet<void>(
     context: context,
@@ -129,7 +131,11 @@ Future<void> _showEditProfileSheet(BuildContext context, UserModel user) {
               _EditField(label: "Prénom", controller: firstnameController),
               _EditField(label: "Postnom", controller: lastnameController),
               _EditField(label: "Email", controller: emailController),
-              _EditField(label: "Téléphone", controller: phoneController),
+              PhoneNumberField(
+                key: phoneFieldKey,
+                label: "Téléphone",
+                initialValue: user.phoneNumber,
+              ),
               _EditField(label: "Adresse", controller: addressController),
               const SizedBox(height: 12),
               FilledButton(
@@ -153,10 +159,22 @@ Future<void> _showEditProfileSheet(BuildContext context, UserModel user) {
                       ? fullName
                       : nameController.text.trim();
 
+                  final phone =
+                      phoneFieldKey.currentState?.value ??
+                      parsePhoneNumber(user.phoneNumber);
+                  if (phone.national.isNotEmpty && !phone.isValid) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Le numéro de téléphone est incomplet'),
+                      ),
+                    );
+                    return;
+                  }
+
                   try {
                     final profileApi = ProfileApiService();
                     await profileApi.updateFullName(displayName);
-                    await profileApi.updatePhone(phoneController.text.trim());
+                    await profileApi.updatePhone(phone.e164);
                     if (addressController.text.trim().isNotEmpty) {
                       await profileApi.updateAddress(
                         city: addressController.text.trim(),
@@ -170,7 +188,7 @@ Future<void> _showEditProfileSheet(BuildContext context, UserModel user) {
                         firstname: firstnameController.text.trim(),
                         lastname: lastnameController.text.trim(),
                         email: email,
-                        phoneNumber: phoneController.text.trim(),
+                        phoneNumber: phone.e164,
                         address: addressController.text.trim(),
                         urlimage: user.urlimage,
                       ),
@@ -201,7 +219,6 @@ Future<void> _showEditProfileSheet(BuildContext context, UserModel user) {
     firstnameController.dispose();
     lastnameController.dispose();
     emailController.dispose();
-    phoneController.dispose();
     addressController.dispose();
   });
 }
@@ -257,7 +274,7 @@ class _ProfileIdentityCard extends StatelessWidget {
             name: name,
             email: email,
             urlimage: imageUrl,
-            editable: true,
+            editable: false,
             showIdentity: false,
             showEditLabel: false,
             radius: 30,

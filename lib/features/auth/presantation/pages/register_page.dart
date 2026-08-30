@@ -12,7 +12,9 @@ import 'package:vendza/features/auth/presantation/widgets/auth_switch_action.dar
 import 'package:vendza/features/auth/presantation/widgets/google_sign_in_button.dart';
 import 'package:vendza/features/auth/presantation/widgets/input_widget.dart';
 import 'package:vendza/navigation/main_page.dart';
+import 'package:vendza/shared/utils/phone_number.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
+import 'package:vendza/shared/widgets/input/phone_number_field.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -27,7 +29,7 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _isGoogleLoading = false;
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
+  final _phoneFieldKey = GlobalKey<PhoneNumberFieldState>();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -35,7 +37,6 @@ class _RegisterPageState extends State<RegisterPage> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -45,7 +46,8 @@ class _RegisterPageState extends State<RegisterPage> {
     if (_isLoading || _isGoogleLoading) return;
     final fullName = _nameController.text.trim();
     final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
+    final phone =
+        _phoneFieldKey.currentState?.value ?? parsePhoneNumber('');
     final password = _passwordController.text.trim();
     final confirm = _confirmPasswordController.text.trim();
 
@@ -57,8 +59,12 @@ class _RegisterPageState extends State<RegisterPage> {
       _showError('Veuillez entrer une adresse email valide');
       return;
     }
-    if (phone.isEmpty) {
-      _showError('Le num\u00e9ro de t\u00e9l\u00e9phone est requis');
+    if (!phone.isValid) {
+      _showError(
+        phone.national.isEmpty
+            ? 'Le numéro de téléphone est requis'
+            : 'Le numéro de téléphone est incomplet',
+      );
       return;
     }
     if (password.length < 8) {
@@ -76,7 +82,7 @@ class _RegisterPageState extends State<RegisterPage> {
         email: email,
         password: password,
         fullName: fullName,
-        phone: phone,
+        phone: phone.e164,
       );
       if (!mounted) return;
       _openMainPage();
@@ -128,13 +134,10 @@ class _RegisterPageState extends State<RegisterPage> {
             textInputAction: TextInputAction.next,
           ),
           SizedBox(height: _fieldGap(context)),
-          MyTextField(
-            controller: _phoneController,
-            hintText: 'Num\u00e9ro de t\u00e9l\u00e9phone',
-            obscureText: false,
-            iconPrefix: Icons.phone_outlined,
-            keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.next,
+          PhoneNumberField(
+            key: _phoneFieldKey,
+            label: 'Numéro de téléphone',
+            enabled: !_isLoading && !_isGoogleLoading,
           ),
           SizedBox(height: _fieldGap(context)),
           MyTextField(
