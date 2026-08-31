@@ -98,6 +98,7 @@ class _AppInteractiveState extends State<AppInteractive> {
         child: InkWell(
           onTap: widget.onTap,
           onLongPress: widget.onLongPress,
+          onSecondaryTap: widget.onLongPress,
           borderRadius: widget.borderRadius,
           splashColor: AppColors.accent(
             context,

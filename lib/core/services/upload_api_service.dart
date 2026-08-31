@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:vendza/core/services/api_client.dart';
 import 'package:vendza/core/services/api_endpoints.dart';
 import 'package:vendza/core/services/api_exception.dart';
+import 'package:vendza/core/services/media/data_image.dart';
 import 'package:vendza/features/auth/data/services/auth_api_service.dart';
 
 bool isRemoteMediaUrl(String path) {
@@ -179,6 +180,13 @@ class UploadApiService {
 
   Future<Uint8List> _readBytes(XFile file) async {
     try {
+      if (isDataImagePath(file.path)) {
+        final bytes = decodeDataImageBytes(file.path);
+        if (bytes.isEmpty) {
+          throw const ApiException(message: 'Image locale introuvable.');
+        }
+        return bytes;
+      }
       final bytes = await file.readAsBytes();
       if (bytes.isEmpty) {
         throw const ApiException(message: 'Image locale introuvable.');
@@ -205,6 +213,11 @@ class UploadApiService {
   }
 
   String _contentType(XFile file, String fileName) {
+    if (isDataImagePath(file.path)) {
+      final header = file.path.split(';').first;
+      final mime = header.startsWith('data:') ? header.substring(5) : header;
+      if (mime.startsWith('image/')) return mime;
+    }
     final mime = file.mimeType?.trim().toLowerCase() ?? '';
     if (mime.startsWith('image/')) return mime;
     final extension = fileName.split('.').last.toLowerCase();

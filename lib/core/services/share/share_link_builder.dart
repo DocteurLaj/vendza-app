@@ -1,7 +1,7 @@
 class ShareLinkBuilder {
   const ShareLinkBuilder._();
 
-  static const String baseHost = 'vendza.app';
+  static const String baseHost = 'app.vendza.online';
 
   static String productUrl(String id) => 'https://$baseHost/p/$id';
 

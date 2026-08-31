@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -19,7 +20,9 @@ class AppShareService {
         'Découvre ${product.name} sur Vendza — $priceLabel\n'
         '${ShareLinkBuilder.productUrl(product.id)}';
 
-    final imageFile = await ShareImageResolver.resolve(product.imageurl);
+    final imageFile = kIsWeb
+        ? null
+        : await ShareImageResolver.resolve(product.imageurl);
     if (!context.mounted) return;
     await _share(context, message, imageFile: imageFile);
   }
@@ -39,7 +42,9 @@ class AppShareService {
     buffer.writeln();
     buffer.write(ShareLinkBuilder.storeUrl(store.id));
 
-    final imageFile = await ShareImageResolver.resolve(store.image);
+    final imageFile = kIsWeb
+        ? null
+        : await ShareImageResolver.resolve(store.image);
     if (!context.mounted) return;
     await _share(context, buffer.toString(), imageFile: imageFile);
   }
@@ -53,14 +58,24 @@ class AppShareService {
     final shareOrigin = _shareOrigin(context);
 
     final ShareResult result;
-    if (imageFile != null) {
-      result = await Share.shareXFiles(
-        [imageFile],
-        text: trimmed,
-        sharePositionOrigin: shareOrigin,
+    try {
+      if (imageFile != null) {
+        result = await Share.shareXFiles(
+          [imageFile],
+          text: trimmed,
+          sharePositionOrigin: shareOrigin,
+        );
+      } else {
+        result = await Share.share(trimmed, sharePositionOrigin: shareOrigin);
+      }
+    } on Object {
+      if (!context.mounted) return;
+      await Clipboard.setData(ClipboardData(text: trimmed));
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lien copié dans le presse-papier')),
       );
-    } else {
-      result = await Share.share(trimmed, sharePositionOrigin: shareOrigin);
+      return;
     }
 
     if (!context.mounted) return;

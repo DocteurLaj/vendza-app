@@ -17,7 +17,7 @@ void main() {
     );
     expect(
       message.indexOf(WhatsappProductInquiry.continueWritingMark),
-      lessThan(message.indexOf('https://vendza.app/p/42')),
+      lessThan(message.indexOf('https://app.vendza.online/p/42')),
     );
   });
 
@@ -31,7 +31,7 @@ void main() {
 
     final promptAt = message.indexOf(WhatsappProductInquiry.continueWritingMark);
     final photoAt = message.indexOf('https://cdn.vendza.app/robe.jpg');
-    final productAt = message.indexOf('https://vendza.app/p/42');
+    final productAt = message.indexOf('https://app.vendza.online/p/42');
 
     expect(photoAt, greaterThan(promptAt));
     expect(productAt, greaterThan(photoAt));
@@ -46,7 +46,7 @@ void main() {
     );
 
     expect(message, isNot(contains('localhost')));
-    expect(message, contains('https://vendza.app/p/7'));
+    expect(message, contains('https://app.vendza.online/p/7'));
   });
 
   test('does not embed the image URL when the photo is attached separately', () {

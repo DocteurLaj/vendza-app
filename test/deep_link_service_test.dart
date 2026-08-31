@@ -16,7 +16,31 @@ void main() {
     expect((target as StoreDeepLink).id, '2');
   });
 
-  test('parseDeepLink product via https', () {
+  test('parseDeepLink product via app.vendza.online', () {
+    final target = service.parseDeepLink(
+      Uri.parse('https://app.vendza.online/p/3'),
+    );
+    expect(target, isA<ProductDeepLink>());
+    expect((target as ProductDeepLink).id, '3');
+  });
+
+  test('parseDeepLink store via app.vendza.online', () {
+    final target = service.parseDeepLink(
+      Uri.parse('https://app.vendza.online/store/4'),
+    );
+    expect(target, isA<StoreDeepLink>());
+    expect((target as StoreDeepLink).id, '4');
+  });
+
+  test('parseDeepLink password reset via app.vendza.online', () {
+    final target = service.parseDeepLink(
+      Uri.parse('https://app.vendza.online/reset-password?token=secure-token'),
+    );
+    expect(target, isA<ResetPasswordDeepLink>());
+    expect((target as ResetPasswordDeepLink).token, 'secure-token');
+  });
+
+  test('parseDeepLink product via vendza.app', () {
     final target = service.parseDeepLink(Uri.parse('https://vendza.app/p/3'));
     expect(target, isA<ProductDeepLink>());
     expect((target as ProductDeepLink).id, '3');

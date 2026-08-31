@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:vendza/core/services/api_config.dart';
+import 'package:vendza/core/services/media/data_image.dart';
 
 import 'smart_image_io.dart'
     if (dart.library.html) 'smart_image_web.dart'
@@ -116,6 +117,23 @@ class SmartImage extends StatelessWidget {
             alignment: alignment,
             errorBuilder: (_, _, _) => fallback,
           );
+        } else if (isDataImagePath(trimmedPath)) {
+          Uint8List? bytes;
+          try {
+            bytes = decodeDataImageBytes(trimmedPath);
+          } on Object {
+            bytes = null;
+          }
+          image = bytes == null
+              ? fallback
+              : Image.memory(
+                  bytes,
+                  width: width,
+                  height: height,
+                  fit: fit,
+                  alignment: alignment,
+                  errorBuilder: (_, _, _) => fallback,
+                );
         } else if (isHttpPath(trimmedPath) && !kIsWeb) {
           final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0;
           final cache = resolveMemCacheSize(

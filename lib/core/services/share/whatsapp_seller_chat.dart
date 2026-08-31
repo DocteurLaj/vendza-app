@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -19,11 +17,13 @@ class WhatsappSellerChat {
     String imageUrl = '',
   }) async {
     final phone = WhatsappProductInquiry.phoneDigits(whatsappLink);
-    final imageFile = imageUrl.trim().isEmpty
+    final imageFile = kIsWeb || imageUrl.trim().isEmpty
         ? null
         : await ShareImageResolver.resolve(imageUrl);
 
-    if (!kIsWeb && Platform.isAndroid && phone != null) {
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        phone != null) {
       final caption = WhatsappProductInquiry.message(
         productId: productId,
         productName: productName,

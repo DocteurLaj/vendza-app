@@ -123,6 +123,7 @@ class DeepLinkService {
 
     final webHost = uri.host.toLowerCase();
     const vendzaWebHosts = {
+      'app.vendza.online',
       'vendza.app',
       'www.vendza.app',
       'vendza.online',

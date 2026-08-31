@@ -21,16 +21,7 @@ class AppImagePicker {
 
   Future<String?> pick(BuildContext context, {required String title}) async {
     try {
-      if (kIsWeb) {
-        return _persistPickedFile(
-          await _imagePicker.pickImage(
-            source: ImageSource.gallery,
-            imageQuality: 85,
-          ),
-        );
-      }
-
-      if (platform.isMobile) {
+      if (kIsWeb || platform.isMobile) {
         final source = await showImageSourceSheet(
           context: context,
           title: title,
