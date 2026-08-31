@@ -45,6 +45,9 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
   void initState() {
     super.initState();
     _catalogTabs = TabController(length: 2, vsync: this);
+    _catalogTabs.addListener(() {
+      if (!_catalogTabs.indexIsChanging && mounted) setState(() {});
+    });
   }
 
   @override
@@ -211,174 +214,43 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
                   onDelete: _deleteSelectedProducts,
                 )
               : AppBar(title: Text(_currentStore.name)),
-          body: RefreshIndicator(
-            notificationPredicate: (notification) =>
-                notification.depth == 0 || notification.depth == 1,
-            onRefresh: () => catalogRepository.softRefreshCatalog(force: true),
-            child: NestedScrollView(
-              headerSliverBuilder: (context, innerBoxIsScrolled) {
-                return [
-                  SliverToBoxAdapter(
-                    child: ResponsiveContent(
-                      maxWidth: AppBreakpoints.contentMaxWidth,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        children: [
-                          const Expanded(child: SearchBarWidget()),
-                          const SizedBox(width: 20),
-                          Row(
-                            children: configuredStoreSocials(_currentStore.id)
-                                .map((social) {
-                              final icon = social.gradient != null
-                                  ? ShaderMask(
-                                      shaderCallback: (bounds) =>
-                                          social.gradient!.createShader(bounds),
-                                      child: FaIcon(
-                                        social.icon,
-                                        color: Colors.white,
-                                        size: 35,
-                                      ),
-                                    )
-                                  : FaIcon(
-                                      social.icon,
-                                      color: social.color,
-                                      size: 35,
-                                    );
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 10),
-                                child: GestureDetector(
-                                  onTap: () => _openSocial(context, social.url),
-                                  child: icon,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
-                  if (!_selectionMode)
-                    SliverToBoxAdapter(
-                      child: ResponsiveContent(
-                        maxWidth: AppBreakpoints.contentMaxWidth,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 14,
-                          runSpacing: 14,
-                          children: [
-                            ActionButton(
-                              icon: Icons.add_box_outlined,
-                              label: "Produit",
-                              onTap: _openAddProduct,
-                            ),
-                            ActionButton(
-                              icon: Icons.category_outlined,
-                              label: "Catégorie",
-                              visual: StackedActionPreview(
-                                products: _categoryPreviewProducts,
-                                fallbackIcon: Icons.category_outlined,
-                              ),
-                              onTap: () async {
-                                _requireSyncedStore(() async {
-                                  await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const CathegoryPage(canManage: true),
-                                    ),
-                                  );
-                                  if (mounted) setState(() {});
-                                });
-                              },
-                            ),
-                            ActionButton(
-                              icon: Icons.collections_outlined,
-                              label: "Collection",
-                              visual: StackedActionPreview(
-                                products: _collectionPreviewProducts,
-                                fallbackIcon: Icons.collections_outlined,
-                              ),
-                              onTap: () {
-                                _requireSyncedStore(() async {
-                                  await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => CollectionPage(
-                                        storeId: _currentStore.id,
-                                        canManage: true,
-                                      ),
-                                    ),
-                                  );
-                                  if (mounted) setState(() {});
-                                });
-                              },
-                            ),
-                            ActionButton(
-                              icon: Icons.receipt_long_outlined,
-                              label: "Commandes",
-                              onTap: () {
-                                _requireSyncedStore(() {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          StoreOrdersPage(store: _currentStore),
-                                    ),
-                                  );
-                                });
-                              },
-                            ),
-                            ActionButton(
-                              icon: Icons.settings_outlined,
-                              label: "Custom",
-                              onTap: () {
-                                _requireSyncedStore(() async {
-                                  activateStoreCustomization(_currentStore.id);
-                                  await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          CustomPage(store: _currentStore),
-                                    ),
-                                  );
-                                  if (mounted) setState(() {});
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _StoreCatalogTabBarDelegate(
-                      tabBar: TabBar(
-                        controller: _catalogTabs,
-                        indicatorColor: AppColors.accent(context),
-                        indicatorWeight: 3,
-                        indicatorSize: TabBarIndicatorSize.tab,
-                        labelColor: AppColors.accent(context),
-                        unselectedLabelColor: AppColors.textSecondary(context),
-                        tabs: const [
-                          Tab(text: 'En ligne'),
-                          Tab(text: 'Hors ligne'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ];
-              },
-              body: TabBarView(
-                controller: _catalogTabs,
-                children: [
-                  _catalogList(_onlineProducts),
-                  _catalogList(_offlineProducts),
-                ],
+          body: Column(
+            children: [
+              _storeToolbar(context),
+              if (!_selectionMode) _storeActions(context),
+              Material(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: TabBar(
+                  controller: _catalogTabs,
+                  indicatorColor: AppColors.accent(context),
+                  indicatorWeight: 3,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelColor: AppColors.accent(context),
+                  unselectedLabelColor: AppColors.textSecondary(context),
+                  tabs: const [
+                    Tab(text: 'En ligne'),
+                    Tab(text: 'Hors ligne'),
+                  ],
+                ),
               ),
-            ),
+              Expanded(
+                child: TabBarView(
+                  controller: _catalogTabs,
+                  children: [
+                    RefreshIndicator(
+                      onRefresh: () =>
+                          catalogRepository.softRefreshCatalog(force: true),
+                      child: _catalogList(_onlineProducts),
+                    ),
+                    RefreshIndicator(
+                      onRefresh: () =>
+                          catalogRepository.softRefreshCatalog(force: true),
+                      child: _catalogList(_offlineProducts),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           floatingActionButton: _selectionMode
               ? null
@@ -389,6 +261,141 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
                 ),
         );
       },
+    );
+  }
+
+  Widget _storeToolbar(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      child: ResponsiveContent(
+        maxWidth: AppBreakpoints.contentMaxWidth,
+        child: Row(
+          children: [
+            const Expanded(child: SearchBarWidget()),
+            const SizedBox(width: 20),
+            Row(
+              children: configuredStoreSocials(_currentStore.id).map((social) {
+                final icon = social.gradient != null
+                    ? ShaderMask(
+                        shaderCallback: (bounds) =>
+                            social.gradient!.createShader(bounds),
+                        child: FaIcon(
+                          social.icon,
+                          color: Colors.white,
+                          size: 35,
+                        ),
+                      )
+                    : FaIcon(
+                        social.icon,
+                        color: social.color,
+                        size: 35,
+                      );
+                return Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: GestureDetector(
+                    onTap: () => _openSocial(context, social.url),
+                    child: icon,
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _storeActions(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: ResponsiveContent(
+        maxWidth: AppBreakpoints.contentMaxWidth,
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 14,
+          runSpacing: 14,
+          children: [
+            ActionButton(
+              icon: Icons.add_box_outlined,
+              label: "Produit",
+              onTap: _openAddProduct,
+            ),
+            ActionButton(
+              icon: Icons.category_outlined,
+              label: "Catégorie",
+              visual: StackedActionPreview(
+                products: _categoryPreviewProducts,
+                fallbackIcon: Icons.category_outlined,
+              ),
+              onTap: () async {
+                _requireSyncedStore(() async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          const CathegoryPage(canManage: true),
+                    ),
+                  );
+                  if (mounted) setState(() {});
+                });
+              },
+            ),
+            ActionButton(
+              icon: Icons.collections_outlined,
+              label: "Collection",
+              visual: StackedActionPreview(
+                products: _collectionPreviewProducts,
+                fallbackIcon: Icons.collections_outlined,
+              ),
+              onTap: () {
+                _requireSyncedStore(() async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CollectionPage(
+                        storeId: _currentStore.id,
+                        canManage: true,
+                      ),
+                    ),
+                  );
+                  if (mounted) setState(() {});
+                });
+              },
+            ),
+            ActionButton(
+              icon: Icons.receipt_long_outlined,
+              label: "Commandes",
+              onTap: () {
+                _requireSyncedStore(() {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          StoreOrdersPage(store: _currentStore),
+                    ),
+                  );
+                });
+              },
+            ),
+            ActionButton(
+              icon: Icons.settings_outlined,
+              label: "Custom",
+              onTap: () {
+                _requireSyncedStore(() async {
+                  activateStoreCustomization(_currentStore.id);
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CustomPage(store: _currentStore),
+                    ),
+                  );
+                  if (mounted) setState(() {});
+                });
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -412,35 +419,5 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
         const SliverToBoxAdapter(child: SizedBox(height: 96)),
       ],
     );
-  }
-}
-
-class _StoreCatalogTabBarDelegate extends SliverPersistentHeaderDelegate {
-  _StoreCatalogTabBarDelegate({required this.tabBar});
-
-  final TabBar tabBar;
-
-  @override
-  double get minExtent => tabBar.preferredSize.height;
-
-  @override
-  double get maxExtent => tabBar.preferredSize.height;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return Material(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      elevation: overlapsContent ? 1 : 0,
-      child: tabBar,
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _StoreCatalogTabBarDelegate oldDelegate) {
-    return tabBar != oldDelegate.tabBar;
   }
 }

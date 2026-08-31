@@ -1,14 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 
-import 'package:path_provider/path_provider.dart';
 import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/services/upload_api_service.dart';
 import 'package:vendza/core/session/current_user_store.dart';
 import 'package:vendza/core/sync/entity_sync_status.dart';
+import 'package:vendza/core/sync/local_create_queue_storage.dart';
 import 'package:vendza/features/auth/data/services/auth_api_service.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/features/store/data/services/product_api_service.dart';
@@ -107,14 +106,12 @@ class LocalCreateQueue {
     required AuthApiService auth,
     required void Function() onChanged,
     required ListStoreModel Function(Map<String, dynamic> json) storeFromApi,
-    Future<File> Function()? fileResolver,
   }) : _uploads = uploads,
        _stores = stores,
        _productApi = products,
        _auth = auth,
        _onChanged = onChanged,
-       _storeFromApi = storeFromApi,
-       _fileResolver = fileResolver;
+       _storeFromApi = storeFromApi;
 
   final UploadApiService _uploads;
   final StoreApiService _stores;
@@ -122,7 +119,6 @@ class LocalCreateQueue {
   final AuthApiService _auth;
   final void Function() _onChanged;
   final ListStoreModel Function(Map<String, dynamic> json) _storeFromApi;
-  final Future<File> Function()? _fileResolver;
 
   final List<LocalCreateOp> _ops = [];
   bool _busy = false;
@@ -174,17 +170,11 @@ class LocalCreateQueue {
     }
   }
 
-  Future<File> _file() async {
-    if (_fileResolver != null) return _fileResolver();
-    final dir = await getApplicationDocumentsDirectory();
-    return File('${dir.path}/vendza_local_creates.json');
-  }
-
   Future<void> load() async {
     try {
-      final file = await _file();
-      if (!await file.exists()) return;
-      final decoded = jsonDecode(await file.readAsString());
+      final raw = await readLocalCreateQueueJson();
+      if (raw == null || raw.trim().isEmpty) return;
+      final decoded = jsonDecode(raw);
       if (decoded is! List) return;
       _ops
         ..clear()
@@ -200,8 +190,7 @@ class LocalCreateQueue {
 
   Future<void> persist() async {
     try {
-      final file = await _file();
-      await file.writeAsString(
+      await writeLocalCreateQueueJson(
         jsonEncode(_ops.map((op) => op.toJson()).toList()),
       );
     } on Object {
