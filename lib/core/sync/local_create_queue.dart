@@ -630,23 +630,25 @@ class LocalCreateQueue {
     _pushProgress(op, 0.08, force: true);
     await persist();
 
+    await _ensureSeller();
+    _pushProgress(op, 0.12, force: true);
+
     final hasBanner =
         (op.payload['bannerPath'] as String?)?.trim().isNotEmpty == true;
     final imageWeight = hasBanner ? 0.32 : 0.62;
     final imageUrl = await _uploadPath(
       op.payload['imagePath'] as String?,
-      onProgress: (value) => _pushProgress(op, 0.08 + imageWeight * value),
+      onProgress: (value) => _pushProgress(op, 0.12 + imageWeight * value),
     );
     final bannerUrl = await _uploadPath(
       op.payload['bannerPath'] as String?,
       onProgress: (value) =>
-          _pushProgress(op, 0.08 + imageWeight + 0.30 * value),
+          _pushProgress(op, 0.12 + imageWeight + 0.26 * value),
     );
     op.payload['imagePath'] = imageUrl;
     if (bannerUrl.isNotEmpty) op.payload['bannerPath'] = bannerUrl;
 
     _pushProgress(op, 0.72, force: true);
-    await _ensureSeller();
     op.status = LocalCreatePhase.creating;
     _pushProgress(op, 0.82, force: true);
     await persist();
@@ -734,9 +736,12 @@ class LocalCreateQueue {
     _pushProgress(op, 0.08, force: true);
     await persist();
 
+    await _ensureSeller();
+    _pushProgress(op, 0.12, force: true);
+
     final imageUrl = await _uploadPath(
       op.payload['imagePath'] as String?,
-      onProgress: (value) => _pushProgress(op, 0.08 + 0.62 * value),
+      onProgress: (value) => _pushProgress(op, 0.12 + 0.58 * value),
     );
     op.payload['imagePath'] = imageUrl;
     final variation = await _resolveVariations(
@@ -934,9 +939,12 @@ class LocalCreateQueue {
     _pushProgress(op, 0.08, force: true);
     await persist();
 
+    await _ensureSeller();
+    _pushProgress(op, 0.12, force: true);
+
     final imageUrl = await _uploadPath(
       op.payload['imagePath'] as String?,
-      onProgress: (value) => _pushProgress(op, 0.08 + 0.54 * value),
+      onProgress: (value) => _pushProgress(op, 0.12 + 0.50 * value),
     );
     op.payload['imagePath'] = imageUrl;
     Map<String, dynamic>? variationInput;
