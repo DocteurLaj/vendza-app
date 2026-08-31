@@ -28,9 +28,11 @@ class _FakeUploadApi extends UploadApiService {
   Future<String> uploadLocalImage(
     String localPath, {
     String purpose = 'catalog',
+    void Function(double progress)? onProgress,
   }) async {
     lastPath = localPath;
     lastPurpose = purpose;
+    onProgress?.call(1);
     final thrown = error;
     if (thrown != null) {
       throw thrown;

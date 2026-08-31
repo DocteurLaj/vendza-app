@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
+import 'package:vendza/core/constants/colors.dart';
 
 class AppPopupShell extends StatelessWidget {
   const AppPopupShell({
@@ -24,7 +25,9 @@ class AppPopupShell extends StatelessWidget {
 
     return Dialog(
       insetPadding: AppBreakpoints.popupInsetPadding(screenSize.width),
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.elevatedSurface(context),
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth, maxHeight: maxHeight),
         child: child,

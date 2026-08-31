@@ -117,6 +117,8 @@ class _OnboardingActions extends StatelessWidget {
             width: double.infinity,
             child: AppBouton(
               text: AppStrings.login,
+              backgroundColor: AppColors.primary,
+              textColor: Colors.white,
               onPressed: () {
                 Navigator.push(
                   context,

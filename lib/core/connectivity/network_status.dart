@@ -2,13 +2,31 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:vendza/core/services/api_exception.dart';
 
 bool isNetworkFailure(Object error) {
-  if (error is ApiException) {
-    return error.statusCode == null;
+  if (error is TimeoutException || error is http.ClientException) {
+    return true;
   }
-  return true;
+  if (error is ApiException) {
+    if (error.statusCode == 408) return true;
+    if (error.statusCode != null) return false;
+    final message = error.message.toLowerCase();
+    if (message.contains('introuvable') ||
+        message.contains('invalide') ||
+        message.contains('volumineuse') ||
+        message.contains('ajoutez une image')) {
+      return false;
+    }
+    return true;
+  }
+  final label = error.toString().toLowerCase();
+  return label.contains('socketexception') ||
+      label.contains('failed host lookup') ||
+      label.contains('network is unreachable') ||
+      label.contains('connection refused') ||
+      label.contains('connection reset');
 }
 
 bool isConfirmedAuthFailure(Object error) {
@@ -23,7 +41,10 @@ class NetworkStatus {
   static StreamSubscription<List<ConnectivityResult>>? _subscription;
 
   static Future<void> start() async {
-    if (_subscription != null) return;
+    if (_subscription != null) {
+      await recheck();
+      return;
+    }
     try {
       final connectivity = Connectivity();
       _applyResults(await connectivity.checkConnectivity());
@@ -33,11 +54,14 @@ class NetworkStatus {
     }
   }
 
+  static bool _isOfflineResult(List<ConnectivityResult> results) {
+    if (results.isEmpty) return false;
+    return results.every((result) => result == ConnectivityResult.none);
+  }
+
   static void _applyResults(List<ConnectivityResult> results) {
-    final offline =
-        results.isEmpty ||
-        results.every((result) => result == ConnectivityResult.none);
-    if (offline) {
+    if (results.isEmpty) return;
+    if (_isOfflineResult(results)) {
       reportOffline();
     } else {
       reportOnline();
@@ -54,7 +78,15 @@ class NetworkStatus {
 
   static void reportError(Object error) {
     if (isNetworkFailure(error) && !isConfirmedAuthFailure(error)) {
-      reportOffline();
+      unawaited(recheck());
+    }
+  }
+
+  static Future<void> recheck() async {
+    try {
+      _applyResults(await Connectivity().checkConnectivity());
+    } on Object {
+      // Keep the last known status if the plugin cannot answer.
     }
   }
 

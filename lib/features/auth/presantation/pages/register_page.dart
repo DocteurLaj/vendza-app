@@ -196,7 +196,7 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             const SizedBox(height: 18),
             GoogleSignInButton(
-              enabled: isChecked && !_isLoading,
+              enabled: !_isLoading,
               onLoadingChanged: (isLoading) {
                 if (mounted) setState(() => _isGoogleLoading = isLoading);
               },

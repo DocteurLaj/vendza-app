@@ -1,3 +1,5 @@
+import 'package:vendza/core/sync/entity_sync_status.dart';
+
 class ProductVariantModel {
   final String name;
   final String price;
@@ -25,6 +27,10 @@ class ProductModel {
   final int contactClicks;
   final bool isActive;
   final List<ProductVariantModel> variants;
+  final String localId;
+  final EntitySyncStatus syncStatus;
+  final double syncProgress;
+  final String? syncError;
 
   ProductModel({
     required this.id,
@@ -39,6 +45,10 @@ class ProductModel {
     this.contactClicks = 0,
     this.isActive = true,
     this.variants = const [],
+    this.localId = "",
+    this.syncStatus = EntitySyncStatus.online,
+    this.syncProgress = 1,
+    this.syncError,
   });
 
   ProductModel copyWith({
@@ -54,6 +64,10 @@ class ProductModel {
     int? contactClicks,
     bool? isActive,
     List<ProductVariantModel>? variants,
+    String? localId,
+    EntitySyncStatus? syncStatus,
+    double? syncProgress,
+    String? syncError,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -68,6 +82,10 @@ class ProductModel {
       contactClicks: contactClicks ?? this.contactClicks,
       isActive: isActive ?? this.isActive,
       variants: variants ?? this.variants,
+      localId: localId ?? this.localId,
+      syncStatus: syncStatus ?? this.syncStatus,
+      syncProgress: syncProgress ?? this.syncProgress,
+      syncError: syncError ?? this.syncError,
     );
   }
 }
