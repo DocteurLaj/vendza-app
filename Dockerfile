@@ -14,9 +14,13 @@ RUN apt-get update \
     && curl -fsSL "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
       | tar -xJ -C /opt
 
-ENV PATH="/opt/flutter/bin:/opt/flutter/bin/cache/dart-sdk/bin:${PATH}"
+ENV PATH="/opt/flutter/bin:/opt/flutter/bin/cache/dart-sdk/bin:${PATH}" \
+    GIT_CONFIG_COUNT=1 \
+    GIT_CONFIG_KEY_0=safe.directory \
+    GIT_CONFIG_VALUE_0=/opt/flutter
 
-RUN flutter config --no-analytics \
+RUN git config --global --add safe.directory /opt/flutter \
+    && flutter config --no-analytics \
     && flutter precache --web
 
 WORKDIR /app
