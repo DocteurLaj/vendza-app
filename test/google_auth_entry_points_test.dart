@@ -32,7 +32,7 @@ void main() {
     expect(find.byKey(const ValueKey('google-sign-in-button')), findsOneWidget);
   });
 
-  testWidgets('registration requires terms before Google Sign-In', (
+  testWidgets('registration exposes Google Sign-In without waiting for terms', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(800, 1600);
@@ -45,16 +45,6 @@ void main() {
     final googleButton = tester.widget<OutlinedButton>(
       find.byKey(const ValueKey('google-sign-in-button')),
     );
-    expect(googleButton.onPressed, isNull);
-
-    await tester.ensureVisible(find.byType(Checkbox));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byType(Checkbox));
-    await tester.pump();
-
-    final enabledButton = tester.widget<OutlinedButton>(
-      find.byKey(const ValueKey('google-sign-in-button')),
-    );
-    expect(enabledButton.onPressed, isNotNull);
+    expect(googleButton.onPressed, isNotNull);
   });
 }
