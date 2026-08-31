@@ -1,5 +1,6 @@
-import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:http/http.dart' as http;
 import 'package:vendza/core/services/api_client.dart';
 import 'package:vendza/core/services/api_endpoints.dart';
@@ -88,17 +89,13 @@ class UploadApiService {
     required String purpose,
     void Function(double progress)? onProgress,
   }) async {
-    final file = File(localPath);
-    if (!file.existsSync()) {
-      throw const ApiException(message: 'Image locale introuvable.');
-    }
-
-    final size = await file.length();
+    final file = XFile(localPath);
+    final bytes = await _readBytes(file);
     final maxBytes = purpose == 'avatar' ? 5 * 1024 * 1024 : 8 * 1024 * 1024;
-    if (size <= 0) {
+    if (bytes.isEmpty) {
       throw const ApiException(message: 'Image locale introuvable.');
     }
-    if (size > maxBytes) {
+    if (bytes.length > maxBytes) {
       throw ApiException(
         message: purpose == 'avatar'
             ? 'Image trop volumineuse (max 5 Mo).'
@@ -108,13 +105,8 @@ class UploadApiService {
 
     onProgress?.call(0.08);
 
-    final extension = localPath.split('.').last.toLowerCase();
-    final contentType = switch (extension) {
-      'png' => 'image/png',
-      'webp' => 'image/webp',
-      _ => 'image/jpeg',
-    };
-    final fileName = localPath.split(Platform.pathSeparator).last;
+    final fileName = _fileName(file);
+    final contentType = _contentType(file, fileName);
 
     final presign = Map<String, dynamic>.from(
       await _client.post(
@@ -140,8 +132,8 @@ class UploadApiService {
     request.files.add(
       http.MultipartFile(
         'file',
-        http.ByteStream(_fileProgressStream(file, size, onProgress)),
-        size,
+        http.ByteStream(_bytesProgressStream(bytes, onProgress)),
+        bytes.length,
         filename: fileName,
       ),
     );
@@ -164,19 +156,59 @@ class UploadApiService {
     return publicUrl;
   }
 
-  Stream<List<int>> _fileProgressStream(
-    File file,
-    int total,
+  Future<Uint8List> _readBytes(XFile file) async {
+    try {
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
+        throw const ApiException(message: 'Image locale introuvable.');
+      }
+      return bytes;
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      throw const ApiException(message: 'Image locale introuvable.');
+    }
+  }
+
+  String _fileName(XFile file) {
+    final named = file.name.trim();
+    if (named.isNotEmpty && named.contains('.')) {
+      return named.split('?').first;
+    }
+    final path = file.path.trim();
+    final last = path.split(RegExp(r'[/\\]')).last.split('?').first;
+    if (last.contains('.') && !last.startsWith('blob:')) {
+      return last;
+    }
+    return 'image.jpg';
+  }
+
+  String _contentType(XFile file, String fileName) {
+    final mime = file.mimeType?.trim().toLowerCase() ?? '';
+    if (mime.startsWith('image/')) return mime;
+    final extension = fileName.split('.').last.toLowerCase();
+    return switch (extension) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      _ => 'image/jpeg',
+    };
+  }
+
+  Stream<List<int>> _bytesProgressStream(
+    Uint8List bytes,
     void Function(double progress)? onProgress,
-  ) {
+  ) async* {
+    const chunkSize = 64 * 1024;
     var sent = 0;
-    return file.openRead().map((chunk) {
-      sent += chunk.length;
+    final total = bytes.length;
+    while (sent < total) {
+      final end = sent + chunkSize > total ? total : sent + chunkSize;
+      yield bytes.sublist(sent, end);
+      sent = end;
       if (total > 0) {
         onProgress?.call((0.16 + 0.8 * (sent / total)).clamp(0.16, 0.96));
       }
-      return chunk;
-    });
+    }
   }
 
   Future<String> resolveImageUrl(

@@ -1,10 +1,21 @@
 import 'package:flutter/foundation.dart';
+import 'package:vendza/core/config/google_auth_runtime_stub.dart'
+    if (dart.library.html) 'package:vendza/core/config/google_auth_runtime_web.dart';
 
 class GoogleAuthConfig {
   const GoogleAuthConfig._();
 
-  static const webClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+  static const _compiledWebClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+  );
   static const iosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
+
+  static String get webClientId {
+    if (_looksConfigured(_compiledWebClientId)) {
+      return _compiledWebClientId;
+    }
+    return runtimeGoogleWebClientId();
+  }
 
   /// Test-only override. Production code must leave this null.
   @visibleForTesting

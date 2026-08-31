@@ -43,8 +43,16 @@ RUN test -n "${VENDZA_API_BASE_URL}" \
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 
+ENV GOOGLE_WEB_CLIENT_ID=""
+
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/build/web /usr/share/nginx/html
+COPY deploy/docker-entrypoint.d/40-vendza-config.sh /docker-entrypoint.d/40-vendza-config.sh
+USER root
+RUN chmod +x /docker-entrypoint.d/40-vendza-config.sh \
+    && printf 'window.vendzaGoogleWebClientId="";\n' > /usr/share/nginx/html/vendza-config.js \
+    && chown -R 101:101 /usr/share/nginx/html /docker-entrypoint.d/40-vendza-config.sh
+USER 101
 
 EXPOSE 8081
 
