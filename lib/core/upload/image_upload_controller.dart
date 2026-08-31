@@ -43,6 +43,15 @@ class ImageUploadController extends ChangeNotifier {
   String get previewUrl => _previewUrl;
   String? get remoteUrl => _remoteUrl;
   String? get errorMessage => _errorMessage;
+  String get enqueuePath {
+    final remote = _remoteUrl?.trim() ?? '';
+    if (remote.startsWith('http://') || remote.startsWith('https://')) {
+      return remote;
+    }
+    final local = _localPath?.trim() ?? '';
+    if (local.isNotEmpty) return local;
+    return _previewUrl.trim();
+  }
   bool get isUploading => _status == ImageUploadStatus.uploading;
   bool get hasFailed => _status == ImageUploadStatus.failed;
   bool get blocksSubmit => isUploading || hasFailed;

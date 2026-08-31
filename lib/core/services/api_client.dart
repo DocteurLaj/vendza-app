@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/services/api_config.dart';
 import 'package:vendza/core/services/api_endpoints.dart';
 import 'package:vendza/core/services/api_exception.dart';
@@ -232,6 +233,7 @@ class ApiClient {
       throw ApiException(message: error.message);
     }
 
+    NetworkStatus.reportOnline();
     final decodedBody = _decodeResponseBody(response.body);
 
     if (response.statusCode == 401 &&

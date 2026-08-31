@@ -1,4 +1,5 @@
 import 'package:vendza/core/catalog/catalog_repository.dart';
+import 'package:vendza/core/sync/entity_sync_status.dart';
 import 'package:vendza/features/collection/data/services/data_exemple.dart'
     as collection_data;
 import 'package:vendza/features/home/data/models/store_model.dart' as detail;
@@ -21,8 +22,17 @@ List<ProductModel> productsForStoreId(String storeId) {
   final normalizedStoreId = storeId.trim();
   if (normalizedStoreId.isEmpty) return const [];
 
+  final aliases = <String>{normalizedStoreId};
+  for (final store in store_data.ownedStores) {
+    if (store.id == normalizedStoreId || store.localId == normalizedStoreId) {
+      aliases
+        ..add(store.id)
+        ..add(store.localId);
+    }
+  }
+
   return store_data.products
-      .where((product) => product.storeId == normalizedStoreId)
+      .where((product) => aliases.contains(product.storeId))
       .toList();
 }
 
@@ -51,7 +61,11 @@ String resolveStoreId(detail.StoreModel store) {
 }
 
 List<ProductModel> productsForDetailStore(detail.StoreModel store) {
-  return productsForStoreId(resolveStoreId(store));
+  final storeId = resolveStoreId(store);
+  if (storeId.isEmpty) return const [];
+  return home_data.products
+      .where((product) => product.storeId == storeId)
+      .toList();
 }
 
 List<ProductModel> activeProductsForDetailStore(detail.StoreModel store) {
@@ -138,7 +152,9 @@ Future<ProductModel> persistManagedProductUpdate(
   ProductModel updatedProduct,
 ) async {
   await catalogRepository.persistProductUpdate(updatedProduct);
-  updateManagedProduct(updatedProduct);
+  if (isLocalEntityId(updatedProduct.id)) {
+    updateManagedProduct(updatedProduct);
+  }
   return updatedProduct;
 }
 

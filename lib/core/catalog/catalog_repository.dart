@@ -3,6 +3,9 @@ import 'package:vendza/core/services/api_mappers.dart';
 import 'package:vendza/core/services/api_token_store.dart';
 import 'package:vendza/core/services/favorite_api_service.dart';
 import 'package:vendza/core/services/upload_api_service.dart';
+import 'package:vendza/core/sync/entity_sync_status.dart';
+import 'package:vendza/core/sync/local_create_queue.dart';
+import 'package:vendza/features/auth/data/services/auth_api_service.dart';
 import 'package:vendza/core/session/liked_products_store.dart';
 import 'package:vendza/features/cathegory/data/services/category_store.dart';
 import 'package:vendza/features/home/data/models/home_feed_model.dart';
@@ -35,7 +38,7 @@ final ValueNotifier<String?> catalogError = ValueNotifier<String?>(null);
 bool isOwnedStoreId(String storeId) {
   final id = storeId.trim();
   if (id.isEmpty) return false;
-  return ownedStores.any((store) => store.id == id);
+  return ownedStores.any((store) => store.id == id || store.localId == id);
 }
 
 class CatalogRepository {
@@ -47,13 +50,29 @@ class CatalogRepository {
     NotificationApiService? notificationApiService,
     UploadApiService? uploadsApi,
     ApiTokenStore? tokenStore,
+    AuthApiService? authApi,
   }) : _storeApi = storeApiService ?? StoreApiService(),
        _productApi = productApiService ?? ProductApiService(),
        _homeFeedApi = homeFeedApiService ?? HomeFeedApiService(),
        _favoriteApi = favoritesApi ?? favoriteApiService,
        _notificationApi = notificationApiService ?? NotificationApiService(),
        _uploadApi = uploadsApi ?? uploadApiService,
-       _tokenStore = tokenStore ?? apiTokenStore;
+       _tokenStore = tokenStore ?? apiTokenStore {
+    _localCreates = LocalCreateQueue(
+      uploads: _uploadApi,
+      stores: _storeApi,
+      products: _productApi,
+      auth: authApi ?? AuthApiService(),
+      onChanged: _notifyChanged,
+      storeFromApi: listStoreFromApi,
+    );
+    _localCreates.attachCatalog(
+      ownedStores: ownedStores,
+      products: products,
+      publicStores: stores,
+      homeProducts: homeProducts,
+    );
+  }
 
   final StoreApiService _storeApi;
   final ProductApiService _productApi;
@@ -62,6 +81,7 @@ class CatalogRepository {
   final NotificationApiService _notificationApi;
   final UploadApiService _uploadApi;
   final ApiTokenStore _tokenStore;
+  late final LocalCreateQueue _localCreates;
 
   Future<void>? _inFlightRefresh;
   DateTime? _lastRefreshAt;
@@ -146,8 +166,10 @@ class CatalogRepository {
 
       await refreshCategories();
       syncStoreCustomizationFromCatalog();
+      _hydratePendingCreates();
       _lastRefreshAt = DateTime.now();
       _notifyChanged();
+      _localCreates.process();
     } on Object catch (error) {
       catalogError.value = error.toString();
     } finally {
@@ -195,6 +217,7 @@ class CatalogRepository {
       await _loadProductsForStore(ownedStore);
     }
 
+    _hydratePendingCreates();
     _notifyChanged();
   }
 
@@ -243,30 +266,17 @@ class CatalogRepository {
     String? whatsappUrl,
     String? instagramUrl,
     String? facebookUrl,
-  }) async {
-    final imageUrl = await _uploadApi.resolveImageUrl(imagePath);
-    final bannerUrl = bannerPath == null || bannerPath.trim().isEmpty
-        ? null
-        : await _uploadApi.resolveImageUrl(bannerPath);
-
-    final created = await _storeApi.createStore(
+  }) {
+    return _localCreates.enqueueStore(
       name: name,
       description: description,
       address: address,
-      image: imageUrl,
-      bannerUrl: bannerUrl,
+      imagePath: imagePath,
+      bannerPath: bannerPath,
       whatsappUrl: whatsappUrl,
       instagramUrl: instagramUrl,
       facebookUrl: facebookUrl,
     );
-
-    final store = listStoreFromApi(created);
-    ownedStores.insert(0, store);
-    stores.insert(0, store);
-    homeStores.insert(0, homeStoreFromApi(created));
-    _notifyChanged();
-    await softRefreshCatalog(force: true);
-    return store;
   }
 
   Future<ProductModel> createProduct({
@@ -277,43 +287,80 @@ class CatalogRepository {
     required double price,
     required int stock,
     required String imagePath,
+    String category = '',
     Map<String, dynamic>? variation,
-  }) async {
-    if (!isOwnedStoreId(storeId.toString())) {
+  }) {
+    return enqueueCreateProduct(
+      storeId: storeId.toString(),
+      storeName: storeName,
+      title: title,
+      description: description,
+      price: price.toString(),
+      numericPrice: price,
+      imagePath: imagePath,
+      category: category,
+      variation: variation,
+    );
+  }
+
+  Future<ProductModel> enqueueCreateProduct({
+    required String storeId,
+    required String storeName,
+    required String title,
+    required String description,
+    required String price,
+    required double numericPrice,
+    required String imagePath,
+    String category = '',
+    Map<String, dynamic>? variation,
+  }) {
+    if (!isOwnedStoreId(storeId)) {
       throw StateError(
         'Vous ne pouvez ajouter un produit que dans votre propre boutique.',
       );
     }
-    final imageUrl = await _uploadApi.resolveImageUrl(imagePath);
-    await _productApi.addProduct(
+    return _localCreates.enqueueProduct(
       storeId: storeId,
+      storeName: storeName,
       title: title,
       description: description,
       price: price,
-      stock: stock,
-      images: [imageUrl],
+      numericPrice: numericPrice,
+      imagePath: imagePath,
+      category: category,
       variation: variation,
     );
+  }
 
-    final response = await _productApi.productsForStore(storeId);
-    final createdProducts = _productApi.parseProductsForStore(
-      response,
-      storeName: storeName,
+  Future<void> startLocalSync() async {
+    _localCreates.attachCatalog(
+      ownedStores: ownedStores,
+      products: products,
+      publicStores: stores,
+      homeProducts: homeProducts,
     );
-    if (createdProducts.isEmpty) {
-      throw StateError('Produit créé mais introuvable dans le catalogue.');
-    }
-
-    final created = createdProducts.firstWhere(
-      (product) => product.name == title,
-      orElse: () => createdProducts.first,
-    );
-
-    products.insert(0, created);
-    homeProducts.insert(0, created);
+    await _localCreates.start();
+    _hydratePendingCreates();
     _notifyChanged();
-    await softRefreshCatalog(force: true);
-    return created;
+  }
+
+  Future<void> retryLocalCreate(String id) => _localCreates.retry(id);
+
+  Future<void> discardLocalCreate(String id) async {
+    await _localCreates.discard(id);
+    ownedStores.removeWhere((store) => store.id == id || store.localId == id);
+    products.removeWhere(
+      (product) =>
+          product.id == id ||
+          product.localId == id ||
+          product.storeId == id,
+    );
+    _notifyChanged();
+  }
+
+  void _hydratePendingCreates() {
+    if (!_tokenStore.hasAccessToken) return;
+    _localCreates.rehydrate(ownedStores: ownedStores, products: products);
   }
 
   Future<void> toggleProductFavorite(String productId) async {
@@ -425,42 +472,29 @@ class CatalogRepository {
     // Owner inventory keeps inactive items; public catalog only active ones.
     products.insertAll(0, storeProducts);
     homeProducts.insertAll(0, publicProducts);
+    _hydratePendingCreates();
   }
 
   Future<void> persistProductUpdate(ProductModel product) async {
-    final storeId = int.tryParse(product.storeId);
-    final productId = int.tryParse(product.id);
-    if (storeId == null || productId == null) {
-      throw ArgumentError('Identifiant produit ou boutique invalide.');
+    if (isLocalEntityId(product.id)) {
+      await _localCreates.updateProductPayload(product);
+      final index = products.indexWhere(
+        (item) => item.id == product.id || item.localId == product.localId,
+      );
+      if (index >= 0) products[index] = product;
+      _notifyChanged();
+      return;
     }
-
-    final priceDigits = product.price.replaceAll(RegExp(r'[^\d.]'), '');
-    final price = double.tryParse(priceDigits);
-    final variation = product.variants.isEmpty
-        ? null
-        : {
-            for (final variant in product.variants)
-              variant.name: {
-                'price': variant.price,
-                'quantity': variant.quantity,
-                'image': variant.imageurl,
-              },
-          };
-
-    await _productApi.updateProduct(
-      storeId: storeId,
-      productId: productId,
-      title: product.name,
-      description: product.description,
-      price: price,
-      isActive: product.isActive,
-      images: product.imageurl.trim().isEmpty ? null : [product.imageurl],
-      variation: variation,
-    );
-    await softRefreshCatalog(force: true);
+    await _localCreates.enqueueProductUpdate(product);
   }
 
   Future<void> persistProductDelete(ProductModel product) async {
+    if (product.syncStatus.isPending || isLocalEntityId(product.id)) {
+      await discardLocalCreate(
+        product.localId.isNotEmpty ? product.localId : product.id,
+      );
+      return;
+    }
     final storeId = int.tryParse(product.storeId);
     final productId = int.tryParse(product.id);
     if (storeId == null || productId == null) {
@@ -485,6 +519,7 @@ final ValueNotifier<List<NotificationModel>> notificationStore =
 
 Future<void> bootstrapCatalog() async {
   await catalogRepository.refreshCatalog();
+  await catalogRepository.startLocalSync();
 }
 
 Future<void> bootstrapSessionCatalog({required int userId}) async {

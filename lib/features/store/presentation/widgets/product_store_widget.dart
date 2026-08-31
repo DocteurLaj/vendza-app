@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
+import 'package:vendza/core/sync/entity_sync_status.dart';
 import 'package:vendza/features/product/presentation/pages/product_detail_page.dart';
 import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
 import 'package:vendza/shared/widgets/product/product_price_text.dart';
+import 'package:vendza/shared/widgets/sync/sync_status_strip.dart';
 
 class ProductStoreWidget extends StatelessWidget {
   const ProductStoreWidget({
@@ -97,8 +99,24 @@ class ProductStoreWidget extends StatelessWidget {
                             Positioned(
                               left: 10,
                               bottom: 10,
-                              child: _OwnerProductStatusBadge(
-                                isActive: product.isActive,
+                              child: product.syncStatus.isPending
+                                  ? _OwnerSyncBadge(status: product.syncStatus)
+                                  : _OwnerProductStatusBadge(
+                                      isActive: product.isActive,
+                                    ),
+                            ),
+                          if (product.syncStatus.isPending)
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              child: LinearProgressIndicator(
+                                value: product.syncStatus.barValue(
+                                  product.syncProgress,
+                                ),
+                                minHeight: 4,
+                                backgroundColor: Colors.black26,
+                                color: Colors.white,
                               ),
                             ),
                           if (selectionMode)
@@ -159,6 +177,14 @@ class ProductStoreWidget extends StatelessWidget {
                                 color: AppColors.success(context),
                               ),
                             ),
+                            if (ownerMode && product.syncStatus.isPending) ...[
+                              const SizedBox(height: 6),
+                              SyncStatusStrip(
+                                status: product.syncStatus,
+                                progress: product.syncProgress,
+                                compact: true,
+                              ),
+                            ],
                             if (product.storeName.trim().isNotEmpty) ...[
                               const SizedBox(height: 5),
                               Row(
@@ -195,6 +221,31 @@ class ProductStoreWidget extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _OwnerSyncBadge extends StatelessWidget {
+  const _OwnerSyncBadge({required this.status});
+
+  final EntitySyncStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Text(
+        status.label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }

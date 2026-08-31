@@ -72,8 +72,14 @@ class SplashScreenState extends State<SplashScreen>
 
         var sessionRestored = false;
         try {
-          await bootstrapCatalog();
-          sessionRestored = await authSessionService.restoreSession();
+          await bootstrapCatalog().timeout(
+            const Duration(seconds: 12),
+            onTimeout: () {},
+          );
+          sessionRestored = await authSessionService.restoreSession().timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => false,
+          );
         } on Object {
           sessionRestored = false;
         }

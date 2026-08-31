@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vendza/core/catalog/catalog_repository.dart';
-import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
@@ -85,9 +84,7 @@ class _AddProductState extends State<AddProduct> {
   }
 
   Future<void> _saveProduct() async {
-    if (_isSubmitting || _imageUpload.blocksSubmit) return;
-    if (_variants.any((variant) => variant.image.blocksSubmit)) return;
-    if (!NetworkStatus.ensureOnline(context)) return;
+    if (_isSubmitting) return;
 
     final String trimmedName = _name.trim();
     final String trimmedPrice = _price.trim();
@@ -124,8 +121,7 @@ class _AddProductState extends State<AddProduct> {
       return;
     }
 
-    final storeId = int.tryParse(widget.storeId);
-    if (storeId == null) {
+    if (widget.storeId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Identifiant de boutique invalide.')),
       );
@@ -144,30 +140,27 @@ class _AddProductState extends State<AddProduct> {
 
     setState(() => _isSubmitting = true);
     try {
-      final imageUrl = await _imageUpload.ensureRemoteUrl();
       final variationEntries = <MapEntry<String, Map<String, dynamic>>>[];
       for (final variant in _variants) {
         final model = variant.toModel();
         if (model.name.isEmpty && !variant.image.hasImage) continue;
-        final variantImage = variant.image.hasImage
-            ? await variant.image.ensureRemoteUrl()
-            : '';
         variationEntries.add(
           MapEntry(model.name, {
             'price': model.price,
-            'quantity': model.quantity,
-            'image': variantImage,
+            'quantity': model.quantity.isEmpty ? '1' : model.quantity,
+            'image': variant.image.enqueuePath,
           }),
         );
       }
-      final product = await catalogRepository.createProduct(
-        storeId: storeId,
+      final product = await catalogRepository.enqueueCreateProduct(
+        storeId: widget.storeId,
         storeName: widget.storeName,
         title: trimmedName,
         description: _description.trim(),
-        price: parsedPrice,
-        stock: 1,
-        imagePath: imageUrl,
+        price: '$trimmedPrice $_currency',
+        numericPrice: parsedPrice,
+        imagePath: _imageUpload.enqueuePath,
+        category: _category,
         variation: variationEntries.isEmpty
             ? null
             : Map.fromEntries(variationEntries),
@@ -337,12 +330,7 @@ class _AddProductState extends State<AddProduct> {
                     text: "Ajouter",
                     loadingText: "Ajout...",
                     onPressed: _saveProduct,
-                    enabled:
-                        !_isSubmitting &&
-                        !_imageUpload.blocksSubmit &&
-                        !_variants.any(
-                          (variant) => variant.image.blocksSubmit,
-                        ),
+                    enabled: !_isSubmitting && _imageUpload.hasImage,
                     isLoading: _isSubmitting,
                   ),
                 ),

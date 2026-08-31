@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/core/upload/image_upload_controller.dart';
-import 'package:vendza/features/auth/data/services/auth_session_service.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
 import 'package:vendza/shared/utils/phone_number.dart';
 import 'package:vendza/shared/utils/social_url.dart';
@@ -132,8 +130,7 @@ class _AddStoreState extends State<AddStore> {
   }
 
   Future<void> _createStore() async {
-    if (_isSubmitting || _imageUpload.blocksSubmit) return;
-    if (!NetworkStatus.ensureOnline(context)) return;
+    if (_isSubmitting) return;
 
     final trimmedName = _name.trim();
     final trimmedDescription = _description.trim();
@@ -193,13 +190,11 @@ class _AddStoreState extends State<AddStore> {
 
     setState(() => _isSubmitting = true);
     try {
-      final imageUrl = await _imageUpload.ensureRemoteUrl();
-      await authSessionService.becomeSeller();
       await catalogRepository.createStore(
         name: trimmedName,
         description: trimmedDescription,
         address: _city.trim(),
-        imagePath: imageUrl,
+        imagePath: _imageUpload.enqueuePath,
         whatsappUrl: whatsapp.e164.isEmpty ? null : whatsappUrlFromPhone(whatsapp.e164),
         instagramUrl: _instagram.trim().isEmpty ? null : _instagram.trim(),
         facebookUrl: _facebook.trim().isEmpty ? null : _facebook.trim(),
@@ -226,7 +221,7 @@ class _AddStoreState extends State<AddStore> {
       size: PopupSize.medium,
       builder: (context) {
         return Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -343,7 +338,7 @@ class _AddStoreState extends State<AddStore> {
                     text: "Creer",
                     loadingText: "Creation...",
                     onPressed: _createStore,
-                    enabled: !_isSubmitting && !_imageUpload.blocksSubmit,
+                    enabled: !_isSubmitting && _imageUpload.hasImage,
                     isLoading: _isSubmitting,
                   ),
                 ),

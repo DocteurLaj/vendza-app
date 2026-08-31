@@ -20,7 +20,9 @@ import 'package:vendza/core/services/media/app_image_picker.dart';
 import 'package:vendza/core/services/product_event_api_service.dart';
 import 'package:vendza/core/services/share/app_share_service.dart';
 import 'package:vendza/core/services/share/whatsapp_seller_chat.dart';
+import 'package:vendza/core/sync/entity_sync_status.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/sync/sync_status_strip.dart';
 
 class ProductDetailPage extends StatefulWidget {
   const ProductDetailPage({
@@ -74,8 +76,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     super.initState();
     _product = widget.product;
     _isLiked = isProductLiked(product.id);
-    if (product.variants.isNotEmpty) {
-      _selectedVariantIndex = 0;
+    _selectedVariantIndex = null;
+    if (widget.ownerMode) {
+      catalogRevision.addListener(_pullLiveProduct);
     }
     productEventApiService.trackSafely(
       eventType: 'product_open',
@@ -85,9 +88,36 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     );
   }
 
+  void _pullLiveProduct() {
+    ProductModel latest = _product;
+    for (final item in products) {
+      if (item.id == _product.id ||
+          (item.localId.isNotEmpty &&
+              (item.localId == _product.localId || item.localId == _product.id))) {
+        latest = item;
+        break;
+      }
+    }
+    if (!mounted) return;
+    if (latest.syncStatus != _product.syncStatus ||
+        latest.syncProgress != _product.syncProgress ||
+        latest.id != _product.id ||
+        latest.syncError != _product.syncError) {
+      setState(() => _product = latest);
+    }
+  }
+
+  @override
+  void dispose() {
+    if (widget.ownerMode) {
+      catalogRevision.removeListener(_pullLiveProduct);
+    }
+    super.dispose();
+  }
+
   void _selectVariant(int index) {
     setState(() {
-      _selectedVariantIndex = index;
+      _selectedVariantIndex = _selectedVariantIndex == index ? null : index;
     });
   }
 
@@ -228,9 +258,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
     final saved = await _applyOwnerUpdate(updatedProduct);
     if (!mounted || !saved) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Produit mis à jour.")));
+    Navigator.of(context).pop();
   }
 
   Future<void> _toggleProductVisibility(bool isActive) async {
@@ -245,7 +273,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         _product = updatedProduct;
         if (_selectedVariantIndex != null &&
             _selectedVariantIndex! >= product.variants.length) {
-          _selectedVariantIndex = product.variants.isEmpty ? null : 0;
+          _selectedVariantIndex = null;
         }
       });
       return true;
@@ -325,6 +353,32 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     onEdit: _openOwnerEditor,
                     onVisibilityChanged: _toggleProductVisibility,
                     onDelete: _deleteOwnerProduct,
+                  ),
+                ),
+              if (widget.ownerMode && product.syncStatus.isPending)
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 58,
+                  left: 14,
+                  right: 14,
+                  child: Material(
+                    color: AppColors.card(context),
+                    elevation: 2,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                      child: SyncStatusStrip(
+                        status: product.syncStatus,
+                        progress: product.syncProgress,
+                        errorMessage: product.syncError,
+                        onRetry: product.syncStatus == EntitySyncStatus.error
+                            ? () => catalogRepository.retryLocalCreate(
+                                product.localId.isNotEmpty
+                                    ? product.localId
+                                    : product.id,
+                              )
+                            : null,
+                      ),
+                    ),
                   ),
                 ),
               AnimatedPositioned(
