@@ -6,6 +6,7 @@ services:
       args:
         FLUTTER_VERSION: ${FLUTTER_VERSION:-3.44.2}
         VENDZA_API_BASE_URL: ${VENDZA_API_BASE_URL:?VENDZA_API_BASE_URL is required}
+        VENDZA_MEDIA_BASE_URL: ${VENDZA_MEDIA_BASE_URL:-}
         GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-}
     image: vendza-app:${IMAGE_TAG:-latest}
     restart: unless-stopped
