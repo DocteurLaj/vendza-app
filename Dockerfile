@@ -31,6 +31,11 @@ RUN flutter pub get
 COPY . .
 RUN test -n "${VENDZA_API_BASE_URL}" \
     && case "${VENDZA_API_BASE_URL}" in https://*) ;; *) exit 1 ;; esac \
+    && if [ -z "${GOOGLE_WEB_CLIENT_ID}" ]; then \
+         echo "WARNING: GOOGLE_WEB_CLIENT_ID build-arg is empty. The Google button will be hidden. Set it as a Docker BUILD ARG in Dokploy (not a runtime Environment variable), then rebuild without cache."; \
+       else \
+         echo "GOOGLE_WEB_CLIENT_ID build-arg is set."; \
+       fi \
     && flutter build web --release \
       --dart-define=VENDZA_API_BASE_URL="${VENDZA_API_BASE_URL}" \
       --dart-define=VENDZA_MEDIA_BASE_URL="${VENDZA_MEDIA_BASE_URL}" \

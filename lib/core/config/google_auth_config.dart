@@ -16,6 +16,9 @@ class GoogleAuthConfig {
     if (!_looksConfigured(webClientId)) {
       return false;
     }
+    // On web, defaultTargetPlatform follows the browser OS (iPhone → iOS).
+    // The web OAuth client is enough; do not also require the iOS client.
+    if (kIsWeb) return true;
     if (defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS) {
       return _looksConfigured(iosClientId);
@@ -27,12 +30,11 @@ class GoogleAuthConfig {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return false;
     final lower = trimmed.toLowerCase();
-    if (lower.contains('google_') ||
-        lower.contains('replace-with') ||
+    if (lower.contains('replace-with') ||
         lower.contains('example') ||
         lower.contains('your_')) {
       return false;
     }
-    return true;
+    return trimmed.contains('.apps.googleusercontent.com');
   }
 }
