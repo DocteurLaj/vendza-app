@@ -53,7 +53,7 @@ ghcr.io/docteurlaj/vendza-app:latest
 
 Le package GHCR est prive par defaut. Dokploy doit donc recevoir un identifiant
 GitHub disposant de `read:packages`, ou le package doit etre rendu public.
-Configurer le domaine Dokploy sur le port `8080` et le health check `/healthz`.
+Configurer le domaine Dokploy sur le port `8081` et le health check `/healthz`.
 
 Ajouter ensuite ces secrets GitHub Actions :
 

@@ -40,7 +40,7 @@ ne doit etre ajoute a Flutter.
 Copier les noms de variables de `.env.dokploy.example` dans la configuration de
 build Dokploy, avec les vraies valeurs publiques. Dokploy peut construire le
 `Dockerfile` directement ou utiliser `compose.yaml`. Le conteneur ecoute sur le
-port `8080`, expose `/healthz`, sert les fichiers statiques avec Nginx et renvoie
+port `8081`, expose `/healthz`, sert les fichiers statiques avec Nginx et renvoie
 les routes inconnues vers `index.html` pour la navigation SPA.
 
 Validation locale :
@@ -55,7 +55,7 @@ docker compose up -d
 
 Pour un domaine Web `https://app.example.com` :
 
-- router ce domaine Dokploy vers le port `8080` du service Web ;
+- router ce domaine Dokploy vers le port `8081` du service Web ;
 - ajouter exactement `https://app.example.com` aux origines CORS autorisees du backend ;
 - autoriser cette meme origine sur le stockage objet si le navigateur envoie directement des fichiers via des URLs presignees ;
 - ajouter cette origine aux origines JavaScript autorisees du client OAuth Google Web ;
