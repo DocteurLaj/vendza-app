@@ -1,8 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/monitoring/error_reporter.dart';
 import 'package:vendza/core/services/api_config.dart';
-import 'package:vendza/core/services/api_token_store.dart';
 import 'package:vendza/core/services/deep_link/deep_link_service.dart';
 import 'package:vendza/core/theme/app_theme.dart';
 import 'package:vendza/core/theme/theme_controller.dart';
@@ -13,9 +14,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ApiConfig.validateForCurrentBuild();
   await ErrorReporter.ensureInitialized();
-  // Local secure storage only — no network session restore here.
-  await apiTokenStore.restore();
-  await NetworkStatus.start();
+  // Do not block the first frame on platform plugins. The splash screen restores
+  // tokens/profile with a short timeout, while connectivity starts in the background.
+  unawaited(NetworkStatus.start());
   runApp(const MyApp());
 }
 

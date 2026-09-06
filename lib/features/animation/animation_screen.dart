@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:vendza/core/catalog/catalog_repository.dart';
 import 'package:vendza/core/constants/colors.dart';
+import 'package:vendza/core/services/api_token_store.dart';
+import 'package:vendza/core/session/current_user_store.dart';
 import 'package:vendza/features/auth/data/services/auth_session_service.dart';
 import 'package:vendza/features/auth/presantation/pages/onbording_page.dart';
 import 'package:vendza/navigation/main_page.dart';
@@ -26,7 +30,7 @@ class SplashScreenState extends State<SplashScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1350),
+      duration: const Duration(milliseconds: 850),
     );
 
     _scale = TweenSequence<double>([
@@ -67,36 +71,52 @@ class SplashScreenState extends State<SplashScreen>
     );
 
     _controller
-      ..addStatusListener((status) async {
-        if (status != AnimationStatus.completed || !mounted) return;
-
-        var sessionRestored = false;
-        try {
-          await bootstrapCatalog().timeout(
-            const Duration(seconds: 12),
-            onTimeout: () {},
-          );
-          sessionRestored = await authSessionService.restoreSession().timeout(
-            const Duration(seconds: 10),
-            onTimeout: () => false,
-          );
-        } on Object {
-          sessionRestored = false;
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed && mounted) {
+          unawaited(_finishStartup());
         }
-
-        if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (_, _, _) =>
-                sessionRestored ? const MainPage() : const OnbordingPage(),
-            transitionDuration: const Duration(milliseconds: 220),
-            transitionsBuilder: (_, animation, _, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-          ),
-        );
       })
       ..forward();
+  }
+
+  Future<void> _finishStartup() async {
+    var sessionRestored = false;
+    try {
+      await apiTokenStore.restore().timeout(const Duration(seconds: 2));
+      sessionRestored = await authSessionService
+          .restoreSession(syncCatalog: false)
+          .timeout(const Duration(seconds: 4), onTimeout: () => false);
+    } on Object {
+      sessionRestored = false;
+    }
+
+    if (!mounted) return;
+    _navigate(sessionRestored);
+    _warmCatalogAfterNavigation(sessionRestored);
+  }
+
+  void _navigate(bool sessionRestored) {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, _, _) =>
+            sessionRestored ? const MainPage() : const OnbordingPage(),
+        transitionDuration: const Duration(milliseconds: 220),
+        transitionsBuilder: (_, animation, _, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+
+  void _warmCatalogAfterNavigation(bool sessionRestored) {
+    final userId = currentUserStore.value.userId ?? 0;
+    unawaited(
+      (sessionRestored && userId > 0
+              ? bootstrapSessionCatalog(userId: userId)
+              : bootstrapCatalog())
+          .timeout(const Duration(seconds: 20), onTimeout: () {})
+          .catchError((Object _) {}),
+    );
   }
 
   @override
