@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:vendza/core/config/google_auth_config.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/features/auth/data/services/auth_session_service.dart';
@@ -103,9 +104,10 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
                 height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Text(
-                'G',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            : SvgPicture.asset(
+                'assets/icons/google_g.svg',
+                width: 20,
+                height: 20,
               ),
         label: Text(
           _isLoading ? 'Connexion Google...' : 'Continuer avec Google',
