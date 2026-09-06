@@ -30,7 +30,16 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter analyze
+        timeout-minutes: 10
       - run: flutter test
+        timeout-minutes: 15
+      - name: Build Web
+        timeout-minutes: 20
+        run: >-
+          flutter build web --release
+          --dart-define=VENDZA_API_BASE_URL=${{ env.VENDZA_API_BASE_URL }}
+          --dart-define=VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
+          --dart-define=GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
 
   android:
     name: Android APK and AAB

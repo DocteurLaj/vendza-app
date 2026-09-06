@@ -78,8 +78,13 @@ keystores et fichiers de signature sont exclus du depot.
 ```powershell
 flutter analyze
 flutter test
-flutter build web --release --dart-define=VENDZA_API_BASE_URL=https://api.example.com/api/v1
+.\tool\validate_web.ps1 -ApiBaseUrl https://api.example.com
 ```
+
+`tool\validate_web.ps1` lance `flutter pub get` puis `flutter build web` avec
+un timeout par defaut de 15 minutes. Si Flutter reste bloque sans sortie, le
+script arrete le processus et retourne une erreur claire au lieu de laisser le
+terminal suspendu.
 
 ## Builds automatiques
 

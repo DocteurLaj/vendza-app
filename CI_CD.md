@@ -4,6 +4,7 @@ Chaque push sur `main` lance le workflow `.github/workflows/ci.yml` pour le
 meme commit :
 
 - analyse et tests Flutter ;
+- build Web Flutter de validation avant publication de l'image ;
 - APK et AAB Android signes, disponibles dans les artifacts GitHub pendant
   30 jours ;
 - validation iOS non signee, disponible sous forme d'archive ;
@@ -21,6 +22,21 @@ Dans `Settings > Secrets and variables > Actions > Variables`, ajouter :
 
 Les deux URL Vendza actuelles sont utilisees comme valeurs par defaut. Les
 identifiants Google n'ont volontairement aucune valeur par defaut.
+
+## Validation locale Web
+
+Pour eviter les commandes Flutter suspendues sans sortie sous Windows, utiliser
+le script avec timeout :
+
+```powershell
+.\tool\validate_web.ps1 `
+  -ApiBaseUrl https://api.example.com `
+  -GoogleWebClientId 000000000000-valid.apps.googleusercontent.com
+```
+
+Le script arrete automatiquement le processus Flutter si `pub get` ou
+`build web` depasse 15 minutes. Le delai peut etre ajuste avec
+`-TimeoutMinutes`.
 
 ## Secrets Android
 

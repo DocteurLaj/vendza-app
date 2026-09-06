@@ -20,7 +20,29 @@ class ApiConfig {
     if (_fromEnvironment.trim().isEmpty) {
       return 'http://10.0.2.2:8000/api/v1';
     }
-    return _fromEnvironment.trim();
+    return normalizeBaseUrl(_fromEnvironment);
+  }
+
+  @visibleForTesting
+  static String normalizeBaseUrl(String value) {
+    final raw = value.trim();
+    final withoutTrailingSlash = raw.endsWith('/')
+        ? raw.substring(0, raw.length - 1)
+        : raw;
+    final uri = Uri.tryParse(withoutTrailingSlash);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      return withoutTrailingSlash;
+    }
+
+    final normalizedPath = uri.path.toLowerCase();
+    if (normalizedPath == '/api/v1' ||
+        normalizedPath.endsWith('/api/v1')) {
+      return withoutTrailingSlash;
+    }
+    if (uri.path.isEmpty || uri.path == '/') {
+      return uri.replace(path: '/api/v1').toString();
+    }
+    return withoutTrailingSlash;
   }
 
   /// Rewrites local MinIO hosts so USB (`adb reverse`) and emulator builds
@@ -73,7 +95,7 @@ class ApiConfig {
         'en release (${uri.host}).',
       );
     }
-    return raw;
+    return normalizeBaseUrl(raw);
   }
 
   static bool _isDisallowedReleaseHost(String host) {

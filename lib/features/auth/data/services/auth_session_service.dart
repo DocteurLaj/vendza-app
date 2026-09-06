@@ -51,9 +51,13 @@ class AuthSessionService {
   Future<bool> loginWithGoogle() async {
     final idToken = await _googleIdentityProvider.authenticate();
     if (idToken == null) return false;
+    await loginWithGoogleIdToken(idToken);
+    return true;
+  }
+
+  Future<void> loginWithGoogleIdToken(String idToken) async {
     await _authApiService.googleSignIn(idToken);
     await _synchronizeUser();
-    return true;
   }
 
   Future<void> register({
