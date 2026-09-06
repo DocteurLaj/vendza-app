@@ -10,6 +10,7 @@ import 'package:vendza/features/store/presentation/widgets/store_list_section.da
 import 'package:vendza/shared/widgets/bouton/button.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/search/search_bar.dart';
+import 'package:vendza/shared/utils/catalog_refresh_feedback.dart';
 
 class MyStorePage extends StatefulWidget {
   const MyStorePage({super.key});
@@ -64,8 +65,11 @@ class _MyStorePageState extends State<MyStorePage> {
                         .toList();
 
                     return RefreshIndicator(
-                      onRefresh: () =>
-                          catalogRepository.softRefreshCatalog(force: true),
+                      onRefresh: () => refreshCatalogWithFeedback(
+                        context,
+                        targetLabel: "Mes stores",
+                        successMessage: "Mes stores sont actualises.",
+                      ),
                       child: SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         child: ResponsiveContent(

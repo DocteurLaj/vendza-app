@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/catalog/catalog_repository.dart'
-    show catalogRepository, catalogRevision;
+    show catalogRevision;
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/home/data/models/store_model.dart';
@@ -10,6 +10,7 @@ import 'package:vendza/features/store/presentation/widgets/store_catalog_card.da
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/search/search_bar.dart';
+import 'package:vendza/shared/utils/catalog_refresh_feedback.dart';
 
 class AllStoresPage extends StatefulWidget {
   const AllStoresPage({super.key});
@@ -149,7 +150,11 @@ class _AllStoresPageState extends State<AllStoresPage>
   }
 
   Future<void> _refreshCatalog() {
-    return catalogRepository.softRefreshCatalog(force: true);
+    return refreshCatalogWithFeedback(
+      context,
+      targetLabel: "Stores",
+      successMessage: "Stores actualises.",
+    );
   }
 
   @override

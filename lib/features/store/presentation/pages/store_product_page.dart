@@ -13,6 +13,7 @@ import 'package:vendza/shared/widgets/bouton/text_icon_button.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/product/product_section.dart';
 import 'package:vendza/shared/widgets/show_title.dart';
+import 'package:vendza/shared/utils/catalog_refresh_feedback.dart';
 
 class StoreProductPage extends StatefulWidget {
   const StoreProductPage({super.key, required this.store});
@@ -80,7 +81,11 @@ class _StoreProductPageState extends State<StoreProductPage> {
         return Scaffold(
           appBar: AppBar(title: Text(widget.store.name)),
           body: RefreshIndicator(
-            onRefresh: () => catalogRepository.softRefreshCatalog(force: true),
+            onRefresh: () => refreshCatalogWithFeedback(
+              context,
+              targetLabel: "Produits",
+              successMessage: "Produits actualises.",
+            ),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
