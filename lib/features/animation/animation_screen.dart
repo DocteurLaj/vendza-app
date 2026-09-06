@@ -83,6 +83,10 @@ class SplashScreenState extends State<SplashScreen>
     var sessionRestored = false;
     try {
       await apiTokenStore.restore().timeout(const Duration(seconds: 2));
+      await catalogRepository.restoreCachedCatalog().timeout(
+        const Duration(milliseconds: 700),
+        onTimeout: () => false,
+      );
       sessionRestored = await authSessionService
           .restoreSession(syncCatalog: false)
           .timeout(const Duration(seconds: 4), onTimeout: () => false);
