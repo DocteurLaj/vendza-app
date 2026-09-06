@@ -107,6 +107,7 @@ class _AddStoreState extends State<AddStore> {
   String? _socialError;
   bool _isSubmitting = false;
   final _imageUpload = ImageUploadController(
+    purpose: 'logo',
     pickTitle: "Choisir l'image du store",
   );
   final _whatsappFieldKey = GlobalKey<PhoneNumberFieldState>();

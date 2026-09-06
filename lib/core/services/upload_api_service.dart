@@ -159,12 +159,42 @@ class UploadApiService {
       );
     }
 
-    final publicUrl = (presign['public_url'] as String?)?.trim() ?? '';
+    final publicUrl = await _completeUpload(
+      presign,
+      profile: _profileForPurpose(purpose),
+    );
     if (!isRemoteMediaUrl(publicUrl)) {
       throw const ApiException(message: "URL d'image invalide.");
     }
     onProgress?.call(1);
     return publicUrl;
+  }
+
+  Future<String> _completeUpload(
+    Map<String, dynamic> presign, {
+    required String profile,
+  }) async {
+    final directUrl = (presign['public_url'] as String?)?.trim() ?? '';
+    final objectKey = (presign['object_key'] as String?)?.trim() ?? '';
+    if (objectKey.isEmpty) return directUrl;
+
+    final completed = Map<String, dynamic>.from(
+      await _client.post(
+            ApiEndpoints.uploadImageComplete,
+            authenticated: true,
+            body: {'object_key': objectKey, 'profile': profile},
+          )
+          as Map,
+    );
+    return (completed['public_url'] as String?)?.trim() ?? directUrl;
+  }
+
+  String _profileForPurpose(String purpose) {
+    return switch (purpose.trim().toLowerCase()) {
+      'avatar' || 'logo' || 'store' => 'logo',
+      'banner' => 'banner',
+      _ => 'product',
+    };
   }
 
   Future<void> _ensureSeller() async {
