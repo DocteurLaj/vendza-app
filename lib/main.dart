@@ -5,6 +5,7 @@ import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/monitoring/error_reporter.dart';
 import 'package:vendza/core/services/api_config.dart';
 import 'package:vendza/core/services/deep_link/deep_link_service.dart';
+import 'package:vendza/core/services/push_notification_service.dart';
 import 'package:vendza/core/theme/app_theme.dart';
 import 'package:vendza/core/theme/theme_controller.dart';
 import 'package:vendza/features/animation/animation_screen.dart';
@@ -17,6 +18,7 @@ Future<void> main() async {
   // Do not block the first frame on platform plugins. The splash screen restores
   // tokens/profile with a short timeout, while connectivity starts in the background.
   unawaited(NetworkStatus.start());
+  unawaited(pushNotificationService.start());
   runApp(const MyApp());
 }
 

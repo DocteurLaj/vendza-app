@@ -3,6 +3,7 @@ import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/services/api_client.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/services/api_token_store.dart';
+import 'package:vendza/core/services/push_notification_service.dart';
 import 'package:vendza/core/session/current_user_store.dart';
 import 'package:vendza/features/auth/data/services/auth_api_service.dart';
 import 'package:vendza/features/auth/data/services/google_identity_service.dart';
@@ -224,6 +225,7 @@ class AuthSessionService {
       await _catalogSynchronizer(userId ?? 0);
       syncStoreCustomizationFromCatalog();
     }
+    await pushNotificationService.syncCurrentToken();
   }
 }
 

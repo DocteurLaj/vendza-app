@@ -75,6 +75,7 @@ class ApiEndpoints {
   static const uploadImagePresign = '/uploads/images/presign';
 
   static const notificationAdd = '/notification/add';
+  static const notificationPushToken = '/notification/push-token';
 
   /// Authenticated inbox for the current user (API: GET /notification/me).
   static const notificationsMe = '/notification/me';
