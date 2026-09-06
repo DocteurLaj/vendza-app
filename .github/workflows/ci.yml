@@ -15,6 +15,13 @@ env:
   VENDZA_MEDIA_BASE_URL: ${{ vars.VENDZA_MEDIA_BASE_URL || 'https://vendza-vendzaminiostorage-tx8h0h-c106eb-72-60-90-32.sslip.io/vendza-images' }}
   GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID || '' }}
   GOOGLE_IOS_CLIENT_ID: ${{ vars.GOOGLE_IOS_CLIENT_ID || '' }}
+  VENDZA_FIREBASE_API_KEY: ${{ vars.VENDZA_FIREBASE_API_KEY || '' }}
+  VENDZA_FIREBASE_APP_ID: ${{ vars.VENDZA_FIREBASE_APP_ID || '' }}
+  VENDZA_FIREBASE_AUTH_DOMAIN: ${{ vars.VENDZA_FIREBASE_AUTH_DOMAIN || '' }}
+  VENDZA_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VENDZA_FIREBASE_MESSAGING_SENDER_ID || '' }}
+  VENDZA_FIREBASE_PROJECT_ID: ${{ vars.VENDZA_FIREBASE_PROJECT_ID || '' }}
+  VENDZA_FIREBASE_STORAGE_BUCKET: ${{ vars.VENDZA_FIREBASE_STORAGE_BUCKET || '' }}
+  VENDZA_FIREBASE_VAPID_KEY: ${{ vars.VENDZA_FIREBASE_VAPID_KEY || '' }}
 
 jobs:
   validate:
@@ -40,6 +47,13 @@ jobs:
           --dart-define=VENDZA_API_BASE_URL=${{ env.VENDZA_API_BASE_URL }}
           --dart-define=VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
           --dart-define=GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
+          --dart-define=VENDZA_FIREBASE_API_KEY=${{ env.VENDZA_FIREBASE_API_KEY }}
+          --dart-define=VENDZA_FIREBASE_APP_ID=${{ env.VENDZA_FIREBASE_APP_ID }}
+          --dart-define=VENDZA_FIREBASE_AUTH_DOMAIN=${{ env.VENDZA_FIREBASE_AUTH_DOMAIN }}
+          --dart-define=VENDZA_FIREBASE_MESSAGING_SENDER_ID=${{ env.VENDZA_FIREBASE_MESSAGING_SENDER_ID }}
+          --dart-define=VENDZA_FIREBASE_PROJECT_ID=${{ env.VENDZA_FIREBASE_PROJECT_ID }}
+          --dart-define=VENDZA_FIREBASE_STORAGE_BUCKET=${{ env.VENDZA_FIREBASE_STORAGE_BUCKET }}
+          --dart-define=VENDZA_FIREBASE_VAPID_KEY=${{ env.VENDZA_FIREBASE_VAPID_KEY }}
 
   android:
     name: Android APK and AAB
@@ -56,6 +70,16 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Restore Android Firebase config
+        shell: bash
+        env:
+          ANDROID_GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [[ -z "$ANDROID_GOOGLE_SERVICES_JSON_BASE64" ]]; then
+            echo "::error::Missing ANDROID_GOOGLE_SERVICES_JSON_BASE64 secret."
+            exit 1
+          fi
+          python3 -c 'import base64, os, pathlib; pathlib.Path("android/app/google-services.json").write_bytes(base64.b64decode(os.environ["ANDROID_GOOGLE_SERVICES_JSON_BASE64"]))'
       - run: flutter pub get
 
       - name: Configure Android release signing
@@ -89,6 +113,13 @@ jobs:
           --dart-define=VENDZA_API_BASE_URL=${{ env.VENDZA_API_BASE_URL }}
           --dart-define=VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
           --dart-define=GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
+          --dart-define=VENDZA_FIREBASE_API_KEY=${{ env.VENDZA_FIREBASE_API_KEY }}
+          --dart-define=VENDZA_FIREBASE_APP_ID=${{ env.VENDZA_FIREBASE_APP_ID }}
+          --dart-define=VENDZA_FIREBASE_AUTH_DOMAIN=${{ env.VENDZA_FIREBASE_AUTH_DOMAIN }}
+          --dart-define=VENDZA_FIREBASE_MESSAGING_SENDER_ID=${{ env.VENDZA_FIREBASE_MESSAGING_SENDER_ID }}
+          --dart-define=VENDZA_FIREBASE_PROJECT_ID=${{ env.VENDZA_FIREBASE_PROJECT_ID }}
+          --dart-define=VENDZA_FIREBASE_STORAGE_BUCKET=${{ env.VENDZA_FIREBASE_STORAGE_BUCKET }}
+          --dart-define=VENDZA_FIREBASE_VAPID_KEY=${{ env.VENDZA_FIREBASE_VAPID_KEY }}
 
       - name: Build debug APK
         if: steps.signing.outputs.signed != 'true'
@@ -98,6 +129,13 @@ jobs:
           --dart-define=VENDZA_API_BASE_URL=${{ env.VENDZA_API_BASE_URL }}
           --dart-define=VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
           --dart-define=GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
+          --dart-define=VENDZA_FIREBASE_API_KEY=${{ env.VENDZA_FIREBASE_API_KEY }}
+          --dart-define=VENDZA_FIREBASE_APP_ID=${{ env.VENDZA_FIREBASE_APP_ID }}
+          --dart-define=VENDZA_FIREBASE_AUTH_DOMAIN=${{ env.VENDZA_FIREBASE_AUTH_DOMAIN }}
+          --dart-define=VENDZA_FIREBASE_MESSAGING_SENDER_ID=${{ env.VENDZA_FIREBASE_MESSAGING_SENDER_ID }}
+          --dart-define=VENDZA_FIREBASE_PROJECT_ID=${{ env.VENDZA_FIREBASE_PROJECT_ID }}
+          --dart-define=VENDZA_FIREBASE_STORAGE_BUCKET=${{ env.VENDZA_FIREBASE_STORAGE_BUCKET }}
+          --dart-define=VENDZA_FIREBASE_VAPID_KEY=${{ env.VENDZA_FIREBASE_VAPID_KEY }}
 
       - name: Build release AAB
         if: steps.signing.outputs.signed == 'true'
@@ -107,6 +145,13 @@ jobs:
           --dart-define=VENDZA_API_BASE_URL=${{ env.VENDZA_API_BASE_URL }}
           --dart-define=VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
           --dart-define=GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
+          --dart-define=VENDZA_FIREBASE_API_KEY=${{ env.VENDZA_FIREBASE_API_KEY }}
+          --dart-define=VENDZA_FIREBASE_APP_ID=${{ env.VENDZA_FIREBASE_APP_ID }}
+          --dart-define=VENDZA_FIREBASE_AUTH_DOMAIN=${{ env.VENDZA_FIREBASE_AUTH_DOMAIN }}
+          --dart-define=VENDZA_FIREBASE_MESSAGING_SENDER_ID=${{ env.VENDZA_FIREBASE_MESSAGING_SENDER_ID }}
+          --dart-define=VENDZA_FIREBASE_PROJECT_ID=${{ env.VENDZA_FIREBASE_PROJECT_ID }}
+          --dart-define=VENDZA_FIREBASE_STORAGE_BUCKET=${{ env.VENDZA_FIREBASE_STORAGE_BUCKET }}
+          --dart-define=VENDZA_FIREBASE_VAPID_KEY=${{ env.VENDZA_FIREBASE_VAPID_KEY }}
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
@@ -150,6 +195,16 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Restore iOS Firebase config
+        shell: bash
+        env:
+          IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+        run: |
+          if [[ -z "$IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64" ]]; then
+            echo "::error::Missing IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64 secret."
+            exit 1
+          fi
+          python3 -c 'import base64, os, pathlib; pathlib.Path("ios/Runner/GoogleService-Info.plist").write_bytes(base64.b64decode(os.environ["IOS_GOOGLE_SERVICE_INFO_PLIST_BASE64"]))'
       - run: flutter pub get
       - name: Build iOS without code signing
         run: >-
@@ -159,6 +214,13 @@ jobs:
           --dart-define=VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
           --dart-define=GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
           --dart-define=GOOGLE_IOS_CLIENT_ID=${{ env.GOOGLE_IOS_CLIENT_ID }}
+          --dart-define=VENDZA_FIREBASE_API_KEY=${{ env.VENDZA_FIREBASE_API_KEY }}
+          --dart-define=VENDZA_FIREBASE_APP_ID=${{ env.VENDZA_FIREBASE_APP_ID }}
+          --dart-define=VENDZA_FIREBASE_AUTH_DOMAIN=${{ env.VENDZA_FIREBASE_AUTH_DOMAIN }}
+          --dart-define=VENDZA_FIREBASE_MESSAGING_SENDER_ID=${{ env.VENDZA_FIREBASE_MESSAGING_SENDER_ID }}
+          --dart-define=VENDZA_FIREBASE_PROJECT_ID=${{ env.VENDZA_FIREBASE_PROJECT_ID }}
+          --dart-define=VENDZA_FIREBASE_STORAGE_BUCKET=${{ env.VENDZA_FIREBASE_STORAGE_BUCKET }}
+          --dart-define=VENDZA_FIREBASE_VAPID_KEY=${{ env.VENDZA_FIREBASE_VAPID_KEY }}
       - name: Package unsigned iOS application
         run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app build/ios/vendza-ios-unsigned.zip
       - name: Upload unsigned iOS artifact
@@ -206,6 +268,13 @@ jobs:
             VENDZA_API_BASE_URL=${{ env.VENDZA_API_BASE_URL }}
             VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
             GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
+            VENDZA_FIREBASE_API_KEY=${{ env.VENDZA_FIREBASE_API_KEY }}
+            VENDZA_FIREBASE_APP_ID=${{ env.VENDZA_FIREBASE_APP_ID }}
+            VENDZA_FIREBASE_AUTH_DOMAIN=${{ env.VENDZA_FIREBASE_AUTH_DOMAIN }}
+            VENDZA_FIREBASE_MESSAGING_SENDER_ID=${{ env.VENDZA_FIREBASE_MESSAGING_SENDER_ID }}
+            VENDZA_FIREBASE_PROJECT_ID=${{ env.VENDZA_FIREBASE_PROJECT_ID }}
+            VENDZA_FIREBASE_STORAGE_BUCKET=${{ env.VENDZA_FIREBASE_STORAGE_BUCKET }}
+            VENDZA_FIREBASE_VAPID_KEY=${{ env.VENDZA_FIREBASE_VAPID_KEY }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

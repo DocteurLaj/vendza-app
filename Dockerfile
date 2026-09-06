@@ -7,6 +7,13 @@ ARG FLUTTER_VERSION
 ARG VENDZA_API_BASE_URL="https://vendza-vendzaapi-lenoer-604821-72-60-90-32.sslip.io/api/v1"
 ARG VENDZA_MEDIA_BASE_URL="https://vendza-vendzaminiostorage-tx8h0h-c106eb-72-60-90-32.sslip.io"
 ARG GOOGLE_WEB_CLIENT_ID=""
+ARG VENDZA_FIREBASE_API_KEY=""
+ARG VENDZA_FIREBASE_APP_ID=""
+ARG VENDZA_FIREBASE_AUTH_DOMAIN=""
+ARG VENDZA_FIREBASE_MESSAGING_SENDER_ID=""
+ARG VENDZA_FIREBASE_PROJECT_ID=""
+ARG VENDZA_FIREBASE_STORAGE_BUCKET=""
+ARG VENDZA_FIREBASE_VAPID_KEY=""
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl git xz-utils \
@@ -39,7 +46,14 @@ RUN test -n "${VENDZA_API_BASE_URL}" \
     && flutter build web --release \
       --dart-define=VENDZA_API_BASE_URL="${VENDZA_API_BASE_URL}" \
       --dart-define=VENDZA_MEDIA_BASE_URL="${VENDZA_MEDIA_BASE_URL}" \
-      --dart-define=GOOGLE_WEB_CLIENT_ID="${GOOGLE_WEB_CLIENT_ID}"
+      --dart-define=GOOGLE_WEB_CLIENT_ID="${GOOGLE_WEB_CLIENT_ID}" \
+      --dart-define=VENDZA_FIREBASE_API_KEY="${VENDZA_FIREBASE_API_KEY}" \
+      --dart-define=VENDZA_FIREBASE_APP_ID="${VENDZA_FIREBASE_APP_ID}" \
+      --dart-define=VENDZA_FIREBASE_AUTH_DOMAIN="${VENDZA_FIREBASE_AUTH_DOMAIN}" \
+      --dart-define=VENDZA_FIREBASE_MESSAGING_SENDER_ID="${VENDZA_FIREBASE_MESSAGING_SENDER_ID}" \
+      --dart-define=VENDZA_FIREBASE_PROJECT_ID="${VENDZA_FIREBASE_PROJECT_ID}" \
+      --dart-define=VENDZA_FIREBASE_STORAGE_BUCKET="${VENDZA_FIREBASE_STORAGE_BUCKET}" \
+      --dart-define=VENDZA_FIREBASE_VAPID_KEY="${VENDZA_FIREBASE_VAPID_KEY}"
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 
