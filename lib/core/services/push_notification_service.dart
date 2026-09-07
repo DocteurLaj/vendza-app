@@ -54,7 +54,7 @@ class PushNotificationService {
         sound: true,
       );
       final token = await _firebaseMessaging.getToken(
-        vapidKey: kIsWeb ? _webVapidKey : null,
+        vapidKey: kIsWeb ? _webVapidKeyOrNull : null,
       );
       if (token == null || token.isEmpty) return;
       await _syncToken(token);
@@ -70,10 +70,7 @@ class PushNotificationService {
       await _client.post(
         ApiEndpoints.notificationPushToken,
         authenticated: true,
-        body: {
-          'token': token,
-          'platform': _platformName,
-        },
+        body: {'token': token, 'platform': _platformName},
       );
       _lastSyncedToken = token;
     } on Object {
@@ -95,15 +92,29 @@ class PushNotificationService {
       if (!_hasWebConfig) return false;
       await Firebase.initializeApp(
         options: const FirebaseOptions(
-          apiKey: String.fromEnvironment('VENDZA_FIREBASE_API_KEY'),
-          appId: String.fromEnvironment('VENDZA_FIREBASE_APP_ID'),
+          apiKey: String.fromEnvironment(
+            'VENDZA_FIREBASE_API_KEY',
+            defaultValue: _defaultWebFirebaseApiKey,
+          ),
+          appId: String.fromEnvironment(
+            'VENDZA_FIREBASE_APP_ID',
+            defaultValue: _defaultWebFirebaseAppId,
+          ),
           messagingSenderId: String.fromEnvironment(
             'VENDZA_FIREBASE_MESSAGING_SENDER_ID',
+            defaultValue: _defaultWebFirebaseMessagingSenderId,
           ),
-          projectId: String.fromEnvironment('VENDZA_FIREBASE_PROJECT_ID'),
-          authDomain: String.fromEnvironment('VENDZA_FIREBASE_AUTH_DOMAIN'),
+          projectId: String.fromEnvironment(
+            'VENDZA_FIREBASE_PROJECT_ID',
+            defaultValue: _defaultWebFirebaseProjectId,
+          ),
+          authDomain: String.fromEnvironment(
+            'VENDZA_FIREBASE_AUTH_DOMAIN',
+            defaultValue: _defaultWebFirebaseAuthDomain,
+          ),
           storageBucket: String.fromEnvironment(
             'VENDZA_FIREBASE_STORAGE_BUCKET',
+            defaultValue: _defaultWebFirebaseStorageBucket,
           ),
         ),
       );
@@ -133,9 +144,28 @@ class PushNotificationService {
 final pushNotificationService = PushNotificationService();
 
 const _webVapidKey = String.fromEnvironment('VENDZA_FIREBASE_VAPID_KEY');
+const _defaultWebFirebaseApiKey = 'AIzaSyB-t_OHTs5C7ZHT1uu47_iWl7JHEtC42QY';
+const _defaultWebFirebaseAppId = '1:992593495811:web:c97808a02ce8d595794b36';
+const _defaultWebFirebaseAuthDomain = 'vendza-notification.firebaseapp.com';
+const _defaultWebFirebaseMessagingSenderId = '992593495811';
+const _defaultWebFirebaseProjectId = 'vendza-notification';
+const _defaultWebFirebaseStorageBucket =
+    'vendza-notification.firebasestorage.app';
+String? get _webVapidKeyOrNull => _webVapidKey.isEmpty ? null : _webVapidKey;
 final _hasWebConfig =
-    String.fromEnvironment('VENDZA_FIREBASE_API_KEY').isNotEmpty &&
-    String.fromEnvironment('VENDZA_FIREBASE_APP_ID').isNotEmpty &&
-    String.fromEnvironment('VENDZA_FIREBASE_MESSAGING_SENDER_ID').isNotEmpty &&
-    String.fromEnvironment('VENDZA_FIREBASE_PROJECT_ID').isNotEmpty &&
-    _webVapidKey.isNotEmpty;
+    const String.fromEnvironment(
+      'VENDZA_FIREBASE_API_KEY',
+      defaultValue: _defaultWebFirebaseApiKey,
+    ).isNotEmpty &&
+    const String.fromEnvironment(
+      'VENDZA_FIREBASE_APP_ID',
+      defaultValue: _defaultWebFirebaseAppId,
+    ).isNotEmpty &&
+    const String.fromEnvironment(
+      'VENDZA_FIREBASE_MESSAGING_SENDER_ID',
+      defaultValue: _defaultWebFirebaseMessagingSenderId,
+    ).isNotEmpty &&
+    const String.fromEnvironment(
+      'VENDZA_FIREBASE_PROJECT_ID',
+      defaultValue: _defaultWebFirebaseProjectId,
+    ).isNotEmpty;
