@@ -597,4 +597,5 @@ Future<void> bootstrapSessionCatalog({required int userId}) async {
   if (userId > 0) {
     await catalogRepository.refreshNotifications(userId);
   }
+  await catalogRepository.startLocalSync();
 }
