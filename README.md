@@ -5,8 +5,8 @@ Le backend n'est pas inclus dans ce depot.
 
 ## Prerequis
 
-- Flutter `3.44.2` (stable)
-- Dart `3.12.2`
+- Flutter `3.47.2` (stable)
+- Dart `3.13.2`
 - Docker avec Compose pour valider l'image Web
 
 ## Developpement local
@@ -23,6 +23,10 @@ En debug Android, l'URL API utilise par defaut
 
 Les valeurs Flutter sont integrees au moment du build. Elles ne peuvent pas
 etre remplacees au demarrage du conteneur.
+
+La version Web est construite avec Flutter `3.47.2` ou plus recent afin
+d'eviter le bug CanvasKit/WebGL de Flutter `3.44.x` qui peut laisser l'onglet
+sur un ecran noir apres une perte de contexte GPU en arriere-plan.
 
 ```powershell
 flutter build web --release `

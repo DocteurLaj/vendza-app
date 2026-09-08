@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG FLUTTER_VERSION=3.44.2
+ARG FLUTTER_VERSION=3.47.2
 FROM debian:bookworm-slim AS build
 
 ARG FLUTTER_VERSION

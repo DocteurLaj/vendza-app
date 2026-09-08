@@ -12,11 +12,11 @@ Future<XFile?> resolveShareImage(String imagePath) async {
 
   try {
     if (SmartImage.isAssetPath(trimmed)) {
-      return _assetToXFile(trimmed);
+      return await _assetToXFile(trimmed);
     }
 
     if (SmartImage.isNetworkPath(trimmed)) {
-      return _networkToXFile(trimmed);
+      return await _networkToXFile(trimmed);
     }
 
     final file = File(trimmed);

@@ -95,6 +95,66 @@
       });
     }
   </script>
+  <script>
+    // Flutter Web CanvasKit uses WebGL. If the browser discards the GPU
+    // context while Vendza is in the background, affected Flutter engines can
+    // leave a permanently black canvas. Reload once when that exact failure is
+    // detected so the user gets a fresh WebGL context instead of a dead tab.
+    (function () {
+      const reloadKey = 'vendza-webgl-context-reload-at';
+      const cooldownMs = 30000;
+
+      function reloadVendza(reason) {
+        const now = Date.now();
+        const lastReload = Number(sessionStorage.getItem(reloadKey) || 0);
+        if (now - lastReload < cooldownMs) {
+          return;
+        }
+        sessionStorage.setItem(reloadKey, String(now));
+        console.warn('Reloading Vendza after WebGL context loss:', reason);
+        window.setTimeout(function () {
+          window.location.reload();
+        }, 250);
+      }
+
+      function isFlutterContextLossError(message) {
+        return /LateInitializationError|_handledContextLostEvent|webglcontextlost|context lost/i.test(String(message || ''));
+      }
+
+      function watchCanvas(canvas) {
+        if (!canvas || canvas.dataset.vendzaContextLossWatcher === 'true') {
+          return;
+        }
+        canvas.dataset.vendzaContextLossWatcher = 'true';
+        canvas.addEventListener('webglcontextlost', function (event) {
+          event.preventDefault();
+          reloadVendza('webglcontextlost');
+        }, false);
+      }
+
+      window.addEventListener('error', function (event) {
+        if (isFlutterContextLossError(event && (event.message || event.error))) {
+          reloadVendza('flutter-error');
+        }
+      });
+
+      window.addEventListener('unhandledrejection', function (event) {
+        if (isFlutterContextLossError(event && event.reason)) {
+          reloadVendza('flutter-promise');
+        }
+      });
+
+      function watchExistingCanvases() {
+        document.querySelectorAll('canvas').forEach(watchCanvas);
+      }
+
+      watchExistingCanvases();
+      new MutationObserver(watchExistingCanvases).observe(document.documentElement, {
+        childList: true,
+        subtree: true
+      });
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async=""></script>
 
 
