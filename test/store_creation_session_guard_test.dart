@@ -22,4 +22,21 @@ void main() {
       completes,
     );
   });
+
+  test('store creation guard does not block submit when restore stalls', () async {
+    final stopwatch = Stopwatch()..start();
+
+    await expectLater(
+      ensureStoreCreationSession(
+        () => Future<bool>.delayed(
+          const Duration(seconds: 30),
+          () => true,
+        ),
+        timeout: const Duration(milliseconds: 20),
+      ),
+      completes,
+    );
+
+    expect(stopwatch.elapsed, lessThan(const Duration(seconds: 1)));
+  });
 }
