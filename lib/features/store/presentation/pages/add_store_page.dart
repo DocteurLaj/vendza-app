@@ -212,7 +212,7 @@ class _AddStoreState extends State<AddStore> {
       if (!mounted) return;
       final message = error is ApiException
           ? error.message
-          : "Impossible de creer le store pour le moment.";
+          : "Impossible de creer le store pour le moment: $error";
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));

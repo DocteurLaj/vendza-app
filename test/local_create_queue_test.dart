@@ -243,6 +243,41 @@ void main() {
     expect(ownedStores.single.syncStatus, EntitySyncStatus.online);
   });
 
+  test('numeric store id product create is queued even when owned cache is stale', () async {
+    updateCurrentUser(_user());
+    final productsApi = _FakeProductApi();
+    final queue = LocalCreateQueue(
+      uploads: _FakeUploadApi(),
+      stores: _FakeStoreApi(),
+      products: productsApi,
+      auth: _FakeAuthApi(),
+      onChanged: () {},
+      storeFromApi: listStoreFromApi,
+    );
+    final products = <ProductModel>[];
+    queue.attachCatalog(
+      ownedStores: <ListStoreModel>[],
+      products: products,
+      publicStores: <ListStoreModel>[],
+      homeProducts: <ProductModel>[],
+    );
+
+    final optimistic = await queue.enqueueProduct(
+      storeId: '99',
+      storeName: 'Boutique Web',
+      title: 'Produit Web',
+      description: 'Création web',
+      price: '10',
+      numericPrice: 10,
+      imagePath: 'produit-web',
+    );
+    await pumpEventQueue(times: 20);
+
+    expect(optimistic.storeId, '99');
+    expect(productsApi.addCalls, 1);
+    expect(products.single.id, '55');
+  });
+
   test('retryFailedCreates replays stale failed product creates once API recovers', () async {
     updateCurrentUser(_user());
     final uploads = _FakeUploadApi()

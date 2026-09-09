@@ -172,7 +172,7 @@ class _AddProductState extends State<AddProduct> {
       if (!mounted) return;
       final message = error is ApiException
           ? error.message
-          : "Impossible d'ajouter ce produit pour le moment.";
+          : "Impossible d'ajouter ce produit pour le moment: $error";
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));

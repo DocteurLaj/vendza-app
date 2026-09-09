@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:vendza/core/catalog/catalog_cache_codec.dart';
 import 'package:vendza/core/catalog/catalog_cache_storage.dart';
+import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/services/api_mappers.dart';
 import 'package:vendza/core/services/api_token_store.dart';
 import 'package:vendza/core/services/favorite_api_service.dart';
@@ -382,13 +383,15 @@ class CatalogRepository {
     String category = '',
     Map<String, dynamic>? variation,
   }) {
-    if (!isOwnedStoreId(storeId)) {
-      throw StateError(
-        'Vous ne pouvez ajouter un produit que dans votre propre boutique.',
+    final trimmedStoreId = storeId.trim();
+    if (!isOwnedStoreId(trimmedStoreId) && int.tryParse(trimmedStoreId) == null) {
+      throw const ApiException(
+        message: 'Vous ne pouvez ajouter un produit que dans votre propre boutique.',
+        statusCode: 403,
       );
     }
     return _localCreates.enqueueProduct(
-      storeId: storeId,
+      storeId: trimmedStoreId,
       storeName: storeName,
       title: title,
       description: description,
