@@ -40,6 +40,19 @@ jobs:
         timeout-minutes: 10
       - run: flutter test
         timeout-minutes: 15
+      - name: Generate Firebase service worker config
+        shell: bash
+        run: |
+          printf '%s\n' \
+            'self.VENDZA_FIREBASE_CONFIG = {' \
+            "  apiKey: \"${VENDZA_FIREBASE_API_KEY}\"," \
+            "  authDomain: \"${VENDZA_FIREBASE_AUTH_DOMAIN}\"," \
+            "  projectId: \"${VENDZA_FIREBASE_PROJECT_ID}\"," \
+            "  storageBucket: \"${VENDZA_FIREBASE_STORAGE_BUCKET}\"," \
+            "  messagingSenderId: \"${VENDZA_FIREBASE_MESSAGING_SENDER_ID}\"," \
+            "  appId: \"${VENDZA_FIREBASE_APP_ID}\"" \
+            '};' \
+            > web/vendza-firebase-config.js
       - name: Build Web
         timeout-minutes: 20
         run: >-

@@ -43,6 +43,14 @@ RUN test -n "${VENDZA_API_BASE_URL}" \
        else \
          echo "GOOGLE_WEB_CLIENT_ID build-arg is set."; \
        fi \
+    && printf 'self.VENDZA_FIREBASE_CONFIG = {\n  apiKey: "%s",\n  authDomain: "%s",\n  projectId: "%s",\n  storageBucket: "%s",\n  messagingSenderId: "%s",\n  appId: "%s"\n};\n' \
+      "${VENDZA_FIREBASE_API_KEY}" \
+      "${VENDZA_FIREBASE_AUTH_DOMAIN}" \
+      "${VENDZA_FIREBASE_PROJECT_ID}" \
+      "${VENDZA_FIREBASE_STORAGE_BUCKET}" \
+      "${VENDZA_FIREBASE_MESSAGING_SENDER_ID}" \
+      "${VENDZA_FIREBASE_APP_ID}" \
+      > web/vendza-firebase-config.js \
     && flutter build web --release \
       --dart-define=VENDZA_API_BASE_URL="${VENDZA_API_BASE_URL}" \
       --dart-define=VENDZA_MEDIA_BASE_URL="${VENDZA_MEDIA_BASE_URL}" \
