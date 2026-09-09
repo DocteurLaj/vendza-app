@@ -27,7 +27,7 @@ enum LocalCreatePhase {
 
 String newLocalEntityId(String kind) {
   final stamp = DateTime.now().microsecondsSinceEpoch;
-  final noise = Random().nextInt(1 << 32).toRadixString(16);
+  final noise = Random().nextInt(0x100000000).toRadixString(16);
   return 'local-$kind-$stamp-$noise';
 }
 
