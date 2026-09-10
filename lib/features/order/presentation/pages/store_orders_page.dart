@@ -4,6 +4,7 @@ import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/order/data/models/order_model.dart';
 import 'package:vendza/features/order/data/services/order_api_service.dart';
+import 'package:vendza/features/order/presentation/helpers/customer_contact_launcher.dart';
 import 'package:vendza/features/order/presentation/helpers/order_status_presentation.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
@@ -295,6 +296,10 @@ class _StoreOrderCard extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
+          if ((order.contactPhone ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _CustomerContactRow(phone: order.contactPhone!.trim()),
+          ],
           const SizedBox(height: 12),
           _OrderTimeline(status: order.status),
           if (next != null || order.status == 'pending') ...[
@@ -318,6 +323,69 @@ class _StoreOrderCard extends StatelessWidget {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CustomerContactRow extends StatelessWidget {
+  const _CustomerContactRow({required this.phone});
+
+  final String phone;
+
+  Future<void> _open(BuildContext context) async {
+    final opened = await openCustomerContact(phone);
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d’ouvrir le contact client.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.accent(context).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border(context)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.phone_in_talk_outlined,
+            color: AppColors.iconAccent(context),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Contact client',
+                  style: TextStyle(
+                    color: AppColors.textSecondary(context),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  phone,
+                  style: TextStyle(
+                    color: AppColors.textPrimary(context),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton.icon(
+            onPressed: () => _open(context),
+            icon: const Icon(Icons.chat_outlined, size: 18),
+            label: const Text('Contacter'),
+          ),
         ],
       ),
     );

@@ -19,6 +19,9 @@ class OrderApiService {
   Future<OrderModel> createOrder({
     required List<OrderItemRequest> items,
     required String idempotencyKey,
+    required String contactPhone,
+    required String deliveryAddress,
+    String? customerNote,
   }) async {
     final response = await _client.postWithHeaders(
       ApiEndpoints.orders,
@@ -26,6 +29,10 @@ class OrderApiService {
       headers: {'Idempotency-Key': idempotencyKey},
       body: {
         'payment_method': 'cash_on_delivery',
+        'contact_phone': contactPhone.trim(),
+        'delivery_address': deliveryAddress.trim(),
+        if (customerNote != null && customerNote.trim().isNotEmpty)
+          'customer_note': customerNote.trim(),
         'items': items.map((item) => item.toJson()).toList(growable: false),
       },
     );

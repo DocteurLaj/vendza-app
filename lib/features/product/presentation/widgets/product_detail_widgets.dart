@@ -637,7 +637,7 @@ class ProductDetailActionButtons extends StatelessWidget {
                   )
                 : const Icon(Icons.shopping_cart_outlined),
             label: Text(
-              isBuying ? "Commande..." : "Acheter maintenant",
+              isBuying ? "Ouverture..." : "Ajouter à la commande",
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             style: ElevatedButton.styleFrom(

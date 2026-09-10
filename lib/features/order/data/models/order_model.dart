@@ -42,6 +42,10 @@ class OrderModel {
     required this.paymentMethod,
     required this.createdAt,
     required this.items,
+    this.storeId,
+    this.contactPhone,
+    this.deliveryAddress,
+    this.customerNote,
   });
 
   final int id;
@@ -51,6 +55,10 @@ class OrderModel {
   final String paymentMethod;
   final DateTime createdAt;
   final List<OrderItemModel> items;
+  final int? storeId;
+  final String? contactPhone;
+  final String? deliveryAddress;
+  final String? customerNote;
 
   bool get canBeCancelledByBuyer => status == 'pending';
 
@@ -62,6 +70,10 @@ class OrderModel {
       status: json['status'] as String,
       paymentMethod: json['payment_method'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      storeId: json['store_idstore'] as int?,
+      contactPhone: json['contact_phone'] as String?,
+      deliveryAddress: json['delivery_address'] as String?,
+      customerNote: json['customer_note'] as String?,
       items: (json['items'] as List<dynamic>)
           .map(
             (item) =>

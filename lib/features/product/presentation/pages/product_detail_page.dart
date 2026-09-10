@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/session/liked_products_store.dart';
 import 'package:vendza/core/constants/colors.dart';
-import 'package:vendza/core/services/api_exception.dart';
-import 'package:vendza/features/order/data/models/order_model.dart';
-import 'package:vendza/features/order/data/services/order_api_service.dart';
+import 'package:vendza/features/order/data/services/order_draft_store.dart';
+import 'package:vendza/features/order/presentation/pages/order_checkout_page.dart';
 import 'package:vendza/shared/utils/phone_number.dart';
 import 'package:vendza/features/product/presentation/widgets/product_detail_widgets.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
@@ -48,8 +46,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   bool _actionsExpanded = false;
   bool _detailsExpanded = true;
   bool _isLiked = false;
-  bool _isBuying = false;
-  final _orderApi = OrderApiService();
+  bool _openingCheckout = false;
 
   ProductModel get product => _product;
 
@@ -93,7 +90,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     for (final item in products) {
       if (item.id == _product.id ||
           (item.localId.isNotEmpty &&
-              (item.localId == _product.localId || item.localId == _product.id))) {
+              (item.localId == _product.localId ||
+                  item.localId == _product.id))) {
         latest = item;
         break;
       }
@@ -180,7 +178,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         .where((item) => item.url != null && item.url!.contains('wa.me'))
         .map((item) => item.url!)
         .firstOrNull;
-    final store = stores.where((item) => item.id == product.storeId).firstOrNull;
+    final store = stores
+        .where((item) => item.id == product.storeId)
+        .firstOrNull;
     final rawWhatsapp = whatsapp ?? store?.whatsappUrl.trim() ?? '';
     final link = rawWhatsapp.startsWith('http')
         ? rawWhatsapp
@@ -209,41 +209,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   }
 
   Future<void> _buyProduct() async {
-    if (_isBuying || !product.isActive || widget.ownerMode) return;
-    if (!NetworkStatus.ensureOnline(context)) return;
-    final productId = int.tryParse(product.id);
-    if (productId == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Produit invalide.')));
-      return;
-    }
-
-    setState(() => _isBuying = true);
-    try {
-      await _orderApi.createOrder(
-        items: [OrderItemRequest(productId: productId, quantity: 1)],
-        idempotencyKey: OrderApiService.newIdempotencyKey(),
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Commande envoyee au store.')),
-      );
-    } on ApiException catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
-    } on Object {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Impossible de passer la commande pour le moment.'),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _isBuying = false);
-    }
+    if (_openingCheckout || !product.isActive || widget.ownerMode) return;
+    setState(() => _openingCheckout = true);
+    orderDraftStore.addProduct(product);
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const OrderCheckoutPage()),
+    );
+    if (mounted) setState(() => _openingCheckout = false);
   }
 
   Future<void> _openOwnerEditor() async {
@@ -405,8 +378,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       onContactSeller: _contactSeller,
                       onBuy: _buyProduct,
                       canBuy:
-                          !widget.ownerMode && product.isActive && !_isBuying,
-                      isBuying: _isBuying,
+                          !widget.ownerMode &&
+                          product.isActive &&
+                          !_openingCheckout,
+                      isBuying: _openingCheckout,
                     ),
                   ),
                 ),
