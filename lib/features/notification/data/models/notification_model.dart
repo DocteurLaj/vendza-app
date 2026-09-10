@@ -4,6 +4,8 @@ class NotificationModel {
   final String description;
   final String imageUrl;
   final bool isRead;
+  final int? storeId;
+  final int? orderId;
 
   NotificationModel({
     required this.id,
@@ -11,5 +13,7 @@ class NotificationModel {
     required this.description,
     required this.imageUrl,
     required this.isRead,
+    this.storeId,
+    this.orderId,
   });
 }

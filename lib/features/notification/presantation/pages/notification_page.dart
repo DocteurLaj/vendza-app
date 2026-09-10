@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
+import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
+import 'package:vendza/features/order/presentation/pages/store_orders_page.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
 import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/notification/presantation/widgets/notification_tilter_toggle.dart';
 import 'package:vendza/features/notification/presantation/widgets/notification_widget.dart';
+import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 
 class NotificationPage extends StatefulWidget {
@@ -26,14 +29,38 @@ class _NotificationPageState extends State<NotificationPage> {
     });
   }
 
-  void _markAsRead(String id) {
+  void _openNotification(NotificationModel notification) {
     if (showUnread) {
       setState(() {
-        _openedFromUnreadIds.add(id);
+        _openedFromUnreadIds.add(notification.id);
       });
     }
 
-    markNotificationAsRead(id);
+    markNotificationAsRead(notification.id);
+
+    final storeId = notification.storeId;
+    if (notification.name == 'store_order' && storeId != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => StoreOrdersPage(
+            store: ListStoreModel(
+              id: '$storeId',
+              name: 'Store',
+              description: '',
+              imageUrl: '',
+              rating: 0,
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (notification.name == 'order' && notification.orderId != null) {
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const BuyerOrdersPage()));
+    }
   }
 
   @override
@@ -113,7 +140,7 @@ class _NotificationPageState extends State<NotificationPage> {
                                 return NotificationWidget(
                                   key: ValueKey(filtered[index].id),
                                   notification: filtered[index],
-                                  onMarkAsRead: _markAsRead,
+                                  onOpen: _openNotification,
                                 );
                               },
                             ),

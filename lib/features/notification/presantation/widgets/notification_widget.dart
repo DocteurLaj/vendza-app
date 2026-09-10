@@ -7,11 +7,11 @@ class NotificationWidget extends StatefulWidget {
   const NotificationWidget({
     super.key,
     required this.notification,
-    required this.onMarkAsRead,
+    required this.onOpen,
   });
 
   final NotificationModel notification;
-  final ValueChanged<String> onMarkAsRead;
+  final ValueChanged<NotificationModel> onOpen;
 
   @override
   State<NotificationWidget> createState() => _NotificationWidgetState();
@@ -27,8 +27,8 @@ class _NotificationWidgetState extends State<NotificationWidget> {
       isExpanded = shouldExpand;
     });
 
-    if (shouldExpand && !widget.notification.isRead) {
-      widget.onMarkAsRead(widget.notification.id);
+    if (shouldExpand) {
+      widget.onOpen(widget.notification);
     }
   }
 
