@@ -1,5 +1,4 @@
-import 'package:vendza/core/catalog/catalog_repository.dart';
-import 'package:vendza/core/sync/entity_sync_status.dart';
+import 'package:vendza/core/services/product_event_api_service.dart';
 import 'package:vendza/features/collection/data/services/data_exemple.dart'
     as collection_data;
 import 'package:vendza/features/home/data/models/store_model.dart' as detail;
@@ -11,28 +10,17 @@ import 'package:vendza/features/store/data/services/data_exemple.dart'
 import 'package:vendza/shared/models/product_model.dart';
 
 List<ProductModel> activeProducts(Iterable<ProductModel> source) {
-  return source.where((product) => product.isActive).toList();
-}
-
-String get ownerPrimaryStoreId {
-  return store_data.stores.isEmpty ? "" : store_data.stores.first.id;
+  return source
+      .where((product) => product.isActive && !product.adminDisabled)
+      .toList();
 }
 
 List<ProductModel> productsForStoreId(String storeId) {
   final normalizedStoreId = storeId.trim();
   if (normalizedStoreId.isEmpty) return const [];
 
-  final aliases = <String>{normalizedStoreId};
-  for (final store in store_data.ownedStores) {
-    if (store.id == normalizedStoreId || store.localId == normalizedStoreId) {
-      aliases
-        ..add(store.id)
-        ..add(store.localId);
-    }
-  }
-
   return store_data.products
-      .where((product) => aliases.contains(product.storeId))
+      .where((product) => product.storeId == normalizedStoreId)
       .toList();
 }
 
@@ -73,43 +61,74 @@ List<ProductModel> activeProductsForDetailStore(detail.StoreModel store) {
 }
 
 void updateManagedProduct(ProductModel updatedProduct) {
-  _replaceProductInList(store_data.products, updatedProduct);
-  if (updatedProduct.isActive) {
-    _replaceProductInList(home_data.products, updatedProduct);
-    if (!home_data.products.any(
-      (item) => _isSameProduct(item, updatedProduct),
-    )) {
-      home_data.products.insert(0, updatedProduct);
+  for (int index = 0; index < store_data.products.length; index++) {
+    if (store_data.products[index].id == updatedProduct.id) {
+      store_data.products[index] = updatedProduct;
+      break;
     }
-  } else {
-    home_data.products.removeWhere(
-      (item) => _isSameProduct(item, updatedProduct),
+  }
+
+  for (final entry
+      in collection_data
+          .collectionProductsForStore(updatedProduct.storeId)
+          .entries) {
+    entry.value.replaceWhere(
+      (product) => product.id == updatedProduct.id,
+      updatedProduct,
     );
   }
 
-  for (final entry in collection_data.collectionProducts.entries) {
-    if (updatedProduct.isActive) {
-      entry.value.replaceWhere(
-        (product) => product.id == updatedProduct.id,
-        updatedProduct,
-      );
-    } else {
-      entry.value.removeWhere((product) => product.id == updatedProduct.id);
-    }
-  }
-
-  if (updatedProduct.storeId == ownerPrimaryStoreId ||
-      isOwnedStoreId(updatedProduct.storeId)) {
+  if (updatedProduct.storeId.isNotEmpty) {
     final customization = store_data.customizationForStore(
       updatedProduct.storeId,
     );
-    final featuredProducts = updatedProduct.isActive
-        ? customization.featuredProducts.map((product) {
-            return product.id == updatedProduct.id ? updatedProduct : product;
-          }).toList()
-        : customization.featuredProducts
-              .where((product) => product.id != updatedProduct.id)
-              .toList();
+    final featuredProducts = customization.featuredProducts.map((product) {
+      return product.id == updatedProduct.id ? updatedProduct : product;
+    }).toList();
+
+    store_data.updateStoreCustomizationForStore(
+      updatedProduct.storeId,
+      customization.copyWith(featuredProducts: featuredProducts),
+    );
+  }
+}
+
+void setManagedProductActive(ProductModel product, bool isActive) {
+  if (product.adminDisabled && isActive) {
+    return;
+  }
+  updateManagedProduct(product.copyWith(isActive: isActive));
+}
+
+ProductModel registerProductContactClick(ProductModel product) {
+  productEventApiService.trackSafely(
+    eventType: 'contact_click',
+    productId: product.id,
+  );
+  final updatedProduct = product.copyWith(
+    contactClicks: product.contactClicks + 1,
+  );
+
+  _replaceProductInList(store_data.products, updatedProduct);
+  _replaceProductInList(home_data.products, updatedProduct);
+
+  for (final entry
+      in collection_data
+          .collectionProductsForStore(updatedProduct.storeId)
+          .entries) {
+    entry.value.replaceWhere(
+      (item) => _isSameProduct(item, updatedProduct),
+      updatedProduct,
+    );
+  }
+
+  if (updatedProduct.storeId.isNotEmpty) {
+    final customization = store_data.customizationForStore(
+      updatedProduct.storeId,
+    );
+    final featuredProducts = customization.featuredProducts.map((item) {
+      return _isSameProduct(item, updatedProduct) ? updatedProduct : item;
+    }).toList();
 
     store_data.updateStoreCustomizationForStore(
       updatedProduct.storeId,
@@ -117,23 +136,18 @@ void updateManagedProduct(ProductModel updatedProduct) {
     );
   }
 
-  catalogRevision.value++;
-}
-
-void setManagedProductActive(ProductModel product, bool isActive) {
-  updateManagedProduct(product.copyWith(isActive: isActive));
+  return updatedProduct;
 }
 
 void deleteManagedProduct(ProductModel product) {
   store_data.products.removeWhere((item) => item.id == product.id);
-  home_data.products.removeWhere((item) => item.id == product.id);
 
-  for (final entry in collection_data.collectionProducts.entries) {
+  for (final entry
+      in collection_data.collectionProductsForStore(product.storeId).entries) {
     entry.value.removeWhere((item) => item.id == product.id);
   }
 
-  if (product.storeId == ownerPrimaryStoreId ||
-      isOwnedStoreId(product.storeId)) {
+  if (product.storeId.isNotEmpty) {
     final customization = store_data.customizationForStore(product.storeId);
     store_data.updateStoreCustomizationForStore(
       product.storeId,
@@ -144,23 +158,6 @@ void deleteManagedProduct(ProductModel product) {
       ),
     );
   }
-
-  catalogRevision.value++;
-}
-
-Future<ProductModel> persistManagedProductUpdate(
-  ProductModel updatedProduct,
-) async {
-  await catalogRepository.persistProductUpdate(updatedProduct);
-  if (isLocalEntityId(updatedProduct.id)) {
-    updateManagedProduct(updatedProduct);
-  }
-  return updatedProduct;
-}
-
-Future<void> persistManagedProductDelete(ProductModel product) async {
-  await catalogRepository.persistProductDelete(product);
-  deleteManagedProduct(product);
 }
 
 void _replaceProductInList(List<ProductModel> source, ProductModel product) {

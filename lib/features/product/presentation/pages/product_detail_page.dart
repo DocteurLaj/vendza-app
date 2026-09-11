@@ -1,28 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
+import 'package:vendza/core/services/product_event_api_service.dart';
+import 'package:vendza/core/services/moderation_api_service.dart';
 import 'package:vendza/core/session/liked_products_store.dart';
 import 'package:vendza/core/constants/colors.dart';
-import 'package:vendza/core/services/api_exception.dart';
-import 'package:vendza/features/order/data/models/order_model.dart';
-import 'package:vendza/features/order/data/services/order_api_service.dart';
-import 'package:vendza/shared/utils/phone_number.dart';
 import 'package:vendza/features/product/presentation/widgets/product_detail_widgets.dart';
+import 'package:vendza/features/product/presentation/widgets/product_image_gallery_field.dart';
+import 'package:vendza/features/product/presentation/widgets/product_category_selector.dart';
+import 'package:vendza/features/order/data/services/order_store.dart';
+import 'package:vendza/features/order/presentation/pages/order_checkout_page.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
 import 'package:vendza/features/store/data/services/product_management_service.dart';
+import 'package:vendza/features/store/data/services/product_api_service.dart';
 import 'package:vendza/features/store/presentation/widgets/custom_image_selector.dart';
 import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/utils/product_price_formatter.dart';
 import 'package:vendza/shared/widgets/dialog/confirm_delete_dialog.dart';
 import 'package:vendza/shared/widgets/dialog/show_app_popup.dart';
 import 'package:vendza/core/services/media/app_image_picker.dart';
-import 'package:vendza/core/services/product_event_api_service.dart';
 import 'package:vendza/core/services/share/app_share_service.dart';
-import 'package:vendza/core/services/share/whatsapp_seller_chat.dart';
-import 'package:vendza/core/sync/entity_sync_status.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
-import 'package:vendza/shared/widgets/sync/sync_status_strip.dart';
 
 class ProductDetailPage extends StatefulWidget {
   const ProductDetailPage({
@@ -48,8 +46,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   bool _actionsExpanded = false;
   bool _detailsExpanded = true;
   bool _isLiked = false;
-  bool _isBuying = false;
-  final _orderApi = OrderApiService();
 
   ProductModel get product => _product;
 
@@ -76,9 +72,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     super.initState();
     _product = widget.product;
     _isLiked = isProductLiked(product.id);
-    _selectedVariantIndex = null;
-    if (widget.ownerMode) {
-      catalogRevision.addListener(_pullLiveProduct);
+    if (product.variants.isNotEmpty) {
+      _selectedVariantIndex = 0;
     }
     productEventApiService.trackSafely(
       eventType: 'product_open',
@@ -88,36 +83,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     );
   }
 
-  void _pullLiveProduct() {
-    ProductModel latest = _product;
-    for (final item in products) {
-      if (item.id == _product.id ||
-          (item.localId.isNotEmpty &&
-              (item.localId == _product.localId || item.localId == _product.id))) {
-        latest = item;
-        break;
-      }
-    }
-    if (!mounted) return;
-    if (latest.syncStatus != _product.syncStatus ||
-        latest.syncProgress != _product.syncProgress ||
-        latest.id != _product.id ||
-        latest.syncError != _product.syncError) {
-      setState(() => _product = latest);
-    }
-  }
-
-  @override
-  void dispose() {
-    if (widget.ownerMode) {
-      catalogRevision.removeListener(_pullLiveProduct);
-    }
-    super.dispose();
-  }
-
   void _selectVariant(int index) {
     setState(() {
-      _selectedVariantIndex = _selectedVariantIndex == index ? null : index;
+      _selectedVariantIndex = index;
     });
   }
 
@@ -151,13 +119,20 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     });
   }
 
-  void _toggleLike() async {
-    await catalogRepository.toggleProductFavorite(product.id);
-    if (!mounted) return;
-    setState(() {
-      _isLiked = isProductLiked(product.id);
-      _actionsExpanded = false;
-    });
+  Future<void> _toggleLike() async {
+    try {
+      final isLiked = await toggleLikedProduct(product.id);
+      if (!mounted) return;
+      setState(() {
+        _isLiked = isLiked;
+        _actionsExpanded = false;
+      });
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Favori non modifié : $error')));
+    }
   }
 
   Future<void> _shareProduct() async {
@@ -167,83 +142,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     await AppShareService.shareProduct(context, product);
   }
 
-  Future<void> _contactSeller() async {
-    productEventApiService.trackSafely(
-      eventType: 'contact_click',
-      productId: product.id,
-      section: widget.section,
-      position: widget.position,
+  void _contactSeller() {
+    final updatedProduct = registerProductContactClick(product);
+    setState(() {
+      _product = updatedProduct;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Demande envoyee pour ${product.name}")),
     );
-
-    final storeSocials = configuredStoreSocials(product.storeId);
-    final whatsapp = storeSocials
-        .where((item) => item.url != null && item.url!.contains('wa.me'))
-        .map((item) => item.url!)
-        .firstOrNull;
-    final store = stores.where((item) => item.id == product.storeId).firstOrNull;
-    final rawWhatsapp = whatsapp ?? store?.whatsappUrl.trim() ?? '';
-    final link = rawWhatsapp.startsWith('http')
-        ? rawWhatsapp
-        : whatsappUrlFromPhone(rawWhatsapp);
-    if (link.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Aucun numero WhatsApp n\'est associe a ce store.'),
-        ),
-      );
-      return;
-    }
-    final opened = await WhatsappSellerChat.open(
-      whatsappLink: link,
-      productId: product.id,
-      productName: product.name,
-      priceLabel: formatProductPriceLabel(displayedPrice),
-      imageUrl: displayedImage,
-    );
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible d\'ouvrir WhatsApp.')),
-      );
-    }
-  }
-
-  Future<void> _buyProduct() async {
-    if (_isBuying || !product.isActive || widget.ownerMode) return;
-    if (!NetworkStatus.ensureOnline(context)) return;
-    final productId = int.tryParse(product.id);
-    if (productId == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Produit invalide.')));
-      return;
-    }
-
-    setState(() => _isBuying = true);
-    try {
-      await _orderApi.createOrder(
-        items: [OrderItemRequest(productId: productId, quantity: 1)],
-        idempotencyKey: OrderApiService.newIdempotencyKey(),
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Commande envoyee au store.')),
-      );
-    } on ApiException catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
-    } on Object {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Impossible de passer la commande pour le moment.'),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _isBuying = false);
-    }
   }
 
   Future<void> _openOwnerEditor() async {
@@ -257,31 +164,141 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     if (updatedProduct == null) return;
 
     final saved = await _applyOwnerUpdate(updatedProduct);
-    if (!mounted || !saved) return;
-    Navigator.of(context).pop();
+    if (!saved) return;
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Produit mis à jour.")));
   }
 
   Future<void> _toggleProductVisibility(bool isActive) async {
+    if (product.adminDisabled && isActive) {
+      final reason = product.moderationReason.trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            reason.isEmpty
+                ? "Ce produit a été désactivé par Vendza."
+                : "Désactivé par Vendza : $reason",
+          ),
+        ),
+      );
+      return;
+    }
     await _applyOwnerUpdate(product.copyWith(isActive: isActive));
   }
 
-  Future<bool> _applyOwnerUpdate(ProductModel updatedProduct) async {
+  Future<void> _requestModerationReview() async {
+    final controller = TextEditingController();
+    final message = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Demander une révision"),
+        content: TextField(
+          controller: controller,
+          minLines: 3,
+          maxLines: 5,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: "Expliquez pourquoi ce produit doit être réactivé.",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Annuler"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text("Envoyer"),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (message == null || message.length < 3) return;
     try {
-      await persistManagedProductUpdate(updatedProduct);
+      await ModerationApiService().requestReview(
+        targetType: 'product',
+        targetId: product.id,
+        message: message,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Demande envoyée à l'administration.")),
+      );
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Envoi impossible : $error")));
+    }
+  }
+
+  Future<void> _orderProduct() async {
+    final order = await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => OrderCheckoutPage(product: product)),
+    );
+    if (order == null || !mounted) return;
+    prependBuyerOrder(order);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Commande #${order.id} créée avec succès.')),
+    );
+  }
+
+  Future<bool> _applyOwnerUpdate(ProductModel updatedProduct) async {
+    final storeId = int.tryParse(updatedProduct.storeId);
+    final productId = int.tryParse(updatedProduct.id);
+    if (storeId == null || productId == null) return false;
+    final numericPrice = double.tryParse(
+      updatedProduct.price.replaceAll(RegExp(r'[^0-9.]'), ''),
+    );
+    final currency = updatedProduct.price.toUpperCase().contains('USD')
+        ? 'USD'
+        : 'CDF';
+    try {
+      await ProductApiService().updateProduct(
+        storeId: storeId,
+        productId: productId,
+        title: updatedProduct.name,
+        description: updatedProduct.description,
+        price: numericPrice,
+        currency: currency,
+        stock: updatedProduct.stock,
+        category: updatedProduct.category,
+        isActive: updatedProduct.isActive,
+        images: updatedProduct.images.isEmpty
+            ? [updatedProduct.imageurl]
+            : updatedProduct.images,
+        variation: {
+          'items': updatedProduct.variants
+              .map(
+                (variant) => {
+                  'name': variant.name,
+                  'price': variant.price,
+                  'quantity': variant.quantity,
+                  'imageurl': variant.imageurl,
+                },
+              )
+              .toList(),
+        },
+      );
+      updateManagedProduct(updatedProduct);
       if (!mounted) return true;
       setState(() {
         _product = updatedProduct;
         if (_selectedVariantIndex != null &&
             _selectedVariantIndex! >= product.variants.length) {
-          _selectedVariantIndex = null;
+          _selectedVariantIndex = product.variants.isEmpty ? null : 0;
         }
       });
       return true;
     } on Object catch (error) {
-      if (!mounted) return false;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Mise à jour impossible: $error")));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Mise à jour impossible : $error')),
+        );
+      }
       return false;
     }
   }
@@ -296,16 +313,24 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
     if (!confirmed) return;
 
+    final storeId = int.tryParse(product.storeId);
+    final productId = int.tryParse(product.id);
+    if (storeId == null || productId == null) return;
     try {
-      await persistManagedProductDelete(product);
-      if (!mounted) return;
-      Navigator.of(context).pop(true);
+      await ProductApiService().deleteProduct(
+        storeId: storeId,
+        productId: productId,
+      );
     } on Object catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Suppression impossible: $error")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Suppression impossible : $error')),
+      );
+      return;
     }
+    deleteManagedProduct(product);
+    if (!mounted) return;
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -350,35 +375,12 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   right: 14,
                   child: _OwnerProductTopBar(
                     isActive: product.isActive,
+                    adminDisabled: product.adminDisabled,
+                    moderationReason: product.moderationReason,
                     onEdit: _openOwnerEditor,
                     onVisibilityChanged: _toggleProductVisibility,
+                    onRequestReview: _requestModerationReview,
                     onDelete: _deleteOwnerProduct,
-                  ),
-                ),
-              if (widget.ownerMode && product.syncStatus.isPending)
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 58,
-                  left: 14,
-                  right: 14,
-                  child: Material(
-                    color: AppColors.card(context),
-                    elevation: 2,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                      child: SyncStatusStrip(
-                        status: product.syncStatus,
-                        progress: product.syncProgress,
-                        errorMessage: product.syncError,
-                        onRetry: product.syncStatus == EntitySyncStatus.error
-                            ? () => catalogRepository.retryLocalCreate(
-                                product.localId.isNotEmpty
-                                    ? product.localId
-                                    : product.id,
-                              )
-                            : null,
-                      ),
-                    ),
                   ),
                 ),
               AnimatedPositioned(
@@ -402,23 +404,25 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       isExpanded: _detailsExpanded,
                       minHeight: constraints.maxHeight - panelTop,
                       onVariantSelected: _selectVariant,
+                      onBuyNow:
+                          !widget.ownerMode &&
+                              product.storeDeliveryEnabled &&
+                              product.isActive &&
+                              product.stock > 0
+                          ? _orderProduct
+                          : null,
                       onContactSeller: _contactSeller,
-                      onBuy: _buyProduct,
-                      canBuy:
-                          !widget.ownerMode && product.isActive && !_isBuying,
-                      isBuying: _isBuying,
                     ),
                   ),
                 ),
               ),
-              if (!widget.ownerMode)
-                ProductDetailFloatingActions(
-                  expanded: _actionsExpanded,
-                  isLiked: _isLiked,
-                  onToggle: _toggleActions,
-                  onLike: _toggleLike,
-                  onShare: _shareProduct,
-                ),
+              ProductDetailFloatingActions(
+                expanded: _actionsExpanded,
+                isLiked: _isLiked,
+                onToggle: _toggleActions,
+                onLike: _toggleLike,
+                onShare: _shareProduct,
+              ),
             ],
           );
         },
@@ -430,14 +434,20 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 class _OwnerProductTopBar extends StatelessWidget {
   const _OwnerProductTopBar({
     required this.isActive,
+    required this.adminDisabled,
+    required this.moderationReason,
     required this.onEdit,
     required this.onVisibilityChanged,
+    required this.onRequestReview,
     required this.onDelete,
   });
 
   final bool isActive;
+  final bool adminDisabled;
+  final String moderationReason;
   final VoidCallback onEdit;
   final ValueChanged<bool> onVisibilityChanged;
+  final VoidCallback onRequestReview;
   final VoidCallback onDelete;
 
   @override
@@ -468,21 +478,35 @@ class _OwnerProductTopBar extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            isActive ? "Actif" : "Inactif",
+            adminDisabled
+                ? "Bloqué par Vendza"
+                : (isActive ? "Actif" : "Inactif"),
             style: TextStyle(
               color: AppColors.textPrimary(context),
               fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
           ),
-          Transform.scale(
-            scale: 0.78,
-            child: Switch(
-              value: isActive,
-              activeThumbColor: AppColors.accent(context),
-              onChanged: onVisibilityChanged,
+          if (!adminDisabled)
+            Tooltip(
+              message: "",
+              child: Transform.scale(
+                scale: 0.78,
+                child: Switch(
+                  value: isActive,
+                  activeThumbColor: AppColors.accent(context),
+                  onChanged: onVisibilityChanged,
+                ),
+              ),
             ),
-          ),
+          if (adminDisabled)
+            IconButton(
+              tooltip: moderationReason.trim().isEmpty
+                  ? "Demander une révision"
+                  : "Motif : $moderationReason",
+              onPressed: onRequestReview,
+              icon: const Icon(Icons.rate_review_outlined),
+            ),
           const Spacer(),
           IconButton(
             tooltip: "Modifier",
@@ -516,14 +540,16 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _priceController;
   late final TextEditingController _descriptionController;
-  late final TextEditingController _categoryController;
+  late final TextEditingController _stockController;
+  late String _category;
   late String _currency;
-  late String _imageUrl;
+  late List<String> _imageUrls;
   late bool _isActive;
   late List<_VariantEditorDraft> _variants;
   String? _nameError;
   String? _priceError;
   String? _imageError;
+  String? _stockError;
 
   @override
   void initState() {
@@ -533,9 +559,12 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
     _nameController = TextEditingController(text: product.name);
     _priceController = TextEditingController(text: parsedPrice.amount);
     _currency = parsedPrice.currency;
-    _imageUrl = product.imageurl;
+    _imageUrls = product.images.isEmpty
+        ? [if (product.imageurl.trim().isNotEmpty) product.imageurl]
+        : List<String>.from(product.images);
     _descriptionController = TextEditingController(text: product.description);
-    _categoryController = TextEditingController(text: product.category);
+    _stockController = TextEditingController(text: '${product.stock}');
+    _category = product.category;
     _isActive = product.isActive;
     _variants = product.variants
         .map((variant) => _VariantEditorDraft.fromModel(variant))
@@ -547,7 +576,7 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
     _nameController.dispose();
     _priceController.dispose();
     _descriptionController.dispose();
-    _categoryController.dispose();
+    _stockController.dispose();
     for (final variant in _variants) {
       variant.dispose();
     }
@@ -572,6 +601,17 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
     });
   }
 
+  void _changeStock(int delta) {
+    final current = int.tryParse(_stockController.text.trim()) ?? 0;
+    final next = (current + delta).clamp(0, 999999);
+    setState(() {
+      _stockController.text = '$next';
+      _stockError = null;
+    });
+  }
+
+  String get _primaryImageUrl => _imageUrls.isEmpty ? '' : _imageUrls.first;
+
   Future<void> _pickProductImage() async {
     final selectedImage = await pickAppImage(
       context,
@@ -580,7 +620,31 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
 
     if (selectedImage == null) return;
     setState(() {
-      _imageUrl = selectedImage;
+      if (_imageUrls.isEmpty) {
+        _imageUrls.add(selectedImage);
+      } else {
+        _imageUrls[0] = selectedImage;
+      }
+      _imageError = null;
+    });
+  }
+
+  Future<void> _addProductImage() async {
+    if (_imageUrls.length >= ProductImagePolicy.currentMaxImages) {
+      await showProductImageLimitSheet(
+        context,
+        maxImages: ProductImagePolicy.currentMaxImages,
+      );
+      return;
+    }
+
+    final selectedImage = await pickAppImage(
+      context,
+      title: "Ajouter une image d'illustration",
+    );
+    if (selectedImage == null || !mounted) return;
+    setState(() {
+      _imageUrls.add(selectedImage);
       _imageError = null;
     });
   }
@@ -603,7 +667,12 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
   void _save() {
     final name = _nameController.text.trim();
     final price = _priceController.text.trim();
-    final imageUrl = _imageUrl.trim();
+    final images = _imageUrls
+        .map((image) => image.trim())
+        .where((image) => image.isNotEmpty)
+        .toList(growable: false);
+    final imageUrl = images.isEmpty ? '' : images.first;
+    final stock = int.tryParse(_stockController.text.trim());
 
     setState(() {
       _nameError = name.isEmpty ? "Le nom du produit est obligatoire." : null;
@@ -612,6 +681,9 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
           : null;
       _imageError = imageUrl.isEmpty
           ? "Ajoutez une image pour enregistrer ce produit."
+          : null;
+      _stockError = stock == null || stock < 0
+          ? 'Entrez un stock valide.'
           : null;
       for (final variant in _variants) {
         final hasImage = variant.imageUrl.trim().isNotEmpty;
@@ -626,7 +698,13 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
         .map((variant) => variant.error)
         .whereType<String>()
         .toList();
-    final errors = [?_nameError, ?_priceError, ?_imageError, ...variantErrors];
+    final errors = [
+      ?_nameError,
+      ?_priceError,
+      ?_imageError,
+      ?_stockError,
+      ...variantErrors,
+    ];
 
     if (errors.isNotEmpty) {
       ScaffoldMessenger.of(
@@ -647,8 +725,11 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
         name: name,
         price: "$price $_currency",
         imageurl: imageUrl,
+        images: images,
         description: _descriptionController.text.trim(),
-        category: _categoryController.text.trim(),
+        category: _category,
+        stock: stock!,
+        status: stock > 0 ? 'En stock' : 'Rupture de stock',
         isActive: _isActive,
         variants: variants,
       ),
@@ -714,21 +795,26 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
                         setState(() => _currency = value);
                       },
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: CustomImageSelector(
-                        title: _imageUrl.isEmpty
-                            ? "Ajouter une image"
-                            : "Remplacer l'image",
-                        subtitle: "Appuyez pour choisir une image",
-                        imageUrl: _imageUrl,
-                        icon: _imageUrl.isEmpty
-                            ? Icons.add_a_photo_outlined
-                            : Icons.edit_outlined,
-                        onTap: _pickProductImage,
-                        height: 154,
-                      ),
+                    CustomImageSelector(
+                      title: _primaryImageUrl.isEmpty
+                          ? "Ajouter une image"
+                          : "Remplacer l'image",
+                      subtitle: "Appuyez pour choisir l'image principale",
+                      imageUrl: _primaryImageUrl,
+                      icon: _primaryImageUrl.isEmpty
+                          ? Icons.add_a_photo_outlined
+                          : Icons.edit_outlined,
+                      onTap: _pickProductImage,
+                      height: 154,
                     ),
+                    const SizedBox(height: 12),
+                    ProductImageGalleryField(
+                      images: _imageUrls,
+                      maxImages: ProductImagePolicy.currentMaxImages,
+                      onAddPressed: _addProductImage,
+                      onImagePressed: (_) => _pickProductImage(),
+                    ),
+                    const SizedBox(height: 12),
                     _OwnerFieldError(message: _imageError),
                     _OwnerTextField(
                       label: "Description",
@@ -736,24 +822,50 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
                       minLines: 3,
                       maxLines: 5,
                     ),
-                    _OwnerTextField(
-                      label: "Catégorie",
-                      controller: _categoryController,
+                    _OwnerStockField(
+                      controller: _stockController,
+                      errorText: _stockError,
+                      onChanged: (value) {
+                        if (_stockError != null && value.trim().isNotEmpty) {
+                          setState(() => _stockError = null);
+                        }
+                      },
+                      onDecrease: () => _changeStock(-1),
+                      onIncrease: () => _changeStock(1),
+                      onIncreaseTen: () => _changeStock(10),
+                    ),
+                    ProductCategorySelector(
+                      storeId: widget.product.storeId,
+                      selectedCategory: _category,
+                      onChanged: (value) {
+                        setState(() => _category = value);
+                      },
                     ),
                     SwitchListTile(
                       value: _isActive,
-                      onChanged: (value) {
-                        setState(() => _isActive = value);
-                      },
+                      onChanged: widget.product.adminDisabled
+                          ? null
+                          : (value) {
+                              setState(() => _isActive = value);
+                            },
                       activeThumbColor: AppColors.accent(context),
                       contentPadding: EdgeInsets.zero,
                       title: Text(
-                        "Produit visible côté client",
+                        widget.product.adminDisabled
+                            ? "Produit désactivé par Vendza"
+                            : "Produit visible côté client",
                         style: TextStyle(
                           color: AppColors.textPrimary(context),
                           fontWeight: FontWeight.w800,
                         ),
                       ),
+                      subtitle: widget.product.adminDisabled
+                          ? Text(
+                              widget.product.moderationReason.trim().isEmpty
+                                  ? "Contactez l'administration pour demander une révision."
+                                  : widget.product.moderationReason,
+                            )
+                          : null,
                     ),
                   ],
                 ),
@@ -881,6 +993,73 @@ class _OwnerVariantsNotice extends StatelessWidget {
                 height: 1.25,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OwnerStockField extends StatelessWidget {
+  const _OwnerStockField({
+    required this.controller,
+    required this.onChanged,
+    required this.onDecrease,
+    required this.onIncrease,
+    required this.onIncreaseTen,
+    this.errorText,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onDecrease;
+  final VoidCallback onIncrease;
+  final VoidCallback onIncreaseTen;
+  final String? errorText;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              labelText: 'Stock disponible',
+              errorText: errorText,
+              prefixIcon: const Icon(Icons.inventory_2_outlined),
+              filled: true,
+              fillColor: AppColors.searchSurface(context),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onDecrease,
+                icon: const Icon(Icons.remove, size: 17),
+                label: const Text('-1'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onIncrease,
+                icon: const Icon(Icons.add, size: 17),
+                label: const Text('+1'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onIncreaseTen,
+                icon: const Icon(Icons.add_box_outlined, size: 17),
+                label: const Text('+10'),
+              ),
+            ],
           ),
         ],
       ),

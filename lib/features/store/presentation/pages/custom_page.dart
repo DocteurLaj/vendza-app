@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
@@ -17,10 +16,8 @@ import 'package:vendza/features/store/presentation/widgets/custom_product_picker
 import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/utils/phone_number.dart';
 import 'package:vendza/shared/utils/social_url.dart';
-import 'package:vendza/shared/widgets/bouton/button.dart';
 import 'package:vendza/shared/widgets/input/phone_number_field.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
-import 'package:vendza/shared/widgets/media/smart_image.dart';
 
 class CustomPage extends StatefulWidget {
   const CustomPage({super.key, required this.store});
@@ -41,6 +38,7 @@ class _CustomPageState extends State<CustomPage> {
   final _whatsappFieldKey = GlobalKey<PhoneNumberFieldState>();
   late String _initialWhatsapp;
   late List<ProductModel> _featuredProducts;
+  late bool _deliveryEnabled;
   bool _isSubmitting = false;
 
   @override
@@ -48,44 +46,42 @@ class _CustomPageState extends State<CustomPage> {
     super.initState();
     activateStoreCustomization(widget.store.id);
     final customization = customizationForStore(widget.store.id);
+    final shouldUseCustomization = customization.name.isNotEmpty;
     _nameController = TextEditingController(
-      text: customization.name.isNotEmpty
-          ? customization.name
-          : widget.store.name,
+      text: shouldUseCustomization ? customization.name : widget.store.name,
     );
     _descriptionController = TextEditingController(
-      text: customization.description.isNotEmpty
+      text: shouldUseCustomization
           ? customization.description
           : widget.store.description,
     );
-    _initialWhatsapp = customization.whatsappUrl.isNotEmpty
-        ? customization.whatsappUrl
-        : widget.store.whatsappUrl;
     _instagramController = TextEditingController(
-      text: customization.instagramUrl.isNotEmpty
-          ? customization.instagramUrl
-          : widget.store.instagramUrl,
+      text: customization.instagramUrl,
     );
     _facebookController = TextEditingController(
-      text: customization.facebookUrl.isNotEmpty
-          ? customization.facebookUrl
-          : widget.store.facebookUrl,
+      text: customization.facebookUrl,
     );
+    _initialWhatsapp = customization.whatsappUrl;
     _coverUpload = ImageUploadController(
-      initialUrl: customization.coverImageUrl.isNotEmpty
+      initialUrl: shouldUseCustomization
           ? customization.coverImageUrl
           : widget.store.imageUrl,
+      purpose: 'cover',
       pickTitle: "Choisir la couverture",
-    )..addListener(_onChanged);
+    );
     _profileUpload = ImageUploadController(
-      initialUrl: customization.profileImageUrl.isNotEmpty
+      initialUrl: shouldUseCustomization
           ? customization.profileImageUrl
           : widget.store.imageUrl,
+      purpose: 'logo',
       pickTitle: "Choisir la photo de profil",
-    )..addListener(_onChanged);
-    _featuredProducts = customization.featuredProducts.isNotEmpty
+    );
+    _featuredProducts = shouldUseCustomization
         ? List.of(customization.featuredProducts)
         : activeProductsForStore(widget.store).take(2).toList();
+    _deliveryEnabled = shouldUseCustomization
+        ? customization.deliveryEnabled
+        : widget.store.deliveryEnabled;
   }
 
   @override
@@ -94,17 +90,9 @@ class _CustomPageState extends State<CustomPage> {
     _descriptionController.dispose();
     _instagramController.dispose();
     _facebookController.dispose();
-    _coverUpload
-      ..removeListener(_onChanged)
-      ..dispose();
-    _profileUpload
-      ..removeListener(_onChanged)
-      ..dispose();
+    _coverUpload.dispose();
+    _profileUpload.dispose();
     super.dispose();
-  }
-
-  void _onChanged() {
-    if (mounted) setState(() {});
   }
 
   Future<void> _selectFeaturedProducts() async {
@@ -120,49 +108,35 @@ class _CustomPageState extends State<CustomPage> {
     setState(() => _featuredProducts = selectedProducts);
   }
 
-  StoreCustomizationModel _buildCustomizationDraft() {
+  StoreCustomizationModel _buildCustomizationDraft({
+    String? coverImageUrl,
+    String? profileImageUrl,
+    String? whatsappUrl,
+  }) {
     final whatsapp =
-        _whatsappFieldKey.currentState?.value ??
-        parsePhoneNumber(_initialWhatsapp);
+        whatsappUrl ??
+        _whatsappFieldKey.currentState?.value.e164 ??
+        _initialWhatsapp;
     return StoreCustomizationModel(
       name: _nameController.text.trim().isEmpty
           ? "Ma boutique"
           : _nameController.text.trim(),
       description: _descriptionController.text.trim(),
-      coverImageUrl: _coverUpload.remoteUrl ?? _coverUpload.previewUrl,
-      profileImageUrl: _profileUpload.remoteUrl ?? _profileUpload.previewUrl,
-      whatsappUrl: whatsapp.e164.isEmpty
+      coverImageUrl: coverImageUrl ?? _coverUpload.previewUrl,
+      profileImageUrl: profileImageUrl ?? _profileUpload.previewUrl,
+      whatsappUrl: whatsapp.trim().isEmpty
           ? ''
-          : whatsappUrlFromPhone(whatsapp.e164),
+          : (whatsapp.startsWith('http')
+                ? whatsapp
+                : whatsappUrlFromPhone(whatsapp)),
       instagramUrl: _instagramController.text.trim(),
       facebookUrl: _facebookController.text.trim(),
+      deliveryEnabled: _deliveryEnabled,
       featuredProducts: _featuredProducts,
     );
   }
 
   Future<void> _saveCustomization() async {
-    if (_isSubmitting ||
-        _coverUpload.blocksSubmit ||
-        _profileUpload.blocksSubmit) {
-      return;
-    }
-    if (!NetworkStatus.ensureOnline(context)) return;
-    if (!isOwnedStoreId(widget.store.id)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vous ne pouvez modifier que votre propre boutique.'),
-        ),
-      );
-      return;
-    }
-    final storeId = int.tryParse(widget.store.id);
-    if (storeId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Identifiant de boutique invalide")),
-      );
-      return;
-    }
-
     final instagramError = validateInstagramUrl(_instagramController.text);
     final facebookError = validateFacebookUrl(_facebookController.text);
     if (instagramError != null || facebookError != null) {
@@ -171,46 +145,29 @@ class _CustomPageState extends State<CustomPage> {
       );
       return;
     }
-
-    final previousCover = customizationForStore(widget.store.id).coverImageUrl;
-    final previousProfile = customizationForStore(
-      widget.store.id,
-    ).profileImageUrl;
+    final storeId = int.tryParse(widget.store.id);
+    if (storeId == null) return;
     setState(() => _isSubmitting = true);
     try {
-      final coverImage = _coverUpload.hasImage
-          ? await _coverUpload.ensureRemoteUrl()
-          : '';
-      final profileImage = _profileUpload.hasImage
-          ? await _profileUpload.ensureRemoteUrl()
-          : '';
-      final draft = _buildCustomizationDraft();
-      final resolvedCustomization = StoreCustomizationModel(
-        name: draft.name,
-        description: draft.description,
-        coverImageUrl: coverImage,
-        profileImageUrl: profileImage,
-        whatsappUrl: draft.whatsappUrl,
-        instagramUrl: draft.instagramUrl,
-        facebookUrl: draft.facebookUrl,
-        featuredProducts: draft.featuredProducts,
+      final coverUrl = await _coverUpload.ensureRemoteUrl();
+      final profileUrl = await _profileUpload.ensureRemoteUrl();
+      final customization = _buildCustomizationDraft(
+        coverImageUrl: coverUrl,
+        profileImageUrl: profileUrl,
       );
-
       await StoreApiService().updateStore(
         storeId: storeId,
-        name: resolvedCustomization.name,
-        description: resolvedCustomization.description,
-        image: resolvedCustomization.profileImageUrl.isEmpty
-            ? resolvedCustomization.coverImageUrl
-            : resolvedCustomization.profileImageUrl,
-        bannerUrl: resolvedCustomization.coverImageUrl,
-        whatsappUrl: resolvedCustomization.whatsappUrl,
-        instagramUrl: resolvedCustomization.instagramUrl,
-        facebookUrl: resolvedCustomization.facebookUrl,
+        name: customization.name,
+        description: customization.description,
+        image: customization.profileImageUrl,
+        bannerUrl: customization.coverImageUrl,
+        whatsappUrl: customization.whatsappUrl,
+        instagramUrl: customization.instagramUrl,
+        facebookUrl: customization.facebookUrl,
+        deliveryEnabled: customization.deliveryEnabled,
       );
-      updateStoreCustomizationForStore(widget.store.id, resolvedCustomization);
-      await SmartImage.evict(previousCover);
-      await SmartImage.evict(previousProfile);
+      if (!mounted) return;
+      updateStoreCustomizationForStore(widget.store.id, customization);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -245,6 +202,7 @@ class _CustomPageState extends State<CustomPage> {
             id: widget.store.id,
             image: customization.coverImageUrl,
             description: customization.description,
+            deliveryEnabled: customization.deliveryEnabled,
           ),
         ),
       ),
@@ -272,6 +230,35 @@ class _CustomPageState extends State<CustomPage> {
           child: Column(
             children: [
               const _CustomPageIntro(),
+              if (widget.store.adminHidden) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: Colors.orange.withValues(alpha: 0.45),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.visibility_off_outlined),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          widget.store.moderationReason.trim().isEmpty
+                              ? "Cette boutique est masquée par Vendza. Elle reste modifiable, mais n'est plus visible par les clients."
+                              : "Boutique masquée par Vendza : ${widget.store.moderationReason}",
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               CustomMediaSection(
                 coverController: _coverUpload,
@@ -291,6 +278,32 @@ class _CustomPageState extends State<CustomPage> {
                 ),
                 instagramController: _instagramController,
                 facebookController: _facebookController,
+              ),
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.card(context),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border(context)),
+                ),
+                child: SwitchListTile(
+                  value: _deliveryEnabled,
+                  onChanged: (value) =>
+                      setState(() => _deliveryEnabled = value),
+                  secondary: Icon(
+                    Icons.local_shipping_outlined,
+                    color: AppColors.accent(context),
+                  ),
+                  title: const Text(
+                    "Livraison et commandes",
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  subtitle: Text(
+                    _deliveryEnabled
+                        ? "Les clients peuvent commander les produits de cette boutique."
+                        : "Le bouton Commander reste désactivé pour les nouvelles commandes.",
+                  ),
+                ),
               ),
               CustomProductPickerSection(
                 products: _featuredProducts,
@@ -324,15 +337,27 @@ class _CustomPageState extends State<CustomPage> {
                 constraints: const BoxConstraints(maxWidth: 520),
                 child: SizedBox(
                   width: double.infinity,
-                  child: AppBouton(
-                    text: "Enregistrer les changements",
-                    loadingText: "Enregistrement...",
-                    onPressed: _saveCustomization,
-                    enabled:
-                        !_isSubmitting &&
-                        !_coverUpload.blocksSubmit &&
-                        !_profileUpload.blocksSubmit,
-                    isLoading: _isSubmitting,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: _isSubmitting ? null : _saveCustomization,
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: Text(
+                      _isSubmitting
+                          ? "Enregistrement..."
+                          : "Enregistrer les changements",
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accent(context),
+                      foregroundColor: AppColors.isDark(context)
+                          ? AppColors.darkBackground
+                          : Colors.white,
+                      elevation: 0,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                    ),
                   ),
                 ),
               ),

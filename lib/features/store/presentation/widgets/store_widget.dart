@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
-import 'package:vendza/core/sync/entity_sync_status.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
-import 'package:vendza/shared/widgets/sync/sync_status_strip.dart';
 
 class StoreWidget extends StatelessWidget {
   const StoreWidget({
@@ -13,10 +11,6 @@ class StoreWidget extends StatelessWidget {
     required this.imageUrl,
     required this.status,
     required this.onTap,
-    this.syncStatus = EntitySyncStatus.online,
-    this.syncProgress = 1,
-    this.syncError,
-    this.onRetrySync,
   });
 
   final String name;
@@ -24,10 +18,6 @@ class StoreWidget extends StatelessWidget {
   final String imageUrl;
   final String status;
   final VoidCallback onTap;
-  final EntitySyncStatus syncStatus;
-  final double syncProgress;
-  final String? syncError;
-  final VoidCallback? onRetrySync;
 
   @override
   Widget build(BuildContext context) {
@@ -58,17 +48,15 @@ class StoreWidget extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(11),
-                child: SizedBox(
-                  width: 66,
-                  height: 66,
-                  child: imageUrl.isEmpty
-                      ? const _StoreImagePlaceholder()
-                      : SmartImage(
-                          path: imageUrl,
-                          fit: BoxFit.cover,
-                          errorWidget: const _StoreImagePlaceholder(),
-                        ),
-                ),
+                child: imageUrl.isEmpty
+                    ? const _StoreImagePlaceholder()
+                    : SmartImage(
+                        path: imageUrl,
+                        width: 66,
+                        height: 66,
+                        fit: BoxFit.cover,
+                        errorWidget: const _StoreImagePlaceholder(),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -99,14 +87,17 @@ class StoreWidget extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    if (syncStatus.isPending) ...[
-                      const SizedBox(height: 8),
-                      SyncStatusStrip(
-                        status: syncStatus,
-                        progress: syncProgress,
-                        errorMessage: syncError,
-                        onRetry: onRetrySync,
-                        compact: true,
+                    if (status.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        status,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.accent(context),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ],
                   ],
