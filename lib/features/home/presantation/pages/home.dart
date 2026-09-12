@@ -1,6 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:vendza/core/catalog/catalog_repository.dart'
-    show catalogRepository, catalogRevision;
+    show catalogError, catalogLoading, catalogRepository, catalogRevision;
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/constants/sizes.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
@@ -25,6 +27,7 @@ import 'package:vendza/shared/widgets/product/product_section.dart';
 import 'package:vendza/shared/widgets/search/search_bar.dart';
 import 'package:vendza/shared/widgets/show_title.dart';
 import 'package:vendza/shared/widgets/store/store_section.dart';
+import 'package:vendza/shared/utils/catalog_refresh_feedback.dart';
 
 void openHomeProduct(
   BuildContext context,
@@ -344,6 +347,9 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestInitialRefreshIfEmpty();
+    });
   }
 
   @override
@@ -390,6 +396,26 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
       _scrollDiscoverRailToIndex(previousVisibleCount);
       _scrollPageTowardNewItems();
     }
+  }
+
+  void _requestInitialRefreshIfEmpty() {
+    if (!mounted) return;
+    if (catalogLoading.value) return;
+    if (homeStores.isNotEmpty || homeProducts.isNotEmpty) return;
+    unawaited(_refreshCatalog(showFeedback: false));
+  }
+
+  Future<void> _refreshCatalog({required bool showFeedback}) async {
+    if (showFeedback) {
+      await refreshCatalogWithFeedback(
+        context,
+        targetLabel: "Home",
+        successMessage: "Home actualise.",
+      );
+      return;
+    }
+
+    await catalogRepository.softRefreshCatalog(force: true);
   }
 
   void _scrollDiscoverRailToIndex(int index) {
@@ -498,12 +524,20 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
         .toList();
     final verticalDiscoverProducts = visibleDiscoverProducts.skip(4).toList();
     final canLoadMore = _visibleProductCount < discoverProducts.length;
+    final hasHomeContent =
+        featuredStores.isNotEmpty ||
+        promotionProducts.isNotEmpty ||
+        storyProducts.isNotEmpty ||
+        discoverStores.isNotEmpty ||
+        popularProducts.isNotEmpty ||
+        discoverProducts.isNotEmpty ||
+        verticalDiscoverProducts.isNotEmpty;
 
     return Stack(
       children: [
         Positioned.fill(
           child: RefreshIndicator(
-            onRefresh: () => catalogRepository.softRefreshCatalog(force: true),
+            onRefresh: () => _refreshCatalog(showFeedback: true),
             child: SingleChildScrollView(
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
@@ -513,6 +547,23 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
                   spacing: AppSizes.padding,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    if (!hasHomeContent)
+                      ValueListenableBuilder<bool>(
+                        valueListenable: catalogLoading,
+                        builder: (context, isLoading, _) {
+                          return ValueListenableBuilder<String?>(
+                            valueListenable: catalogError,
+                            builder: (context, error, _) {
+                              return _HomeCatalogStatus(
+                                isLoading: isLoading,
+                                error: error,
+                                onRetry: () =>
+                                    _refreshCatalog(showFeedback: true),
+                              );
+                            },
+                          );
+                        },
+                      ),
                     if (featuredStores.isNotEmpty) ...[
                       ShowTitle(
                         text: "Stores",
@@ -610,6 +661,78 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _HomeCatalogStatus extends StatelessWidget {
+  const _HomeCatalogStatus({
+    required this.isLoading,
+    required this.error,
+    required this.onRetry,
+  });
+
+  final bool isLoading;
+  final String? error;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasError = error != null && error!.trim().isNotEmpty;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 96, 22, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isLoading)
+            const SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator(strokeWidth: 2.6),
+            )
+          else
+            Icon(
+              hasError
+                  ? Icons.wifi_tethering_error_rounded
+                  : Icons.inventory_2_outlined,
+              color: AppColors.iconAccent(context),
+              size: 34,
+            ),
+          const SizedBox(height: 16),
+          Text(
+            isLoading
+                ? "Chargement du catalogue..."
+                : hasError
+                ? "Catalogue indisponible"
+                : "Aucun article pour le moment",
+            textAlign: TextAlign.center,
+            style: AppTextStyles.pageTitle(context).copyWith(fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isLoading
+                ? "Patientez un instant, les produits et stores arrivent."
+                : hasError
+                ? "Impossible d'actualiser Home. Verifiez la connexion puis reessayez."
+                : "Tirez vers le bas ou appuyez sur Reessayer pour actualiser.",
+            textAlign: TextAlign.center,
+            style: AppTextStyles.subtitle(context).copyWith(height: 1.35),
+          ),
+          if (!isLoading) ...[
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text("Reessayer"),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.accent(context),
+                side: BorderSide(color: AppColors.border(context)),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

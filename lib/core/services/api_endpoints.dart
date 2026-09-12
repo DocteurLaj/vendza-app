@@ -73,8 +73,10 @@ class ApiEndpoints {
   static String favoriteStore(int storeId) => '/favorites/stores/$storeId';
 
   static const uploadImagePresign = '/uploads/images/presign';
+  static const uploadImageComplete = '/uploads/images/complete';
 
   static const notificationAdd = '/notification/add';
+  static const notificationPushToken = '/notification/push-token';
 
   /// Authenticated inbox for the current user (API: GET /notification/me).
   static const notificationsMe = '/notification/me';

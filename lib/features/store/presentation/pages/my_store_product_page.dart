@@ -25,6 +25,7 @@ import 'package:vendza/shared/widgets/dialog/confirm_delete_dialog.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/product/product_section.dart';
 import 'package:vendza/shared/widgets/search/search_bar.dart';
+import 'package:vendza/shared/utils/catalog_refresh_feedback.dart';
 
 class MyStoreProductPage extends StatefulWidget {
   const MyStoreProductPage({super.key, required this.store});
@@ -239,13 +240,19 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
                   controller: _catalogTabs,
                   children: [
                     RefreshIndicator(
-                      onRefresh: () =>
-                          catalogRepository.softRefreshCatalog(force: true),
+                      onRefresh: () => refreshCatalogWithFeedback(
+                        context,
+                        targetLabel: "Produits",
+                        successMessage: "Produits actualises.",
+                      ),
                       child: _catalogList(_onlineProducts),
                     ),
                     RefreshIndicator(
-                      onRefresh: () =>
-                          catalogRepository.softRefreshCatalog(force: true),
+                      onRefresh: () => refreshCatalogWithFeedback(
+                        context,
+                        targetLabel: "Produits",
+                        successMessage: "Produits actualises.",
+                      ),
                       child: _catalogList(_offlineProducts),
                     ),
                   ],

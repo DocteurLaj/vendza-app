@@ -1,4 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:vendza/core/catalog/catalog_cache_codec.dart';
+import 'package:vendza/core/catalog/catalog_cache_storage.dart';
+import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/services/api_mappers.dart';
 import 'package:vendza/core/services/api_token_store.dart';
 import 'package:vendza/core/services/favorite_api_service.dart';
@@ -7,7 +10,8 @@ import 'package:vendza/core/sync/entity_sync_status.dart';
 import 'package:vendza/core/sync/local_create_queue.dart';
 import 'package:vendza/features/auth/data/services/auth_api_service.dart';
 import 'package:vendza/core/session/liked_products_store.dart';
-import 'package:vendza/features/cathegory/data/services/category_store.dart';
+import 'package:vendza/features/cathegory/data/services/category_store.dart'
+    show categories, categoryRevision, refreshCategories;
 import 'package:vendza/features/home/data/models/home_feed_model.dart';
 import 'package:vendza/features/home/data/models/store_model.dart' as home;
 import 'package:vendza/features/home/data/services/home_feed_api_service.dart';
@@ -17,6 +21,7 @@ import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/features/store/data/services/product_api_service.dart';
 import 'package:vendza/features/store/data/services/store_api_service.dart';
 import 'package:vendza/features/store/data/services/store_customization_state.dart';
+import 'package:vendza/shared/models/section_model.dart';
 import 'package:vendza/shared/models/product_model.dart';
 
 /// Shared in-memory catalog populated from the Vendza API.
@@ -84,8 +89,52 @@ class CatalogRepository {
   late final LocalCreateQueue _localCreates;
 
   Future<void>? _inFlightRefresh;
+  Future<bool>? _inFlightCacheRestore;
   DateTime? _lastRefreshAt;
   static const Duration softRefreshDebounce = Duration(seconds: 5);
+
+  Future<bool> restoreCachedCatalog() {
+    final inFlight = _inFlightCacheRestore;
+    if (inFlight != null) return inFlight;
+
+    final future = _restoreCachedCatalogOnce();
+    _inFlightCacheRestore = future;
+    return future.whenComplete(() {
+      if (identical(_inFlightCacheRestore, future)) {
+        _inFlightCacheRestore = null;
+      }
+    });
+  }
+
+  Future<bool> _restoreCachedCatalogOnce() async {
+    final json = await readCatalogCacheJson();
+    if (json == null) return false;
+
+    final snapshot = decodeCatalogCache(json);
+    if (snapshot == null || snapshot.isEmpty) return false;
+
+    stores
+      ..clear()
+      ..addAll(snapshot.stores);
+    homeStores
+      ..clear()
+      ..addAll(snapshot.homeStores);
+    products
+      ..clear()
+      ..addAll(snapshot.products);
+    homeProducts
+      ..clear()
+      ..addAll(snapshot.homeProducts);
+    homeFeed = snapshot.homeFeed;
+    categories
+      ..clear()
+      ..addAll(snapshot.categories);
+
+    syncStoreCustomizationFromCatalog();
+    categoryRevision.value++;
+    _notifyChanged();
+    return true;
+  }
 
   /// Pull-to-refresh / resume / polling entry point.
   /// Shares one in-flight request and debounces rapid triggers.
@@ -157,6 +206,9 @@ class CatalogRepository {
         homeFeed = HomeFeedModel.empty;
       }
 
+      await refreshCategories();
+      await _savePublicCatalogCache();
+
       if (_tokenStore.hasAccessToken) {
         await refreshOwnedStores();
         await refreshFavorites();
@@ -164,7 +216,6 @@ class CatalogRepository {
         ownedStores.clear();
       }
 
-      await refreshCategories();
       syncStoreCustomizationFromCatalog();
       _hydratePendingCreates();
       _lastRefreshAt = DateTime.now();
@@ -174,6 +225,24 @@ class CatalogRepository {
       catalogError.value = error.toString();
     } finally {
       catalogLoading.value = false;
+    }
+  }
+
+  Future<void> _savePublicCatalogCache() async {
+    final snapshot = CatalogCacheSnapshot(
+      stores: List<ListStoreModel>.from(stores),
+      homeStores: List<home.StoreModel>.from(homeStores),
+      products: List<ProductModel>.from(products),
+      homeProducts: List<ProductModel>.from(homeProducts),
+      homeFeed: homeFeed,
+      categories: List<SectionModel>.from(categories),
+    );
+    if (snapshot.isEmpty) return;
+
+    try {
+      await writeCatalogCacheJson(encodeCatalogCache(snapshot));
+    } on Object {
+      // Cache is a startup optimization. A write failure must not block refresh.
     }
   }
 
@@ -314,13 +383,15 @@ class CatalogRepository {
     String category = '',
     Map<String, dynamic>? variation,
   }) {
-    if (!isOwnedStoreId(storeId)) {
-      throw StateError(
-        'Vous ne pouvez ajouter un produit que dans votre propre boutique.',
+    final trimmedStoreId = storeId.trim();
+    if (!isOwnedStoreId(trimmedStoreId) && int.tryParse(trimmedStoreId) == null) {
+      throw const ApiException(
+        message: 'Vous ne pouvez ajouter un produit que dans votre propre boutique.',
+        statusCode: 403,
       );
     }
     return _localCreates.enqueueProduct(
-      storeId: storeId,
+      storeId: trimmedStoreId,
       storeName: storeName,
       title: title,
       description: description,
@@ -518,13 +589,16 @@ final ValueNotifier<List<NotificationModel>> notificationStore =
     ValueNotifier<List<NotificationModel>>([]);
 
 Future<void> bootstrapCatalog() async {
+  await catalogRepository.restoreCachedCatalog();
   await catalogRepository.refreshCatalog();
   await catalogRepository.startLocalSync();
 }
 
 Future<void> bootstrapSessionCatalog({required int userId}) async {
+  await catalogRepository.restoreCachedCatalog();
   await catalogRepository.refreshCatalog();
   if (userId > 0) {
     await catalogRepository.refreshNotifications(userId);
   }
+  await catalogRepository.startLocalSync();
 }

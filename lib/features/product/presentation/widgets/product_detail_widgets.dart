@@ -288,9 +288,7 @@ class ProductDetailContentPanel extends StatelessWidget {
             product: product,
             name: product.name,
             price: displayedPrice,
-            description: product.description.isNotEmpty
-                ? product.description
-                : "Montre connectee legere et elegante avec suivi de sante, notifications et autonomie longue duree. Parfaite pour le quotidien et le sport.",
+            description: product.description.trim(),
           ),
           if (hasVariants) ...[
             const SizedBox(height: 18),
@@ -523,15 +521,17 @@ class ProductDetailHeader extends StatelessWidget {
             fontWeight: FontWeight.w900,
           ),
         ),
-        const SizedBox(height: 10),
-        Text(
-          description,
-          style: TextStyle(
-            color: AppColors.textPrimary(context),
-            fontSize: 14,
-            height: 1.35,
+        if (description.trim().isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(
+            description,
+            style: TextStyle(
+              color: AppColors.textPrimary(context),
+              fontSize: 14,
+              height: 1.35,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -637,7 +637,7 @@ class ProductDetailActionButtons extends StatelessWidget {
                   )
                 : const Icon(Icons.shopping_cart_outlined),
             label: Text(
-              isBuying ? "Commande..." : "Acheter maintenant",
+              isBuying ? "Ouverture..." : "Ajouter à la commande",
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             style: ElevatedButton.styleFrom(
@@ -765,9 +765,7 @@ class _ProductOwnerStoreLinkState extends State<ProductOwnerStoreLink> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
-              constraints: BoxConstraints(
-                maxWidth: widget.maxExpandedWidth,
-              ),
+              constraints: BoxConstraints(maxWidth: widget.maxExpandedWidth),
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
               decoration: BoxDecoration(
                 color: AppColors.card(context),

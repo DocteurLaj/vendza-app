@@ -6,7 +6,7 @@ import 'package:vendza/core/services/api_endpoints.dart';
 import 'package:vendza/core/services/api_token_store.dart';
 
 final String productEventSessionId =
-    'sess-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 32)}';
+    'sess-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(0x100000000)}';
 
 class ProductEventApiService {
   ProductEventApiService({ApiClient? client, ApiTokenStore? tokenStore})

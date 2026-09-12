@@ -4,6 +4,8 @@ import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/order/data/models/order_model.dart';
 import 'package:vendza/features/order/data/services/order_api_service.dart';
+import 'package:vendza/features/order/presentation/helpers/customer_contact_launcher.dart';
+import 'package:vendza/features/order/presentation/helpers/order_status_presentation.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
@@ -89,10 +91,13 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final newOrders = _orders
+        .where((order) => order.status == 'pending')
+        .length;
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
       appBar: AppBar(
-        title: const Text('Commandes'),
+        title: Text('Commandes · ${widget.store.name}'),
         backgroundColor: AppColors.appBackground(context),
         foregroundColor: AppColors.textPrimary(context),
       ),
@@ -128,10 +133,19 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
               )
             : ListView.separated(
                 padding: const EdgeInsets.all(16),
-                itemCount: _orders.length,
+                itemCount: _orders.length + 1,
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
-                  final order = _orders[index];
+                  if (index == 0) {
+                    return ResponsiveContent(
+                      maxWidth: 720,
+                      child: _StoreOrdersSummary(
+                        total: _orders.length,
+                        pending: newOrders,
+                      ),
+                    );
+                  }
+                  final order = _orders[index - 1];
                   return ResponsiveContent(
                     maxWidth: 720,
                     child: _StoreOrderCard(
@@ -147,6 +161,76 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
   }
 }
 
+class _StoreOrdersSummary extends StatelessWidget {
+  const _StoreOrdersSummary({required this.total, required this.pending});
+
+  final int total;
+  final int pending;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border(context)),
+      ),
+      child: Row(
+        children: [
+          _SummaryItem(label: 'Total', value: '$total'),
+          const SizedBox(width: 14),
+          _SummaryItem(label: 'Nouvelles', value: '$pending'),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              pending == 0
+                  ? 'Aucune commande en attente.'
+                  : 'Traitez rapidement les commandes reçues.',
+              style: TextStyle(
+                color: AppColors.textSecondary(context),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryItem extends StatelessWidget {
+  const _SummaryItem({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: AppColors.textPrimary(context),
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.textSecondary(context),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _StoreOrderCard extends StatelessWidget {
   const _StoreOrderCard({
     required this.order,
@@ -158,55 +242,227 @@ class _StoreOrderCard extends StatelessWidget {
   final bool updating;
   final ValueChanged<String> onStatus;
 
-  static const _nextStatus = {
-    'pending': 'confirmed',
-    'confirmed': 'preparing',
-    'preparing': 'ready_for_delivery',
-    'ready_for_delivery': 'delivered',
-  };
-
   @override
   Widget build(BuildContext context) {
-    final next = _nextStatus[order.status];
+    final next = nextOrderStatus(order.status);
+    final actionLabel = orderStatusActionLabel(order.status);
+    final accent = orderStatusColor(order.status, context);
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Commande #${order.id}',
-            style: AppTextStyles.cardTitle(context),
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(orderStatusIcon(order.status), color: accent),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Commande #${order.id}',
+                      style: AppTextStyles.cardTitle(context),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${order.totalAmount.toStringAsFixed(0)} · ${order.items.length} article(s)',
+                      style: TextStyle(color: AppColors.textSecondary(context)),
+                    ),
+                  ],
+                ),
+              ),
+              _StatusPill(status: order.status),
+            ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           Text(
-            '${order.status} · ${order.totalAmount.toStringAsFixed(0)} · ${order.items.length} article(s)',
-            style: TextStyle(color: AppColors.textSecondary(context)),
+            orderStatusDescription(order.status),
+            style: TextStyle(
+              color: AppColors.textSecondary(context),
+              fontWeight: FontWeight.w600,
+            ),
           ),
+          if ((order.contactPhone ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _CustomerContactRow(phone: order.contactPhone!.trim()),
+          ],
+          const SizedBox(height: 12),
+          _OrderTimeline(status: order.status),
           if (next != null || order.status == 'pending') ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 14),
             Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: [
-                if (next != null)
-                  FilledButton(
+                if (next != null && actionLabel != null)
+                  FilledButton.icon(
                     onPressed: updating ? null : () => onStatus(next),
-                    child: Text('Passer a $next'),
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                    label: Text(actionLabel),
                   ),
                 if (order.status != 'cancelled' && order.status != 'delivered')
-                  OutlinedButton(
+                  OutlinedButton.icon(
                     onPressed: updating ? null : () => onStatus('cancelled'),
-                    child: const Text('Annuler'),
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    label: const Text('Annuler'),
                   ),
               ],
             ),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _CustomerContactRow extends StatelessWidget {
+  const _CustomerContactRow({required this.phone});
+
+  final String phone;
+
+  Future<void> _open(BuildContext context) async {
+    final opened = await openCustomerContact(phone);
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d’ouvrir le contact client.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.accent(context).withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border(context)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.phone_in_talk_outlined,
+            color: AppColors.iconAccent(context),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Contact client',
+                  style: TextStyle(
+                    color: AppColors.textSecondary(context),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  phone,
+                  style: TextStyle(
+                    color: AppColors.textPrimary(context),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton.icon(
+            onPressed: () => _open(context),
+            icon: const Icon(Icons.chat_outlined, size: 18),
+            label: const Text('Contacter'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = orderStatusColor(status, context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        orderStatusLabel(status),
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderTimeline extends StatelessWidget {
+  const _OrderTimeline({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = orderTimelineSteps(status);
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: steps
+          .map((step) {
+            final color = orderStatusColor(step.status, context);
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  step.isCompleted
+                      ? Icons.check_circle_rounded
+                      : Icons.radio_button_unchecked_rounded,
+                  size: 15,
+                  color: step.isCompleted
+                      ? color
+                      : AppColors.textSecondary(
+                          context,
+                        ).withValues(alpha: 0.45),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  step.label,
+                  style: TextStyle(
+                    color: step.isCurrent
+                        ? color
+                        : AppColors.textSecondary(context),
+                    fontSize: 11,
+                    fontWeight: step.isCurrent
+                        ? FontWeight.w900
+                        : FontWeight.w600,
+                  ),
+                ),
+              ],
+            );
+          })
+          .toList(growable: false),
     );
   }
 }

@@ -41,6 +41,7 @@ class _AddProductState extends State<AddProduct> {
   String? _imageError;
   bool _isSubmitting = false;
   final _imageUpload = ImageUploadController(
+    purpose: 'product',
     pickTitle: "Choisir l'image du produit",
   );
   final List<_VariantDraft> _variants = [];
@@ -171,7 +172,7 @@ class _AddProductState extends State<AddProduct> {
       if (!mounted) return;
       final message = error is ApiException
           ? error.message
-          : "Impossible d'ajouter ce produit pour le moment.";
+          : "Impossible d'ajouter ce produit pour le moment: $error";
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
@@ -575,7 +576,10 @@ class _ProductCategorySelector extends StatelessWidget {
 
 class _VariantDraft {
   _VariantDraft({this.price = "", this.currency = "CDF"})
-    : image = ImageUploadController(pickTitle: "Image de la variante");
+    : image = ImageUploadController(
+        purpose: 'product',
+        pickTitle: "Image de la variante",
+      );
 
   String name = "";
   String price;

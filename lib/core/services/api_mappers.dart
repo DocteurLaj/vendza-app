@@ -109,6 +109,8 @@ NotificationModel notificationFromApi(Map<String, dynamic> json) {
     description: json['content'] as String? ?? '',
     imageUrl: 'assets/images/login_img.jpg',
     isRead: json['seen'] == true,
+    storeId: json['store_idstore'] as int?,
+    orderId: json['order_idorder'] as int?,
   );
 }
 

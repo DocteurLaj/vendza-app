@@ -28,16 +28,16 @@ class AppImagePicker {
         );
         if (source == null || !context.mounted) return null;
 
-        return _persistPickedFile(
+        return await _persistPickedFile(
           await _imagePicker.pickImage(source: source, imageQuality: 85),
         );
       }
 
       if (platform.useFileExplorer) {
-        return _pickFromFileExplorer();
+        return await _pickFromFileExplorer();
       }
 
-      return _persistPickedFile(
+      return await _persistPickedFile(
         await _imagePicker.pickImage(
           source: ImageSource.gallery,
           imageQuality: 85,

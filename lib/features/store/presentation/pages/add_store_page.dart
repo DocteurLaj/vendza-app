@@ -4,7 +4,9 @@ import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/core/upload/image_upload_controller.dart';
+import 'package:vendza/features/auth/data/services/auth_session_service.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
+import 'package:vendza/features/store/presentation/controllers/store_creation_session_guard.dart';
 import 'package:vendza/shared/utils/phone_number.dart';
 import 'package:vendza/shared/utils/social_url.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
@@ -107,6 +109,7 @@ class _AddStoreState extends State<AddStore> {
   String? _socialError;
   bool _isSubmitting = false;
   final _imageUpload = ImageUploadController(
+    purpose: 'logo',
     pickTitle: "Choisir l'image du store",
   );
   final _whatsappFieldKey = GlobalKey<PhoneNumberFieldState>();
@@ -190,6 +193,9 @@ class _AddStoreState extends State<AddStore> {
 
     setState(() => _isSubmitting = true);
     try {
+      await ensureStoreCreationSession(
+        () => authSessionService.restoreSession(syncCatalog: false),
+      );
       await catalogRepository.createStore(
         name: trimmedName,
         description: trimmedDescription,
@@ -206,7 +212,7 @@ class _AddStoreState extends State<AddStore> {
       if (!mounted) return;
       final message = error is ApiException
           ? error.message
-          : "Impossible de creer le store pour le moment.";
+          : "Impossible de creer le store pour le moment: $error";
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));

@@ -3,6 +3,7 @@ import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/services/api_client.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/services/api_token_store.dart';
+import 'package:vendza/core/services/push_notification_service.dart';
 import 'package:vendza/core/session/current_user_store.dart';
 import 'package:vendza/features/auth/data/services/auth_api_service.dart';
 import 'package:vendza/features/auth/data/services/google_identity_service.dart';
@@ -51,9 +52,13 @@ class AuthSessionService {
   Future<bool> loginWithGoogle() async {
     final idToken = await _googleIdentityProvider.authenticate();
     if (idToken == null) return false;
+    await loginWithGoogleIdToken(idToken);
+    return true;
+  }
+
+  Future<void> loginWithGoogleIdToken(String idToken) async {
     await _authApiService.googleSignIn(idToken);
     await _synchronizeUser();
-    return true;
   }
 
   Future<void> register({
@@ -76,11 +81,11 @@ class AuthSessionService {
   /// Concurrent callers share a single in-flight restore. Network validation
   /// happens only here (after secure-storage restore in `main`). On 401,
   /// [ApiClient] performs at most one refresh — this method does not refresh again.
-  Future<bool> restoreSession() {
+  Future<bool> restoreSession({bool syncCatalog = true}) {
     final inFlight = _restoreInFlight;
     if (inFlight != null) return inFlight;
 
-    final future = _restoreSessionOnce();
+    final future = _restoreSessionOnce(syncCatalog: syncCatalog);
     _restoreInFlight = future;
     return future.whenComplete(() {
       if (identical(_restoreInFlight, future)) {
@@ -89,7 +94,7 @@ class AuthSessionService {
     });
   }
 
-  Future<bool> _restoreSessionOnce() async {
+  Future<bool> _restoreSessionOnce({required bool syncCatalog}) async {
     final hasRefresh =
         _tokenStore.refreshToken != null &&
         _tokenStore.refreshToken!.isNotEmpty;
@@ -98,7 +103,10 @@ class AuthSessionService {
     }
 
     try {
-      await _synchronizeUser(clearBeforeSync: false);
+      await _synchronizeUser(
+        clearBeforeSync: false,
+        syncCatalog: syncCatalog,
+      );
       return true;
     } on ApiException catch (error) {
       if (isConfirmedAuthFailure(error)) {
@@ -176,7 +184,10 @@ class AuthSessionService {
     clearCurrentUser();
   }
 
-  Future<void> _synchronizeUser({bool clearBeforeSync = true}) async {
+  Future<void> _synchronizeUser({
+    bool clearBeforeSync = true,
+    bool syncCatalog = true,
+  }) async {
     // A new login must never expose the previous account's private catalog.
     // During startup restore, keep the current in-memory state until the
     // server has actually confirmed the session; a network outage must not
@@ -210,8 +221,11 @@ class AuthSessionService {
       ),
     );
 
-    await _catalogSynchronizer(userId ?? 0);
-    syncStoreCustomizationFromCatalog();
+    if (syncCatalog) {
+      await _catalogSynchronizer(userId ?? 0);
+      syncStoreCustomizationFromCatalog();
+    }
+    await pushNotificationService.syncCurrentToken();
   }
 }
 

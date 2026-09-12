@@ -27,7 +27,7 @@ enum LocalCreatePhase {
 
 String newLocalEntityId(String kind) {
   final stamp = DateTime.now().microsecondsSinceEpoch;
-  final noise = Random().nextInt(1 << 32).toRadixString(16);
+  final noise = Random().nextInt(0x100000000).toRadixString(16);
   return 'local-$kind-$stamp-$noise';
 }
 
@@ -155,6 +155,7 @@ class LocalCreateQueue {
     if (!_started) {
       _started = true;
       await load();
+      await retryFailedCreates(processNow: false);
       NetworkStatus.isOffline.addListener(_onNetworkChanged);
     }
     unawaited(process());
@@ -321,6 +322,28 @@ class LocalCreateQueue {
     await persist();
     _onChanged();
     await process();
+  }
+
+  Future<void> retryFailedCreates({bool processNow = true}) async {
+    var changed = false;
+    for (final op in _opsForCurrentUser()) {
+      if (op.status != LocalCreatePhase.failed) continue;
+      op.status = LocalCreatePhase.queued;
+      op.errorMessage = null;
+      op.progress = 0.08;
+      applyOpToCatalog(
+        op: op,
+        ownedStores: _ownedStores,
+        products: _products,
+      );
+      changed = true;
+    }
+    if (!changed) return;
+    await persist();
+    _onChanged();
+    if (processNow) {
+      await process();
+    }
   }
 
   Future<void> discard(String id) async {

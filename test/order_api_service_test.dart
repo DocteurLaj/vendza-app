@@ -57,6 +57,10 @@ Map<String, dynamic> _orderJson({String status = 'pending'}) => {
   'total_amount': '25.00',
   'status': status,
   'payment_method': 'cash_on_delivery',
+  'store_idstore': 11,
+  'contact_phone': '+243999000111',
+  'delivery_address': 'Avenue Commerce 12, Kinshasa',
+  'customer_note': 'Appelez-moi avant livraison.',
   'createdAt': '2026-08-25T12:00:00',
   'items': [
     {
@@ -78,12 +82,23 @@ void main() {
       final order = await service.createOrder(
         items: const [OrderItemRequest(productId: 3, quantity: 2)],
         idempotencyKey: 'checkout-attempt-001',
+        contactPhone: '+243999000111',
+        deliveryAddress: 'Avenue Commerce 12, Kinshasa',
+        customerNote: 'Appelez-moi avant livraison.',
       );
 
       expect(client.lastPath, ApiEndpoints.orders);
       expect(client.lastHeaders, {'Idempotency-Key': 'checkout-attempt-001'});
       expect(client.lastBody?['payment_method'], 'cash_on_delivery');
+      expect(client.lastBody?['contact_phone'], '+243999000111');
+      expect(
+        client.lastBody?['delivery_address'],
+        'Avenue Commerce 12, Kinshasa',
+      );
+      expect(client.lastBody?['customer_note'], 'Appelez-moi avant livraison.');
       expect(order.totalAmount, 25);
+      expect(order.storeId, 11);
+      expect(order.contactPhone, '+243999000111');
       expect(order.items.single.unitPrice, 12.5);
       expect(order.canBeCancelledByBuyer, isTrue);
     },

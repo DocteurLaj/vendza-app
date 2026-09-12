@@ -14,4 +14,25 @@ void main() {
     );
     expect(rewritten, startsWith('http://10.0.2.2:9000/'));
   });
+
+  test('normalizes API host URL to the v1 API prefix', () {
+    expect(
+      ApiConfig.normalizeBaseUrl('https://api.example.com'),
+      'https://api.example.com/api/v1',
+    );
+  });
+
+  test('keeps an existing v1 API prefix without a trailing slash', () {
+    expect(
+      ApiConfig.normalizeBaseUrl('https://api.example.com/api/v1/'),
+      'https://api.example.com/api/v1',
+    );
+  });
+
+  test('keeps deeper API URLs unchanged', () {
+    expect(
+      ApiConfig.normalizeBaseUrl('https://api.example.com/proxy/api/v1'),
+      'https://api.example.com/proxy/api/v1',
+    );
+  });
 }

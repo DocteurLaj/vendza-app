@@ -174,6 +174,32 @@ void main() {
     expect(currentUserStore.value.email, 'ada@example.com');
   });
 
+  test('startup restore can skip catalog synchronization', () async {
+    final store = ApiTokenStore(storage: MemorySecureStorage());
+    await store.saveTokens(
+      accessToken: 'persisted-access',
+      refreshToken: 'persisted-refresh',
+    );
+    final api = _TrackingAuthApi(store);
+    var catalogSyncCalls = 0;
+    final service = AuthSessionService(
+      authApiService: api,
+      googleIdentityProvider: _FakeGoogleIdentityProvider(null),
+      tokenStore: store,
+      catalogSynchronizer: (_) async {
+        catalogSyncCalls += 1;
+      },
+      sessionCleaner: () {},
+    );
+
+    final restored = await service.restoreSession(syncCatalog: false);
+
+    expect(restored, isTrue);
+    expect(api.meCallCount, 1);
+    expect(catalogSyncCalls, 0);
+    expect(currentUserStore.value.email, 'ada@example.com');
+  });
+
   test(
     'startup restore does not call /auth/me or /auth/refresh twice',
     () async {

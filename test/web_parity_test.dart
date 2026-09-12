@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vendza/core/services/media/data_image.dart';
@@ -15,9 +16,13 @@ void main() {
 
   test('share links point at the live web app host', () {
     expect(ShareLinkBuilder.productUrl('42'), 'https://app.vendza.online/p/42');
-    expect(
-      ShareLinkBuilder.storeUrl('7'),
-      'https://app.vendza.online/store/7',
-    );
+    expect(ShareLinkBuilder.storeUrl('7'), 'https://app.vendza.online/store/7');
+  });
+  test('Android declares runtime notification permission', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+
+    expect(manifest, contains('android.permission.POST_NOTIFICATIONS'));
   });
 }

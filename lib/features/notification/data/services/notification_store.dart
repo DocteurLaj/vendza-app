@@ -24,6 +24,8 @@ Future<void> markNotificationAsRead(String id) async {
       description: notification.description,
       imageUrl: notification.imageUrl,
       isRead: true,
+      storeId: notification.storeId,
+      orderId: notification.orderId,
     );
   }).toList();
 

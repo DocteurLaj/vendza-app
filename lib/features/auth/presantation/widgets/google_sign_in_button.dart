@@ -1,10 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:vendza/core/config/google_auth_config.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/features/auth/data/services/auth_session_service.dart';
 import 'package:vendza/features/auth/data/services/google_identity_service.dart';
+import 'package:vendza/features/auth/presantation/widgets/google_sign_in_web_button_stub.dart'
+    if (dart.library.html) 'package:vendza/features/auth/presantation/widgets/google_sign_in_web_button.dart';
 
 class GoogleSignInButton extends StatefulWidget {
   const GoogleSignInButton({
@@ -68,6 +71,18 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
       return const SizedBox.shrink();
     }
 
+    final webButton = buildGoogleSignInWebButton(
+      enabled: widget.enabled && !_isLoading,
+      sessionService: widget.sessionService,
+      onLoadingChanged: (isLoading) {
+        widget.onLoadingChanged?.call(isLoading);
+        if (mounted) setState(() => _isLoading = isLoading);
+      },
+      onAuthenticated: widget.onAuthenticated,
+      onError: _showError,
+    );
+    if (webButton != null) return webButton;
+
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
@@ -89,9 +104,10 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
                 height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Text(
-                'G',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            : SvgPicture.asset(
+                'assets/icons/google_g.svg',
+                width: 20,
+                height: 20,
               ),
         label: Text(
           _isLoading ? 'Connexion Google...' : 'Continuer avec Google',
