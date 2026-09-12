@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:vendza/core/catalog/catalog_repository.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/sync/entity_sync_status.dart';
@@ -61,10 +62,6 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
     final original = widget.store;
     for (final store in ownedStores) {
       if (store.id == original.id) return store;
-      if (original.localId.isNotEmpty && store.localId == original.localId) {
-        return store;
-      }
-      if (store.localId == original.id) return store;
     }
     return original;
   }
@@ -74,7 +71,9 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
   List<ProductModel> get _storeProducts => productsForStore(_currentStore);
 
   bool _isLiveProduct(ProductModel product) {
-    return !product.syncStatus.isPending && product.isActive;
+    return !product.syncStatus.isPending &&
+        product.isActive &&
+        !product.adminDisabled;
   }
 
   List<ProductModel> get _onlineProducts =>
@@ -84,7 +83,8 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
       _storeProducts.where((product) => !_isLiveProduct(product)).toList();
 
   List<ProductModel> get _categoryPreviewProducts {
-    final categoryNames = cathegory_data.categories
+    final categoryNames = cathegory_data
+        .categoriesForStore(_currentStore.id)
         .map((category) => category.name)
         .toSet();
 
@@ -94,9 +94,10 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
   }
 
   List<ProductModel> get _collectionPreviewProducts {
-    return collection_data.collectionProducts.values
+    return collection_data
+        .collectionProductsForStore(_currentStore.id)
+        .values
         .expand((products) => products)
-        .where((product) => product.storeId == _currentStore.id || product.storeId == _currentStore.localId)
         .toList();
   }
 
@@ -187,7 +188,7 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
 
     try {
       for (final product in selectedProducts) {
-        await persistManagedProductDelete(product);
+        deleteManagedProduct(product);
       }
       if (!mounted) return;
       setState(() => _selectedProductIds.clear());
@@ -339,8 +340,10 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          const CathegoryPage(canManage: true),
+                      builder: (context) => CathegoryPage(
+                        storeId: _currentStore.id,
+                        canManage: true,
+                      ),
                     ),
                   );
                   if (mounted) setState(() {});

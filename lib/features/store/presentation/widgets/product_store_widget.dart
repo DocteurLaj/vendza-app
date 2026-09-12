@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
-import 'package:vendza/core/sync/entity_sync_status.dart';
 import 'package:vendza/features/product/presentation/pages/product_detail_page.dart';
 import 'package:vendza/shared/models/product_model.dart';
+import 'package:vendza/shared/utils/product_price_formatter.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
-import 'package:vendza/shared/widgets/product/product_price_text.dart';
-import 'package:vendza/shared/widgets/sync/sync_status_strip.dart';
 
 class ProductStoreWidget extends StatelessWidget {
   const ProductStoreWidget({
@@ -17,6 +15,8 @@ class ProductStoreWidget extends StatelessWidget {
     this.isSelected = false,
     this.onTap,
     this.onLongPress,
+    this.section,
+    this.position,
   });
 
   final ProductModel product;
@@ -25,6 +25,8 @@ class ProductStoreWidget extends StatelessWidget {
   final bool isSelected;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+  final String? section;
+  final int? position;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +49,8 @@ class ProductStoreWidget extends StatelessWidget {
                     builder: (_) => ProductDetailPage(
                       product: product,
                       ownerMode: ownerMode,
+                      section: section,
+                      position: position,
                     ),
                   ),
                 );
@@ -89,6 +93,8 @@ class ProductStoreWidget extends StatelessWidget {
                                 ? _ProductImageFallback(height: imageHeight)
                                 : SmartImage(
                                     path: productImagePath,
+                                    width: double.infinity,
+                                    height: imageHeight,
                                     fit: BoxFit.cover,
                                     errorWidget: _ProductImageFallback(
                                       height: imageHeight,
@@ -99,24 +105,9 @@ class ProductStoreWidget extends StatelessWidget {
                             Positioned(
                               left: 10,
                               bottom: 10,
-                              child: product.syncStatus.isPending
-                                  ? _OwnerSyncBadge(status: product.syncStatus)
-                                  : _OwnerProductStatusBadge(
-                                      isActive: product.isActive,
-                                    ),
-                            ),
-                          if (product.syncStatus.isPending)
-                            Positioned(
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              child: LinearProgressIndicator(
-                                value: product.syncStatus.barValue(
-                                  product.syncProgress,
-                                ),
-                                minHeight: 4,
-                                backgroundColor: Colors.black26,
-                                color: Colors.white,
+                              child: _OwnerProductStatusBadge(
+                                isActive: product.isActive,
+                                adminDisabled: product.adminDisabled,
                               ),
                             ),
                           if (selectionMode)
@@ -169,22 +160,16 @@ class ProductStoreWidget extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 7),
-                            ProductPriceText(
-                              product.price,
+                            Text(
+                              formatProductPriceLabel(product.price),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                                 color: AppColors.success(context),
                               ),
                             ),
-                            if (ownerMode && product.syncStatus.isPending) ...[
-                              const SizedBox(height: 6),
-                              SyncStatusStrip(
-                                status: product.syncStatus,
-                                progress: product.syncProgress,
-                                compact: true,
-                              ),
-                            ],
                             if (product.storeName.trim().isNotEmpty) ...[
                               const SizedBox(height: 5),
                               Row(
@@ -225,44 +210,37 @@ class ProductStoreWidget extends StatelessWidget {
   }
 }
 
-class _OwnerSyncBadge extends StatelessWidget {
-  const _OwnerSyncBadge({required this.status});
-
-  final EntitySyncStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Text(
-        status.label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
 class _OwnerProductStatusBadge extends StatelessWidget {
-  const _OwnerProductStatusBadge({required this.isActive});
+  const _OwnerProductStatusBadge({
+    required this.isActive,
+    required this.adminDisabled,
+  });
 
   final bool isActive;
+  final bool adminDisabled;
 
   @override
   Widget build(BuildContext context) {
-    final Color backgroundColor = isActive
+    final Color backgroundColor = adminDisabled
+        ? const Color(0xFFFFF4E5)
+        : isActive
         ? const Color(0xFFEAF4EE)
         : const Color(0xFFFFECEC);
-    final Color foregroundColor = isActive
+    final Color foregroundColor = adminDisabled
+        ? const Color(0xFF9A6700)
+        : isActive
         ? const Color(0xFF1F7A4B)
         : const Color(0xFFB3261E);
+    final label = adminDisabled
+        ? "Bloqué Vendza"
+        : isActive
+        ? "Actif"
+        : "Inactif";
+    final icon = adminDisabled
+        ? Icons.gpp_bad_outlined
+        : isActive
+        ? Icons.visibility_outlined
+        : Icons.visibility_off_outlined;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
@@ -281,16 +259,10 @@ class _OwnerProductStatusBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            isActive
-                ? Icons.visibility_outlined
-                : Icons.visibility_off_outlined,
-            color: foregroundColor,
-            size: 13,
-          ),
+          Icon(icon, color: foregroundColor, size: 13),
           const SizedBox(width: 4),
           Text(
-            isActive ? "Actif" : "Inactif",
+            label,
             style: TextStyle(
               color: foregroundColor,
               fontSize: 11,

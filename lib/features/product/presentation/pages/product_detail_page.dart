@@ -15,6 +15,7 @@ import 'package:vendza/shared/utils/product_price_formatter.dart';
 import 'package:vendza/shared/widgets/dialog/confirm_delete_dialog.dart';
 import 'package:vendza/shared/widgets/dialog/show_app_popup.dart';
 import 'package:vendza/core/services/media/app_image_picker.dart';
+import 'package:vendza/core/services/moderation_api_service.dart';
 import 'package:vendza/core/services/product_event_api_service.dart';
 import 'package:vendza/core/services/share/app_share_service.dart';
 import 'package:vendza/core/services/share/whatsapp_seller_chat.dart';
@@ -235,7 +236,67 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   }
 
   Future<void> _toggleProductVisibility(bool isActive) async {
+    if (product.adminDisabled && isActive) {
+      final reason = product.moderationReason.trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            reason.isEmpty
+                ? "Ce produit a été désactivé par Vendza."
+                : "Désactivé par Vendza : $reason",
+          ),
+        ),
+      );
+      return;
+    }
     await _applyOwnerUpdate(product.copyWith(isActive: isActive));
+  }
+
+  Future<void> _requestModerationReview() async {
+    final controller = TextEditingController();
+    final message = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Demander une révision"),
+        content: TextField(
+          controller: controller,
+          minLines: 3,
+          maxLines: 5,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: "Expliquez pourquoi ce produit doit être réactivé.",
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Annuler"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text("Envoyer"),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (message == null || message.length < 3) return;
+    try {
+      await ModerationApiService().requestReview(
+        targetType: 'product',
+        targetId: product.id,
+        message: message,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Demande envoyée à l'administration.")),
+      );
+    } on Object catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Envoi impossible : $error")));
+    }
   }
 
   Future<bool> _applyOwnerUpdate(ProductModel updatedProduct) async {
@@ -323,8 +384,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   right: 14,
                   child: _OwnerProductTopBar(
                     isActive: product.isActive,
+                    adminDisabled: product.adminDisabled,
+                    moderationReason: product.moderationReason,
                     onEdit: _openOwnerEditor,
                     onVisibilityChanged: _toggleProductVisibility,
+                    onRequestReview: _requestModerationReview,
                     onDelete: _deleteOwnerProduct,
                   ),
                 ),
@@ -405,14 +469,20 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 class _OwnerProductTopBar extends StatelessWidget {
   const _OwnerProductTopBar({
     required this.isActive,
+    required this.adminDisabled,
+    required this.moderationReason,
     required this.onEdit,
     required this.onVisibilityChanged,
+    required this.onRequestReview,
     required this.onDelete,
   });
 
   final bool isActive;
+  final bool adminDisabled;
+  final String moderationReason;
   final VoidCallback onEdit;
   final ValueChanged<bool> onVisibilityChanged;
+  final VoidCallback onRequestReview;
   final VoidCallback onDelete;
 
   @override
@@ -443,21 +513,32 @@ class _OwnerProductTopBar extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            isActive ? "Actif" : "Inactif",
+            adminDisabled
+                ? "Bloqué par Vendza"
+                : (isActive ? "Actif" : "Inactif"),
             style: TextStyle(
               color: AppColors.textPrimary(context),
               fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
           ),
-          Transform.scale(
-            scale: 0.78,
-            child: Switch(
-              value: isActive,
-              activeThumbColor: AppColors.accent(context),
-              onChanged: onVisibilityChanged,
+          if (!adminDisabled)
+            Transform.scale(
+              scale: 0.78,
+              child: Switch(
+                value: isActive,
+                activeThumbColor: AppColors.accent(context),
+                onChanged: onVisibilityChanged,
+              ),
             ),
-          ),
+          if (adminDisabled)
+            IconButton(
+              tooltip: moderationReason.trim().isEmpty
+                  ? "Demander une révision"
+                  : "Motif : $moderationReason",
+              onPressed: onRequestReview,
+              icon: const Icon(Icons.rate_review_outlined),
+            ),
           const Spacer(),
           IconButton(
             tooltip: "Modifier",
@@ -717,18 +798,29 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
                     ),
                     SwitchListTile(
                       value: _isActive,
-                      onChanged: (value) {
-                        setState(() => _isActive = value);
-                      },
+                      onChanged: widget.product.adminDisabled
+                          ? null
+                          : (value) {
+                              setState(() => _isActive = value);
+                            },
                       activeThumbColor: AppColors.accent(context),
                       contentPadding: EdgeInsets.zero,
                       title: Text(
-                        "Produit visible côté client",
+                        widget.product.adminDisabled
+                            ? "Produit désactivé par Vendza"
+                            : "Produit visible côté client",
                         style: TextStyle(
                           color: AppColors.textPrimary(context),
                           fontWeight: FontWeight.w800,
                         ),
                       ),
+                      subtitle: widget.product.adminDisabled
+                          ? Text(
+                              widget.product.moderationReason.trim().isEmpty
+                                  ? "Contactez l'administration pour demander une révision."
+                                  : widget.product.moderationReason,
+                            )
+                          : null,
                     ),
                   ],
                 ),

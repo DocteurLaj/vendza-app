@@ -125,6 +125,10 @@ class _MyStorePageState extends State<MyStorePage> {
                                           name: store.name,
                                           image: store.imageUrl,
                                           description: store.description,
+                                          deliveryEnabled: store.deliveryEnabled,
+                                          adminHidden: store.adminHidden,
+                                          moderationReason:
+                                              store.moderationReason,
                                         ),
                                       ),
                                     ),

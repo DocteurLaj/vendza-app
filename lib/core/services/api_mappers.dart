@@ -61,6 +61,10 @@ ProductModel productFromApi(
     storeId: json['store_idstore']?.toString() ?? '',
     storeName: storeName,
     isActive: isActive,
+    adminDisabled: json['admin_disabled'] as bool? ?? false,
+    moderationReason: '${json['moderation_reason'] ?? ''}',
+    moderatedAt: DateTime.tryParse('${json['moderated_at'] ?? ''}'),
+    stock: stockValue,
     variants: _mapVariants(json['variation']),
   );
 }
@@ -77,6 +81,11 @@ ListStoreModel listStoreFromApi(Map<String, dynamic> json) {
     whatsappUrl: json['whatsappUrl'] as String? ?? '',
     instagramUrl: json['instagramUrl'] as String? ?? '',
     facebookUrl: json['facebookUrl'] as String? ?? '',
+    deliveryEnabled: json['deliveryEnabled'] as bool? ?? false,
+    isActive: json['is_active'] as bool? ?? true,
+    adminHidden: json['admin_hidden'] as bool? ?? false,
+    moderationReason: '${json['moderation_reason'] ?? ''}',
+    moderatedAt: DateTime.tryParse('${json['moderated_at'] ?? ''}'),
   );
 }
 
@@ -87,6 +96,9 @@ home.StoreModel homeStoreFromApi(Map<String, dynamic> json) {
     name: json['name'] as String? ?? '',
     image: imageUrl.isEmpty ? 'assets/images/login_img.jpg' : imageUrl,
     description: json['description'] as String?,
+    deliveryEnabled: json['deliveryEnabled'] as bool? ?? false,
+    adminHidden: json['admin_hidden'] as bool? ?? false,
+    moderationReason: '${json['moderation_reason'] ?? ''}',
   );
 }
 

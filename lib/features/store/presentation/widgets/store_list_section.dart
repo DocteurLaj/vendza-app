@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:vendza/core/catalog/catalog_repository.dart';
-import 'package:vendza/core/sync/entity_sync_status.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/features/store/presentation/widgets/store_widget.dart';
@@ -19,6 +17,15 @@ class StoreListSection extends StatelessWidget {
   final List<ListStoreModel> stores;
   final ValueChanged<ListStoreModel> onStoreTap;
   final String emptyText;
+
+  String _statusFor(ListStoreModel store) {
+    if (store.adminHidden) {
+      final reason = store.moderationReason.trim();
+      return reason.isEmpty ? "Masquée par Vendza" : "Masquée : $reason";
+    }
+    if (!store.isActive) return "Inactive";
+    return "Active";
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,15 +55,7 @@ class StoreListSection extends StatelessWidget {
                 name: store.name,
                 description: store.description,
                 imageUrl: store.imageUrl,
-                status: store.rating.toString(),
-                syncStatus: store.syncStatus,
-                syncProgress: store.syncProgress,
-                syncError: store.syncError,
-                onRetrySync: store.syncStatus == EntitySyncStatus.error
-                    ? () => catalogRepository.retryLocalCreate(
-                        store.localId.isNotEmpty ? store.localId : store.id,
-                      )
-                    : null,
+                status: _statusFor(store),
                 onTap: () => onStoreTap(store),
               ),
             ),
