@@ -211,7 +211,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   Future<void> _buyProduct() async {
     if (_openingCheckout || !product.isActive || widget.ownerMode) return;
     setState(() => _openingCheckout = true);
-    orderDraftStore.addProduct(product);
+    final store = stores
+        .where((item) => item.id == product.storeId)
+        .firstOrNull;
+    orderDraftStore.addProduct(product, storeImage: store?.imageUrl);
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const OrderCheckoutPage()),

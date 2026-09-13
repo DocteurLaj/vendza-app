@@ -94,11 +94,24 @@ NotificationModel notificationFromApi(Map<String, dynamic> json) {
   return NotificationModel(
     id: json['idnotification'].toString(),
     name: json['type'] as String? ?? 'Notification',
+    title: json['title'] as String?,
     description: json['content'] as String? ?? '',
-    imageUrl: 'assets/images/login_img.jpg',
+    imageUrl:
+        json['image_url'] as String? ??
+        json['product_image'] as String? ??
+        json['store_image'] as String? ??
+        'assets/images/login_img.jpg',
     isRead: json['seen'] == true,
     storeId: json['store_idstore'] as int?,
     orderId: json['order_idorder'] as int?,
+    productId: json['product_idproduct'] as int?,
+    threadId: json['thread_id'] as String?,
+    threadType: json['thread_type'] as String?,
+    storeName: json['store_name'] as String?,
+    storeImage: json['store_image'] as String?,
+    productName: json['product_name'] as String?,
+    productImage: json['product_image'] as String?,
+    createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
   );
 }
 

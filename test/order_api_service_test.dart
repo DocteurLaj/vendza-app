@@ -58,7 +58,10 @@ Map<String, dynamic> _orderJson({String status = 'pending'}) => {
   'status': status,
   'payment_method': 'cash_on_delivery',
   'store_idstore': 11,
-  'contact_phone': '+243999000111',
+  'store_name': 'Boutique test',
+  'store_image': 'https://cdn.vendza.test/store.png',
+  'store_address': 'Kinshasa',
+  'contact_phone': '+243****0111',
   'delivery_address': 'Avenue Commerce 12, Kinshasa',
   'customer_note': 'Appelez-moi avant livraison.',
   'createdAt': '2026-08-25T12:00:00',
@@ -68,6 +71,8 @@ Map<String, dynamic> _orderJson({String status = 'pending'}) => {
       'quantity': 2,
       'unit_price': '12.50',
       'total_price': '25.00',
+      'product_name': 'Produit test',
+      'product_image': 'https://cdn.vendza.test/product.png',
     },
   ],
 };
@@ -98,7 +103,14 @@ void main() {
       expect(client.lastBody?['customer_note'], 'Appelez-moi avant livraison.');
       expect(order.totalAmount, 25);
       expect(order.storeId, 11);
-      expect(order.contactPhone, '+243999000111');
+      expect(order.storeName, 'Boutique test');
+      expect(order.storeImage, 'https://cdn.vendza.test/store.png');
+      expect(order.contactPhone, '+243****0111');
+      expect(order.items.single.productName, 'Produit test');
+      expect(
+        order.items.single.productImage,
+        'https://cdn.vendza.test/product.png',
+      );
       expect(order.items.single.unitPrice, 12.5);
       expect(order.canBeCancelledByBuyer, isTrue);
     },

@@ -63,6 +63,19 @@ class PushNotificationService {
     }
   }
 
+  Future<void> disableCurrentUserPush() async {
+    _lastSyncedToken = null;
+    if (!_tokenStore.hasAccessToken) return;
+    try {
+      await _client.delete(
+        ApiEndpoints.notificationPushToken,
+        authenticated: true,
+      );
+    } on Object {
+      // Local preference remains off; API refresh can reconcile later.
+    }
+  }
+
   Future<void> _syncToken(String token) async {
     if (!_tokenStore.hasAccessToken || token == _lastSyncedToken) return;
 

@@ -7,8 +7,10 @@ import 'package:vendza/features/order/data/services/order_api_service.dart';
 import 'package:vendza/features/order/presentation/helpers/customer_contact_launcher.dart';
 import 'package:vendza/features/order/presentation/helpers/order_status_presentation.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
+import 'package:vendza/shared/utils/date_time_label.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/media/context_image.dart';
 
 class StoreOrdersPage extends StatefulWidget {
   const StoreOrdersPage({super.key, required this.store});
@@ -246,7 +248,6 @@ class _StoreOrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final next = nextOrderStatus(order.status);
     final actionLabel = orderStatusActionLabel(order.status);
-    final accent = orderStatusColor(order.status, context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -259,14 +260,10 @@ class _StoreOrderCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(orderStatusIcon(order.status), color: accent),
+              VendzaContextImage(
+                imageUrl: order.storeImage,
+                icon: orderStatusIcon(order.status),
+                size: 42,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -274,12 +271,14 @@ class _StoreOrderCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Commande #${order.id}',
+                      order.storeName == null
+                          ? 'Commande #${order.id}'
+                          : '${order.storeName} · #${order.id}',
                       style: AppTextStyles.cardTitle(context),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${order.totalAmount.toStringAsFixed(0)} · ${order.items.length} article(s)',
+                      '${vendzaDateTimeLabel(order.createdAt)} · ${order.totalAmount.toStringAsFixed(0)} · ${order.items.length} article(s)',
                       style: TextStyle(color: AppColors.textSecondary(context)),
                     ),
                   ],
@@ -288,6 +287,8 @@ class _StoreOrderCard extends StatelessWidget {
               _StatusPill(status: order.status),
             ],
           ),
+          const SizedBox(height: 12),
+          _OrderItemsPreview(items: order.items),
           const SizedBox(height: 12),
           Text(
             orderStatusDescription(order.status),
@@ -388,6 +389,54 @@ class _CustomerContactRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _OrderItemsPreview extends StatelessWidget {
+  const _OrderItemsPreview({required this.items});
+
+  final List<OrderItemModel> items;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Column(
+      children: items
+          .map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  VendzaContextImage(
+                    imageUrl: item.productImage,
+                    icon: Icons.inventory_2_outlined,
+                    size: 36,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${item.productName ?? 'Produit'} × ${item.quantity}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.textPrimary(context),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    item.totalPrice.toStringAsFixed(0),
+                    style: TextStyle(
+                      color: AppColors.textSecondary(context),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+          .toList(growable: false),
     );
   }
 }

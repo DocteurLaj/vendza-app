@@ -18,6 +18,7 @@ import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/utils/phone_number.dart';
 import 'package:vendza/shared/utils/social_url.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
+import 'package:vendza/shared/widgets/dialog/confirm_delete_dialog.dart';
 import 'package:vendza/shared/widgets/input/phone_number_field.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
@@ -166,9 +167,9 @@ class _CustomPageState extends State<CustomPage> {
     final instagramError = validateInstagramUrl(_instagramController.text);
     final facebookError = validateFacebookUrl(_facebookController.text);
     if (instagramError != null || facebookError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(instagramError ?? facebookError!)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(instagramError ?? facebookError!)));
       return;
     }
 
@@ -249,6 +250,51 @@ class _CustomPageState extends State<CustomPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _deleteStore() async {
+    if (_isSubmitting) return;
+    if (!isOwnedStoreId(widget.store.id)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vous ne pouvez supprimer que votre propre boutique.'),
+        ),
+      );
+      return;
+    }
+    final storeId = int.tryParse(widget.store.id);
+    if (storeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Identifiant de boutique invalide')),
+      );
+      return;
+    }
+    final confirmed = await showConfirmDeleteDialog(
+      context: context,
+      title: 'Supprimer cette boutique ?',
+      message:
+          'La boutique et ses produits seront masqués au public. Les commandes existantes resteront consultables.',
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await StoreApiService().deleteStore(storeId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Boutique supprimée.')));
+      Navigator.of(context).pop(true);
+    } on Object catch (error) {
+      if (!mounted) return;
+      final message = error is ApiException
+          ? error.message
+          : 'Suppression impossible. Réessayez.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -333,6 +379,29 @@ class _CustomPageState extends State<CustomPage> {
                         !_coverUpload.blocksSubmit &&
                         !_profileUpload.blocksSubmit,
                     isLoading: _isSubmitting,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _isSubmitting ? null : _deleteStore,
+                    icon: const Icon(Icons.delete_outline_rounded),
+                    label: const Text(
+                      'Supprimer cette boutique',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade700,
+                      side: BorderSide(color: Colors.red.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                    ),
                   ),
                 ),
               ),

@@ -43,10 +43,12 @@ class NotificationSettingsPage extends StatelessWidget {
               icon: Icons.notifications_outlined,
               title: "Autoriser les notifications",
               subtitle: notificationsEnabled
-                  ? "Les notifications de Vendza sont activees"
-                  : "Toutes les notifications de Vendza sont coupees",
+                  ? "Notifications activees : Vendza synchronise votre appareil pour les push."
+                  : "Notifications coupees : les push sont desactives sur cet appareil.",
               value: notificationsEnabled,
-              onChanged: setNotificationsEnabled,
+              onChanged: (enabled) {
+                setNotificationsEnabledAndSync(enabled);
+              },
             ),
           ],
         );
@@ -202,9 +204,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
   @override
   void initState() {
     super.initState();
-    emailController = TextEditingController(
-      text: currentUserStore.value.email,
-    );
+    emailController = TextEditingController(text: currentUserStore.value.email);
     emailController.addListener(_onFieldChanged);
     currentPasswordController.addListener(_onFieldChanged);
     newPasswordController.addListener(_onFieldChanged);
@@ -346,7 +346,9 @@ class SupportSettingsPage extends StatelessWidget {
           subtitle: SiteLinks.hasSupportWhatsApp
               ? "Contacter un agent directement"
               : "Le numero public n'est pas encore renseigne",
-          trailing: SiteLinks.hasSupportWhatsApp ? SiteLinks.supportWhatsApp : null,
+          trailing: SiteLinks.hasSupportWhatsApp
+              ? SiteLinks.supportWhatsApp
+              : null,
           onTap: () {
             final whatsapp = SiteLinks.whatsappUri;
             if (whatsapp != null) {

@@ -2,17 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
 import 'package:vendza/features/notification/presantation/helpers/notification_presentation.dart';
+import 'package:vendza/shared/utils/date_time_label.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
+import 'package:vendza/shared/widgets/media/context_image.dart';
 
 class NotificationWidget extends StatefulWidget {
   const NotificationWidget({
     super.key,
     required this.notification,
     required this.onOpen,
+    this.onDelete,
   });
 
   final NotificationModel notification;
   final ValueChanged<NotificationModel> onOpen;
+  final ValueChanged<NotificationModel>? onDelete;
 
   @override
   State<NotificationWidget> createState() => _NotificationWidgetState();
@@ -23,14 +27,8 @@ class _NotificationWidgetState extends State<NotificationWidget> {
 
   void toggle() {
     final shouldExpand = !isExpanded;
-
-    setState(() {
-      isExpanded = shouldExpand;
-    });
-
-    if (shouldExpand) {
-      widget.onOpen(widget.notification);
-    }
+    setState(() => isExpanded = shouldExpand);
+    if (shouldExpand) widget.onOpen(widget.notification);
   }
 
   @override
@@ -39,6 +37,7 @@ class _NotificationWidgetState extends State<NotificationWidget> {
     final isUnread = !notification.isRead;
     final accentColor = _accentForType(context, notification.name);
     final actionLabel = notification.actionLabel;
+    final title = notification.storeName ?? notification.title;
 
     return AppInteractive(
       onTap: toggle,
@@ -72,10 +71,10 @@ class _NotificationWidgetState extends State<NotificationWidget> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _NotificationIcon(
+                VendzaContextImage(
+                  imageUrl: notification.imageUrl,
                   icon: notification.icon,
-                  color: accentColor,
-                  isUnread: isUnread,
+                  size: 50,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -92,11 +91,20 @@ class _NotificationWidgetState extends State<NotificationWidget> {
                             color: accentColor,
                           ),
                           if (isUnread) const _UnreadChip(),
+                          if (notification.createdAt != null)
+                            Text(
+                              vendzaDateTimeLabel(notification.createdAt!),
+                              style: TextStyle(
+                                color: AppColors.textSecondary(context),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        notification.displayTitle,
+                        title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -105,6 +113,19 @@ class _NotificationWidgetState extends State<NotificationWidget> {
                           fontWeight: FontWeight.w900,
                         ),
                       ),
+                      if ((notification.productName ?? '').isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          'Produit: ${notification.productName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: AppColors.textSecondary(context),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 5),
                       Text(
                         notification.description,
@@ -121,14 +142,28 @@ class _NotificationWidgetState extends State<NotificationWidget> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                AnimatedRotation(
-                  duration: const Duration(milliseconds: 220),
-                  turns: isExpanded ? 0.25 : 0,
-                  child: Icon(
-                    Icons.chevron_right,
-                    color: accentColor.withValues(alpha: 0.58),
-                    size: 23,
-                  ),
+                Column(
+                  children: [
+                    if (widget.onDelete != null)
+                      IconButton(
+                        tooltip: 'Supprimer',
+                        onPressed: () => widget.onDelete!(notification),
+                        icon: Icon(
+                          Icons.delete_outline_rounded,
+                          color: AppColors.textSecondary(context),
+                          size: 20,
+                        ),
+                      ),
+                    AnimatedRotation(
+                      duration: const Duration(milliseconds: 220),
+                      turns: isExpanded ? 0.25 : 0,
+                      child: Icon(
+                        Icons.chevron_right,
+                        color: accentColor.withValues(alpha: 0.58),
+                        size: 23,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -160,34 +195,6 @@ class _NotificationWidgetState extends State<NotificationWidget> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _NotificationIcon extends StatelessWidget {
-  const _NotificationIcon({
-    required this.icon,
-    required this.color,
-    required this.isUnread,
-  });
-
-  final IconData icon;
-  final Color color;
-  final bool isUnread;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 50,
-      height: 50,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: AppColors.isDark(context) ? 0.18 : 0.10),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withValues(alpha: isUnread ? 0.42 : 0.20),
-        ),
-      ),
-      child: Icon(icon, color: color),
     );
   }
 }

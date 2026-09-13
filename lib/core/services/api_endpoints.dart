@@ -80,6 +80,11 @@ class ApiEndpoints {
 
   /// Authenticated inbox for the current user (API: GET /notification/me).
   static const notificationsMe = '/notification/me';
+  static const notificationThreads = '/notification/threads';
+
+  static String notificationThread(String threadId) {
+    return '/notification/threads/$threadId';
+  }
 
   static const orders = '/orders';
 

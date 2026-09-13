@@ -7,6 +7,7 @@ import 'package:vendza/features/order/data/services/order_api_service.dart';
 import 'package:vendza/features/order/data/services/order_draft_store.dart';
 import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/media/context_image.dart';
 
 class OrderCheckoutPage extends StatefulWidget {
   const OrderCheckoutPage({super.key});
@@ -117,6 +118,16 @@ class _OrderCheckoutPageState extends State<OrderCheckoutPage> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _SummaryCard(draft: draft),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: _submitting
+                          ? null
+                          : () => Navigator.maybePop(context),
+                      icon: const Icon(Icons.add_shopping_cart_rounded),
+                      label: const Text(
+                        'Ajouter d’autres produits de cette boutique',
+                      ),
+                    ),
                     const SizedBox(height: 14),
                     ...draft.items.map(
                       (item) => Padding(
@@ -178,9 +189,31 @@ class _SummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Commande chez ${draft.storeName}',
-            style: AppTextStyles.cardTitle(context),
+          Row(
+            children: [
+              VendzaContextImage(
+                imageUrl: draft.storeImage,
+                icon: Icons.storefront_outlined,
+                size: 54,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Commande chez ${draft.storeName}',
+                      style: AppTextStyles.cardTitle(context),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Commande en préparation',
+                      style: TextStyle(color: AppColors.textSecondary(context)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 6),
           Text(
@@ -217,6 +250,12 @@ class _DraftItemTile extends StatelessWidget {
       ),
       child: Row(
         children: [
+          VendzaContextImage(
+            imageUrl: item.product.imageurl,
+            icon: Icons.inventory_2_outlined,
+            size: 52,
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,6 +283,14 @@ class _DraftItemTile extends StatelessWidget {
           IconButton(
             onPressed: () => orderDraftStore.increment(item.product.id),
             icon: const Icon(Icons.add_circle_outline),
+          ),
+          IconButton(
+            tooltip: 'Supprimer l’article',
+            onPressed: () => orderDraftStore.remove(item.product.id),
+            icon: Icon(
+              Icons.delete_outline_rounded,
+              color: Colors.red.shade700,
+            ),
           ),
         ],
       ),

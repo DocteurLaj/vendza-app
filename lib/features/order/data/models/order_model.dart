@@ -16,12 +16,16 @@ class OrderItemModel {
     required this.quantity,
     required this.unitPrice,
     required this.totalPrice,
+    this.productName,
+    this.productImage,
   });
 
   final int productId;
   final int quantity;
   final double unitPrice;
   final double totalPrice;
+  final String? productName;
+  final String? productImage;
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
     return OrderItemModel(
@@ -29,6 +33,8 @@ class OrderItemModel {
       quantity: json['quantity'] as int,
       unitPrice: _asDouble(json['unit_price']),
       totalPrice: _asDouble(json['total_price']),
+      productName: json['product_name'] as String?,
+      productImage: json['product_image'] as String?,
     );
   }
 }
@@ -43,6 +49,9 @@ class OrderModel {
     required this.createdAt,
     required this.items,
     this.storeId,
+    this.storeName,
+    this.storeImage,
+    this.storeAddress,
     this.contactPhone,
     this.deliveryAddress,
     this.customerNote,
@@ -56,6 +65,9 @@ class OrderModel {
   final DateTime createdAt;
   final List<OrderItemModel> items;
   final int? storeId;
+  final String? storeName;
+  final String? storeImage;
+  final String? storeAddress;
   final String? contactPhone;
   final String? deliveryAddress;
   final String? customerNote;
@@ -71,6 +83,9 @@ class OrderModel {
       paymentMethod: json['payment_method'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
       storeId: json['store_idstore'] as int?,
+      storeName: json['store_name'] as String?,
+      storeImage: json['store_image'] as String?,
+      storeAddress: json['store_address'] as String?,
       contactPhone: json['contact_phone'] as String?,
       deliveryAddress: json['delivery_address'] as String?,
       customerNote: json['customer_note'] as String?,

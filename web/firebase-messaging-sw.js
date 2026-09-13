@@ -16,9 +16,13 @@ if (hasFirebaseConfig) {
 
   messaging.onBackgroundMessage((message) => {
     const notification = message.notification || {};
+    const data = message.data || {};
+    const imageUrl = notification.image || data.image_url || data.product_image || data.store_image || undefined;
     self.registration.showNotification(notification.title || "Vendza", {
       body: notification.body || "",
-      data: message.data || {},
+      icon: data.store_image || imageUrl,
+      image: imageUrl,
+      data,
     });
   });
 }

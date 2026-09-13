@@ -43,4 +43,12 @@ class NotificationApiService {
     );
     return Map<String, dynamic>.from(response as Map);
   }
+
+  Future<Map<String, dynamic>> deleteThread(String threadId) async {
+    final response = await _client.delete(
+      ApiEndpoints.notificationThread(threadId),
+      authenticated: true,
+    );
+    return Map<String, dynamic>.from(response as Map);
+  }
 }

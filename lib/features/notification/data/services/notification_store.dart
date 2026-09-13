@@ -17,16 +17,7 @@ Future<void> markNotificationAsRead(String id) async {
 
   notificationStore.value = notificationStore.value.map((notification) {
     if (notification.id != id || notification.isRead) return notification;
-
-    return NotificationModel(
-      id: notification.id,
-      name: notification.name,
-      description: notification.description,
-      imageUrl: notification.imageUrl,
-      isRead: true,
-      storeId: notification.storeId,
-      orderId: notification.orderId,
-    );
+    return notification.copyWith(isRead: true);
   }).toList();
 
   final notificationId = int.tryParse(id);
@@ -36,5 +27,34 @@ Future<void> markNotificationAsRead(String id) async {
     await NotificationApiService().markAsSeen(notificationId);
   } on Object {
     // Keep optimistic local read state; inbox refresh can reconcile later.
+  }
+}
+
+Future<void> deleteNotificationLocallyAndRemote(String id) async {
+  final before = List<NotificationModel>.from(notificationStore.value);
+  notificationStore.value = before
+      .where((notification) => notification.id != id)
+      .toList(growable: false);
+
+  final notificationId = int.tryParse(id);
+  if (notificationId == null) return;
+
+  try {
+    await NotificationApiService().deleteNotification(notificationId);
+  } on Object {
+    notificationStore.value = before;
+  }
+}
+
+Future<void> deleteNotificationThreadLocallyAndRemote(String threadId) async {
+  final before = List<NotificationModel>.from(notificationStore.value);
+  notificationStore.value = before
+      .where((notification) => notification.threadKey != threadId)
+      .toList(growable: false);
+
+  try {
+    await NotificationApiService().deleteThread(threadId);
+  } on Object {
+    notificationStore.value = before;
   }
 }

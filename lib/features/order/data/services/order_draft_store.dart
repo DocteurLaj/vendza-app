@@ -28,11 +28,13 @@ class OrderDraft {
   const OrderDraft({
     required this.storeId,
     required this.storeName,
+    required this.storeImage,
     required this.items,
   });
 
   final String storeId;
   final String storeName;
+  final String storeImage;
   final List<OrderDraftItem> items;
 
   int get totalItems => items.fold(0, (sum, item) => sum + item.quantity);
@@ -42,6 +44,7 @@ class OrderDraft {
     return OrderDraft(
       storeId: storeId,
       storeName: storeName,
+      storeImage: storeImage,
       items: items ?? this.items,
     );
   }
@@ -52,7 +55,11 @@ class OrderDraftStore extends ChangeNotifier {
 
   OrderDraft? get value => _value;
 
-  void addProduct(ProductModel product, {int quantity = 1}) {
+  void addProduct(
+    ProductModel product, {
+    int quantity = 1,
+    String? storeImage,
+  }) {
     final storeId = product.storeId.trim();
     final safeQuantity = quantity < 1 ? 1 : quantity;
     final current = _value;
@@ -62,6 +69,7 @@ class OrderDraftStore extends ChangeNotifier {
         storeName: product.storeName.trim().isNotEmpty
             ? product.storeName.trim()
             : 'Boutique',
+        storeImage: storeImage?.trim() ?? '',
         items: [OrderDraftItem(product: product, quantity: safeQuantity)],
       );
       notifyListeners();
