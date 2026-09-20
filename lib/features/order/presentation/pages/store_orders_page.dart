@@ -5,6 +5,7 @@ import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/order/data/models/order_model.dart';
 import 'package:vendza/features/order/data/services/order_api_service.dart';
 import 'package:vendza/features/order/presentation/helpers/customer_contact_launcher.dart';
+import 'package:vendza/features/order/presentation/helpers/order_list_presentation.dart';
 import 'package:vendza/features/order/presentation/helpers/order_status_presentation.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/shared/utils/date_time_label.dart';
@@ -23,7 +24,10 @@ class StoreOrdersPage extends StatefulWidget {
 
 class _StoreOrdersPageState extends State<StoreOrdersPage> {
   final _api = OrderApiService();
+  final Set<int> _expandedIds = {};
+  final Set<int> _hiddenIds = {};
   List<OrderModel> _orders = [];
+  OrderFilterKey _filter = OrderFilterKey.all;
   bool _loading = true;
   String? _error;
   bool _updating = false;
@@ -48,7 +52,7 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
       _error = null;
     });
     try {
-      final orders = await _api.storeOrders(storeId: storeId);
+      final orders = await _api.storeOrders(storeId: storeId, pageSize: 100);
       if (!mounted) return;
       setState(() {
         _orders = orders;
@@ -79,7 +83,8 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
       setState(() {
         _orders = _orders
             .map((item) => item.id == updated.id ? updated : item)
-            .toList();
+            .toList(growable: false);
+        _expandedIds.add(updated.id);
       });
     } on ApiException catch (error) {
       if (!mounted) return;
@@ -91,11 +96,26 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
     }
   }
 
+  void _hideOrder(OrderModel order) {
+    setState(() {
+      _hiddenIds.add(order.id);
+      _expandedIds.remove(order.id);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Commande masquée de l’historique vendeur.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final newOrders = _orders
-        .where((order) => order.status == 'pending')
-        .length;
+    final summary = summarizeOrders(_orders, hiddenIds: _hiddenIds);
+    final sections = sellerOrderSections(
+      _orders,
+      _filter,
+      hiddenIds: _hiddenIds,
+    );
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
       appBar: AppBar(
@@ -120,7 +140,7 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
                   ),
                 ],
               )
-            : _orders.isEmpty
+            : summary.total == 0
             ? ListView(
                 children: const [
                   Padding(
@@ -133,102 +153,74 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
                   ),
                 ],
               )
-            : ListView.separated(
+            : ListView(
                 padding: const EdgeInsets.all(16),
-                itemCount: _orders.length + 1,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return ResponsiveContent(
-                      maxWidth: 720,
-                      child: _StoreOrdersSummary(
-                        total: _orders.length,
-                        pending: newOrders,
-                      ),
-                    );
-                  }
-                  final order = _orders[index - 1];
-                  return ResponsiveContent(
+                children: [
+                  ResponsiveContent(
                     maxWidth: 720,
-                    child: _StoreOrderCard(
-                      order: order,
-                      updating: _updating,
-                      onStatus: (status) => _updateStatus(order, status),
+                    child: _OrdersHeader(
+                      title: 'Tableau commandes',
+                      subtitle:
+                          '${summary.newCount} nouvelle(s) · ${summary.activeCount} en cours · ${summary.historyCount} historique',
+                      summary: summary,
                     ),
-                  );
-                },
+                  ),
+                  const SizedBox(height: 12),
+                  ResponsiveContent(
+                    maxWidth: 720,
+                    child: _OrderFilterBar(
+                      selected: _filter,
+                      onSelected: (filter) => setState(() => _filter = filter),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  if (sections.every((section) => section.orders.isEmpty))
+                    ResponsiveContent(
+                      maxWidth: 720,
+                      child: EmptyStateWidget(
+                        icon: Icons.filter_alt_off_outlined,
+                        title: 'Aucune commande dans ce filtre',
+                        message:
+                            'Choisissez un autre statut pour afficher vos commandes.',
+                      ),
+                    )
+                  else
+                    ...sections.expand(
+                      (section) => [
+                        ResponsiveContent(
+                          maxWidth: 720,
+                          child: _OrderSectionHeader(section: section),
+                        ),
+                        const SizedBox(height: 8),
+                        ...section.orders.map(
+                          (order) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: ResponsiveContent(
+                              maxWidth: 720,
+                              child: _StoreOrderCard(
+                                order: order,
+                                expanded: _expandedIds.contains(order.id),
+                                updating: _updating,
+                                onToggle: () => setState(() {
+                                  if (!_expandedIds.add(order.id)) {
+                                    _expandedIds.remove(order.id);
+                                  }
+                                }),
+                                onStatus: (status) =>
+                                    _updateStatus(order, status),
+                                onHide: canHideOrder(order)
+                                    ? () => _hideOrder(order)
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                      ],
+                    ),
+                ],
               ),
       ),
-    );
-  }
-}
-
-class _StoreOrdersSummary extends StatelessWidget {
-  const _StoreOrdersSummary({required this.total, required this.pending});
-
-  final int total;
-  final int pending;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border(context)),
-      ),
-      child: Row(
-        children: [
-          _SummaryItem(label: 'Total', value: '$total'),
-          const SizedBox(width: 14),
-          _SummaryItem(label: 'Nouvelles', value: '$pending'),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              pending == 0
-                  ? 'Aucune commande en attente.'
-                  : 'Traitez rapidement les commandes reçues.',
-              style: TextStyle(
-                color: AppColors.textSecondary(context),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryItem extends StatelessWidget {
-  const _SummaryItem({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: AppColors.textPrimary(context),
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            color: AppColors.textSecondary(context),
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -236,94 +228,192 @@ class _SummaryItem extends StatelessWidget {
 class _StoreOrderCard extends StatelessWidget {
   const _StoreOrderCard({
     required this.order,
+    required this.expanded,
     required this.updating,
+    required this.onToggle,
     required this.onStatus,
+    this.onHide,
   });
 
   final OrderModel order;
+  final bool expanded;
   final bool updating;
+  final VoidCallback onToggle;
   final ValueChanged<String> onStatus;
+  final VoidCallback? onHide;
 
   @override
   Widget build(BuildContext context) {
     final next = nextOrderStatus(order.status);
     final actionLabel = orderStatusActionLabel(order.status);
-    return Container(
+    return _PremiumOrderShell(
+      order: order,
+      expanded: expanded,
+      onToggle: onToggle,
+      collapsedSubtitle:
+          '${vendzaDateTimeLabel(order.createdAt)} · ${order.totalAmount.toStringAsFixed(0)} · ${order.items.length} article(s)',
+      expandedChildren: [
+        _OrderItemsPreview(items: order.items),
+        if ((order.contactPhone ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _CustomerContactRow(phone: order.contactPhone!.trim()),
+        ],
+        const SizedBox(height: 12),
+        _InfoBox(
+          icon: Icons.location_on_outlined,
+          title: 'Adresse de livraison',
+          value: (order.deliveryAddress ?? '').trim().isEmpty
+              ? 'Adresse non renseignée'
+              : order.deliveryAddress!.trim(),
+        ),
+        if ((order.customerNote ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _InfoBox(
+            icon: Icons.sticky_note_2_outlined,
+            title: 'Note client',
+            value: order.customerNote!.trim(),
+          ),
+        ],
+        const SizedBox(height: 12),
+        Text(
+          orderStatusDescription(order.status),
+          style: TextStyle(
+            color: AppColors.textSecondary(context),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _OrderTimeline(status: order.status),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            if (next != null && actionLabel != null)
+              FilledButton.icon(
+                onPressed: updating ? null : () => onStatus(next),
+                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                label: Text(actionLabel),
+              ),
+            if (order.status != 'cancelled' && order.status != 'delivered')
+              OutlinedButton.icon(
+                onPressed: updating ? null : () => onStatus('cancelled'),
+                icon: const Icon(Icons.close_rounded, size: 18),
+                label: const Text('Annuler'),
+              ),
+            if (onHide != null)
+              TextButton.icon(
+                onPressed: onHide,
+                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                label: const Text('Masquer de l’historique'),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PremiumOrderShell extends StatelessWidget {
+  const _PremiumOrderShell({
+    required this.order,
+    required this.expanded,
+    required this.onToggle,
+    required this.collapsedSubtitle,
+    required this.expandedChildren,
+  });
+
+  final OrderModel order;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final String collapsedSubtitle;
+  final List<Widget> expandedChildren;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: AppColors.border(context)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: AppColors.isDark(context) ? 0.16 : 0.045,
+            ),
+            blurRadius: expanded ? 22 : 14,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              VendzaContextImage(
-                imageUrl: order.storeImage,
-                icon: orderStatusIcon(order.status),
-                size: 42,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      order.storeName == null
-                          ? 'Commande #${order.id}'
-                          : '${order.storeName} · #${order.id}',
-                      style: AppTextStyles.cardTitle(context),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${vendzaDateTimeLabel(order.createdAt)} · ${order.totalAmount.toStringAsFixed(0)} · ${order.items.length} article(s)',
-                      style: TextStyle(color: AppColors.textSecondary(context)),
-                    ),
-                  ],
-                ),
-              ),
-              _StatusPill(status: order.status),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _OrderItemsPreview(items: order.items),
-          const SizedBox(height: 12),
-          Text(
-            orderStatusDescription(order.status),
-            style: TextStyle(
-              color: AppColors.textSecondary(context),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if ((order.contactPhone ?? '').trim().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _CustomerContactRow(phone: order.contactPhone!.trim()),
-          ],
-          const SizedBox(height: 12),
-          _OrderTimeline(status: order.status),
-          if (next != null || order.status == 'pending') ...[
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+          InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: onToggle,
+            child: Row(
               children: [
-                if (next != null && actionLabel != null)
-                  FilledButton.icon(
-                    onPressed: updating ? null : () => onStatus(next),
-                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                    label: Text(actionLabel),
+                VendzaContextImage(
+                  imageUrl: order.storeImage,
+                  icon: orderStatusIcon(order.status),
+                  size: 46,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.storeName == null
+                            ? 'Commande #${order.id}'
+                            : '${order.storeName} · #${order.id}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.cardTitle(context),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        collapsedSubtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.textSecondary(context),
+                        ),
+                      ),
+                    ],
                   ),
-                if (order.status != 'cancelled' && order.status != 'delivered')
-                  OutlinedButton.icon(
-                    onPressed: updating ? null : () => onStatus('cancelled'),
-                    icon: const Icon(Icons.close_rounded, size: 18),
-                    label: const Text('Annuler'),
+                ),
+                const SizedBox(width: 8),
+                _StatusPill(status: order.status),
+                IconButton(
+                  tooltip: expanded ? 'Plier' : 'Déplier',
+                  onPressed: onToggle,
+                  icon: Icon(
+                    expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
                   ),
+                ),
               ],
             ),
-          ],
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: expandedChildren,
+              ),
+            ),
+            crossFadeState: expanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 180),
+          ),
         ],
       ),
     );
@@ -346,47 +436,226 @@ class _CustomerContactRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return _InfoBoxWithAction(
+      icon: Icons.phone_in_talk_outlined,
+      title: 'Contact client',
+      value: phone,
+      action: TextButton.icon(
+        onPressed: () => _open(context),
+        icon: const Icon(Icons.chat_outlined, size: 18),
+        label: const Text('Contacter'),
+      ),
+    );
+  }
+}
+
+class _OrdersHeader extends StatelessWidget {
+  const _OrdersHeader({
+    required this.title,
+    required this.subtitle,
+    required this.summary,
+  });
+
+  final String title;
+  final String subtitle;
+  final OrderSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.accent(context).withValues(alpha: 0.18),
+            AppColors.card(context),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.border(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: AppTextStyles.cardTitle(context)),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(color: AppColors.textSecondary(context)),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _MetricChip(label: 'Total', value: '${summary.total}'),
+              _MetricChip(label: 'Nouvelles', value: '${summary.newCount}'),
+              _MetricChip(label: 'En cours', value: '${summary.activeCount}'),
+              _MetricChip(
+                label: 'Historique',
+                value: '${summary.historyCount}',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderFilterBar extends StatelessWidget {
+  const _OrderFilterBar({required this.selected, required this.onSelected});
+
+  final OrderFilterKey selected;
+  final ValueChanged<OrderFilterKey> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: orderFilterOptions
+            .map(
+              (option) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(option.label),
+                  selected: selected == option.key,
+                  onSelected: (_) => onSelected(option.key),
+                ),
+              ),
+            )
+            .toList(growable: false),
+      ),
+    );
+  }
+}
+
+class _OrderSectionHeader extends StatelessWidget {
+  const _OrderSectionHeader({required this.section});
+
+  final OrderSection section;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(section.title, style: AppTextStyles.cardTitle(context)),
+                Text(
+                  section.subtitle,
+                  style: TextStyle(color: AppColors.textSecondary(context)),
+                ),
+              ],
+            ),
+          ),
+          _MetricChip(label: 'Commandes', value: '${section.orders.length}'),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricChip extends StatelessWidget {
+  const _MetricChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.card(context).withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.border(context)),
+      ),
+      child: Text(
+        '$label · $value',
+        style: TextStyle(
+          color: AppColors.textPrimary(context),
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoBox extends StatelessWidget {
+  const _InfoBox({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoBoxWithAction(icon: icon, title: title, value: value);
+  }
+}
+
+class _InfoBoxWithAction extends StatelessWidget {
+  const _InfoBoxWithAction({
+    required this.icon,
+    required this.title,
+    required this.value,
+    this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.accent(context).withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border(context)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.phone_in_talk_outlined,
-            color: AppColors.iconAccent(context),
-          ),
+          Icon(icon, color: AppColors.iconAccent(context), size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Contact client',
+                  title,
                   style: TextStyle(
                     color: AppColors.textSecondary(context),
                     fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
-                  phone,
+                  value,
                   style: TextStyle(
                     color: AppColors.textPrimary(context),
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
           ),
-          TextButton.icon(
-            onPressed: () => _open(context),
-            icon: const Icon(Icons.chat_outlined, size: 18),
-            label: const Text('Contacter'),
-          ),
+          ?action,
         ],
       ),
     );
