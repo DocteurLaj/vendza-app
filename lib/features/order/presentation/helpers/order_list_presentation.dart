@@ -2,15 +2,15 @@ import 'package:vendza/features/order/data/models/order_model.dart';
 
 enum OrderFilterKey {
   all,
-  newOrders,
-  active,
+  pending,
   confirmed,
   preparing,
   readyForDelivery,
   delivered,
   cancelled,
-  history,
 }
+
+enum OrderSegmentKey { toProcess, active, completed, cancelled, history }
 
 class OrderFilterOption {
   const OrderFilterOption({
@@ -24,16 +24,16 @@ class OrderFilterOption {
   final Set<String> statuses;
 }
 
-class OrderSection {
-  const OrderSection({
-    required this.title,
-    required this.subtitle,
-    required this.orders,
+class OrderSegmentOption {
+  const OrderSegmentOption({
+    required this.key,
+    required this.label,
+    required this.statuses,
   });
 
-  final String title;
-  final String subtitle;
-  final List<OrderModel> orders;
+  final OrderSegmentKey key;
+  final String label;
+  final Set<String> statuses;
 }
 
 class OrderSummary {
@@ -60,103 +60,125 @@ const orderActiveStatuses = {
   'ready_for_delivery',
 };
 
-const orderFilterOptions = <OrderFilterOption>[
-  OrderFilterOption(key: OrderFilterKey.all, label: 'Tous', statuses: {}),
-  OrderFilterOption(
-    key: OrderFilterKey.newOrders,
-    label: 'Nouvelles',
+const sellerOrderSegmentOptions = <OrderSegmentOption>[
+  OrderSegmentOption(
+    key: OrderSegmentKey.toProcess,
+    label: 'À traiter',
     statuses: {'pending'},
   ),
-  OrderFilterOption(
-    key: OrderFilterKey.active,
+  OrderSegmentOption(
+    key: OrderSegmentKey.active,
     label: 'En cours',
-    statuses: orderActiveStatuses,
+    statuses: {'confirmed', 'preparing', 'ready_for_delivery'},
   ),
-  OrderFilterOption(
-    key: OrderFilterKey.confirmed,
-    label: 'Confirmées',
-    statuses: {'confirmed'},
-  ),
-  OrderFilterOption(
-    key: OrderFilterKey.preparing,
-    label: 'Préparation',
-    statuses: {'preparing'},
-  ),
-  OrderFilterOption(
-    key: OrderFilterKey.readyForDelivery,
-    label: 'Prêtes',
-    statuses: {'ready_for_delivery'},
-  ),
-  OrderFilterOption(
-    key: OrderFilterKey.delivered,
-    label: 'Livrées',
-    statuses: {'delivered'},
-  ),
-  OrderFilterOption(
-    key: OrderFilterKey.cancelled,
-    label: 'Annulées',
-    statuses: {'cancelled'},
-  ),
-  OrderFilterOption(
-    key: OrderFilterKey.history,
+  OrderSegmentOption(
+    key: OrderSegmentKey.history,
     label: 'Historique',
     statuses: orderHistoryStatuses,
   ),
 ];
 
-List<OrderSection> sellerOrderSections(
+const buyerOrderSegmentOptions = <OrderSegmentOption>[
+  OrderSegmentOption(
+    key: OrderSegmentKey.active,
+    label: 'En cours',
+    statuses: orderActiveStatuses,
+  ),
+  OrderSegmentOption(
+    key: OrderSegmentKey.completed,
+    label: 'Terminées',
+    statuses: {'delivered'},
+  ),
+  OrderSegmentOption(
+    key: OrderSegmentKey.cancelled,
+    label: 'Annulées',
+    statuses: {'cancelled'},
+  ),
+];
+
+const orderAdvancedFilterOptions = <OrderFilterOption>[
+  OrderFilterOption(
+    key: OrderFilterKey.all,
+    label: 'Tous les statuts',
+    statuses: {},
+  ),
+  OrderFilterOption(
+    key: OrderFilterKey.pending,
+    label: 'Commande reçue',
+    statuses: {'pending'},
+  ),
+  OrderFilterOption(
+    key: OrderFilterKey.confirmed,
+    label: 'Confirmée',
+    statuses: {'confirmed'},
+  ),
+  OrderFilterOption(
+    key: OrderFilterKey.preparing,
+    label: 'En préparation',
+    statuses: {'preparing'},
+  ),
+  OrderFilterOption(
+    key: OrderFilterKey.readyForDelivery,
+    label: 'Prête',
+    statuses: {'ready_for_delivery'},
+  ),
+  OrderFilterOption(
+    key: OrderFilterKey.delivered,
+    label: 'Livrée',
+    statuses: {'delivered'},
+  ),
+  OrderFilterOption(
+    key: OrderFilterKey.cancelled,
+    label: 'Annulée',
+    statuses: {'cancelled'},
+  ),
+];
+
+List<OrderModel> sellerOrdersForSegment(
   List<OrderModel> orders,
-  OrderFilterKey filter, {
+  OrderSegmentKey segment, {
   required Set<int> hiddenIds,
+  OrderFilterKey advancedFilter = OrderFilterKey.all,
 }) {
-  final visible = _filteredOrders(orders, filter, hiddenIds: hiddenIds);
-  if (filter != OrderFilterKey.all) {
-    return _singleSectionForFilter(visible, filter);
-  }
-  return _nonEmptySections([
-    OrderSection(
-      title: 'Nouvelles commandes',
-      subtitle: 'À confirmer rapidement',
-      orders: _statusOnly(visible, {'pending'}),
-    ),
-    OrderSection(
-      title: 'En cours',
-      subtitle: 'Confirmées, en préparation ou prêtes',
-      orders: _statusOnly(visible, {
-        'confirmed',
-        'preparing',
-        'ready_for_delivery',
-      }),
-    ),
-    OrderSection(
-      title: 'Historique',
-      subtitle: 'Commandes livrées ou annulées',
-      orders: _statusOnly(visible, orderHistoryStatuses),
-    ),
-  ]);
+  final option = sellerOrderSegmentOptions.firstWhere(
+    (item) => item.key == segment,
+  );
+  return _filterOrders(
+    orders,
+    option.statuses,
+    hiddenIds: hiddenIds,
+    advancedFilter: advancedFilter,
+  );
 }
 
-List<OrderSection> buyerOrderSections(
+List<OrderModel> buyerOrdersForSegment(
   List<OrderModel> orders,
-  OrderFilterKey filter, {
+  OrderSegmentKey segment, {
+  required Set<int> hiddenIds,
+  OrderFilterKey advancedFilter = OrderFilterKey.all,
+}) {
+  final option = buyerOrderSegmentOptions.firstWhere(
+    (item) => item.key == segment,
+  );
+  return _filterOrders(
+    orders,
+    option.statuses,
+    hiddenIds: hiddenIds,
+    advancedFilter: advancedFilter,
+  );
+}
+
+List<OrderModel> applyAdvancedOrderFilter(
+  List<OrderModel> orders,
+  OrderFilterKey advancedFilter, {
   required Set<int> hiddenIds,
 }) {
-  final visible = _filteredOrders(orders, filter, hiddenIds: hiddenIds);
-  if (filter != OrderFilterKey.all) {
-    return _singleSectionForFilter(visible, filter);
-  }
-  return _nonEmptySections([
-    OrderSection(
-      title: 'Commandes actives',
-      subtitle: 'À suivre jusqu’à la livraison',
-      orders: _statusOnly(visible, orderActiveStatuses),
-    ),
-    OrderSection(
-      title: 'Historique',
-      subtitle: 'Commandes terminées ou annulées',
-      orders: _statusOnly(visible, orderHistoryStatuses),
-    ),
-  ]);
+  return _filterOrders(
+    orders,
+    {},
+    hiddenIds: hiddenIds,
+    advancedFilter: advancedFilter,
+  );
 }
 
 OrderSummary summarizeOrders(
@@ -195,53 +217,27 @@ bool isHistoryOrder(OrderModel order) =>
 
 bool canHideOrder(OrderModel order) => isHistoryOrder(order);
 
-OrderFilterOption orderFilterOption(OrderFilterKey key) {
-  return orderFilterOptions.firstWhere((option) => option.key == key);
+OrderFilterOption orderAdvancedFilterOption(OrderFilterKey key) {
+  return orderAdvancedFilterOptions.firstWhere((option) => option.key == key);
 }
 
-List<OrderModel> _filteredOrders(
+List<OrderModel> _filterOrders(
   List<OrderModel> orders,
-  OrderFilterKey filter, {
+  Set<String> segmentStatuses, {
   required Set<int> hiddenIds,
+  required OrderFilterKey advancedFilter,
 }) {
-  final option = orderFilterOption(filter);
+  final advanced = orderAdvancedFilterOption(advancedFilter);
   return orders
       .where((order) => !hiddenIds.contains(order.id))
       .where(
         (order) =>
-            option.statuses.isEmpty || option.statuses.contains(order.status),
+            segmentStatuses.isEmpty || segmentStatuses.contains(order.status),
       )
-      .toList(growable: false);
-}
-
-List<OrderSection> _singleSectionForFilter(
-  List<OrderModel> orders,
-  OrderFilterKey filter,
-) {
-  final option = orderFilterOption(filter);
-  final title = switch (filter) {
-    OrderFilterKey.history => 'Historique',
-    OrderFilterKey.newOrders => 'Nouvelles commandes',
-    OrderFilterKey.active => 'En cours',
-    _ => option.label,
-  };
-  return [
-    OrderSection(
-      title: title,
-      subtitle: '${orders.length} commande(s)',
-      orders: orders,
-    ),
-  ];
-}
-
-List<OrderSection> _nonEmptySections(List<OrderSection> sections) {
-  return sections
-      .where((section) => section.orders.isNotEmpty)
-      .toList(growable: false);
-}
-
-List<OrderModel> _statusOnly(List<OrderModel> orders, Set<String> statuses) {
-  return orders
-      .where((order) => statuses.contains(order.status))
+      .where(
+        (order) =>
+            advanced.statuses.isEmpty ||
+            advanced.statuses.contains(order.status),
+      )
       .toList(growable: false);
 }

@@ -23,7 +23,8 @@ class _BuyerOrdersPageState extends State<BuyerOrdersPage> {
   final Set<int> _expandedIds = {};
   final Set<int> _hiddenIds = {};
   List<OrderModel> _orders = [];
-  OrderFilterKey _filter = OrderFilterKey.all;
+  OrderSegmentKey _segment = OrderSegmentKey.active;
+  OrderFilterKey _advancedFilter = OrderFilterKey.all;
   bool _loading = true;
   bool _updating = false;
   String? _error;
@@ -95,10 +96,11 @@ class _BuyerOrdersPageState extends State<BuyerOrdersPage> {
   @override
   Widget build(BuildContext context) {
     final summary = summarizeOrders(_orders, hiddenIds: _hiddenIds);
-    final sections = buyerOrderSections(
+    final visibleOrders = buyerOrdersForSegment(
       _orders,
-      _filter,
+      _segment,
       hiddenIds: _hiddenIds,
+      advancedFilter: _advancedFilter,
     );
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
@@ -143,65 +145,69 @@ class _BuyerOrdersPageState extends State<BuyerOrdersPage> {
                   ResponsiveContent(
                     maxWidth: 720,
                     child: _OrdersHeader(
-                      title: 'Suivi premium',
+                      title: 'Mes commandes',
                       subtitle:
-                          '${summary.activeCount} active(s) · ${summary.historyCount} historique',
+                          '${summary.activeCount} en cours · ${summary.byStatus['delivered'] ?? 0} terminée(s) · ${summary.byStatus['cancelled'] ?? 0} annulée(s)',
                       summary: summary,
                     ),
                   ),
                   const SizedBox(height: 12),
                   ResponsiveContent(
                     maxWidth: 720,
-                    child: _OrderFilterBar(
-                      selected: _filter,
-                      onSelected: (filter) => setState(() => _filter = filter),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _OrderSegmentTabs(
+                            selected: _segment,
+                            options: buyerOrderSegmentOptions,
+                            onSelected: (segment) =>
+                                setState(() => _segment = segment),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _AdvancedFilterButton(
+                          selected: _advancedFilter,
+                          onSelected: (filter) =>
+                              setState(() => _advancedFilter = filter),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 14),
-                  if (sections.every((section) => section.orders.isEmpty))
+                  if (visibleOrders.isEmpty)
                     ResponsiveContent(
                       maxWidth: 720,
                       child: EmptyStateWidget(
                         icon: Icons.filter_alt_off_outlined,
-                        title: 'Aucune commande dans ce filtre',
+                        title: 'Aucune commande ici',
                         message:
-                            'Choisissez un autre statut pour afficher vos commandes.',
+                            'Changez d’onglet ou retirez le filtre avancé.',
                       ),
                     )
                   else
-                    ...sections.expand(
-                      (section) => [
-                        ResponsiveContent(
+                    ...visibleOrders.map(
+                      (order) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: ResponsiveContent(
                           maxWidth: 720,
-                          child: _OrderSectionHeader(section: section),
-                        ),
-                        const SizedBox(height: 8),
-                        ...section.orders.map(
-                          (order) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: ResponsiveContent(
-                              maxWidth: 720,
-                              child: _BuyerOrderCard(
-                                order: order,
-                                expanded: _expandedIds.contains(order.id),
-                                updating: _updating,
-                                onToggle: () => setState(() {
-                                  if (!_expandedIds.add(order.id)) {
-                                    _expandedIds.remove(order.id);
-                                  }
-                                }),
-                                onCancel: order.canBeCancelledByBuyer
-                                    ? () => _cancelOrder(order)
-                                    : null,
-                                onHide: canHideOrder(order)
-                                    ? () => _hideOrder(order)
-                                    : null,
-                              ),
-                            ),
+                          child: _BuyerOrderCard(
+                            order: order,
+                            expanded: _expandedIds.contains(order.id),
+                            updating: _updating,
+                            onToggle: () => setState(() {
+                              if (!_expandedIds.add(order.id)) {
+                                _expandedIds.remove(order.id);
+                              }
+                            }),
+                            onCancel: order.canBeCancelledByBuyer
+                                ? () => _cancelOrder(order)
+                                : null,
+                            onHide: canHideOrder(order)
+                                ? () => _hideOrder(order)
+                                : null,
                           ),
                         ),
-                        const SizedBox(height: 6),
-                      ],
+                      ),
                     ),
                 ],
               ),
@@ -446,18 +452,23 @@ class _OrdersHeader extends StatelessWidget {
   }
 }
 
-class _OrderFilterBar extends StatelessWidget {
-  const _OrderFilterBar({required this.selected, required this.onSelected});
+class _OrderSegmentTabs extends StatelessWidget {
+  const _OrderSegmentTabs({
+    required this.selected,
+    required this.options,
+    required this.onSelected,
+  });
 
-  final OrderFilterKey selected;
-  final ValueChanged<OrderFilterKey> onSelected;
+  final OrderSegmentKey selected;
+  final List<OrderSegmentOption> options;
+  final ValueChanged<OrderSegmentKey> onSelected;
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: orderFilterOptions
+        children: options
             .map(
               (option) => Padding(
                 padding: const EdgeInsets.only(right: 8),
@@ -465,6 +476,7 @@ class _OrderFilterBar extends StatelessWidget {
                   label: Text(option.label),
                   selected: selected == option.key,
                   onSelected: (_) => onSelected(option.key),
+                  showCheckmark: false,
                 ),
               ),
             )
@@ -474,31 +486,69 @@ class _OrderFilterBar extends StatelessWidget {
   }
 }
 
-class _OrderSectionHeader extends StatelessWidget {
-  const _OrderSectionHeader({required this.section});
+class _AdvancedFilterButton extends StatelessWidget {
+  const _AdvancedFilterButton({
+    required this.selected,
+    required this.onSelected,
+  });
 
-  final OrderSection section;
+  final OrderFilterKey selected;
+  final ValueChanged<OrderFilterKey> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 2),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(section.title, style: AppTextStyles.cardTitle(context)),
-                Text(
-                  section.subtitle,
-                  style: TextStyle(color: AppColors.textSecondary(context)),
-                ),
-              ],
+    final hasFilter = selected != OrderFilterKey.all;
+    return PopupMenuButton<OrderFilterKey>(
+      tooltip: 'Filtrer',
+      onSelected: onSelected,
+      itemBuilder: (context) => orderAdvancedFilterOptions
+          .map(
+            (option) => PopupMenuItem<OrderFilterKey>(
+              value: option.key,
+              child: Row(
+                children: [
+                  if (selected == option.key)
+                    Icon(
+                      Icons.check_rounded,
+                      size: 18,
+                      color: AppColors.iconAccent(context),
+                    )
+                  else
+                    const SizedBox(width: 18),
+                  const SizedBox(width: 8),
+                  Text(option.label),
+                ],
+              ),
             ),
-          ),
-          _MetricChip(label: 'Commandes', value: '${section.orders.length}'),
-        ],
+          )
+          .toList(growable: false),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: hasFilter
+              ? AppColors.accent(context).withValues(alpha: 0.10)
+              : AppColors.card(context),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.border(context)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.tune_rounded,
+              size: 18,
+              color: AppColors.iconAccent(context),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              hasFilter ? 'Filtre' : 'Filtrer',
+              style: TextStyle(
+                color: AppColors.textPrimary(context),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

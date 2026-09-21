@@ -25,55 +25,94 @@ void main() {
       _order(6, 'cancelled'),
     ];
 
-    test('moves orders into seller sections by status', () {
-      final sections = sellerOrderSections(
-        orders,
-        OrderFilterKey.all,
-        hiddenIds: {},
-      );
-
-      expect(sections.map((section) => section.title), [
-        'Nouvelles commandes',
+    test('exposes only three simple primary tabs per role', () {
+      expect(sellerOrderSegmentOptions.map((segment) => segment.label), [
+        'À traiter',
         'En cours',
         'Historique',
       ]);
-      expect(sections[0].orders.map((order) => order.id), [1]);
-      expect(sections[1].orders.map((order) => order.id), [2, 3, 4]);
-      expect(sections[2].orders.map((order) => order.id), [5, 6]);
-    });
-
-    test('moves orders into buyer active/history sections by status', () {
-      final sections = buyerOrderSections(
-        orders,
-        OrderFilterKey.all,
-        hiddenIds: {},
-      );
-
-      expect(sections.map((section) => section.title), [
-        'Commandes actives',
-        'Historique',
+      expect(buyerOrderSegmentOptions.map((segment) => segment.label), [
+        'En cours',
+        'Terminées',
+        'Annulées',
       ]);
-      expect(sections[0].orders.map((order) => order.id), [1, 2, 3, 4]);
-      expect(sections[1].orders.map((order) => order.id), [5, 6]);
     });
 
-    test('filters by status and hides locally deleted orders', () {
-      final sections = sellerOrderSections(
-        orders,
-        OrderFilterKey.history,
-        hiddenIds: {5},
+    test('moves seller orders into the selected simple segment', () {
+      expect(
+        sellerOrdersForSegment(
+          orders,
+          OrderSegmentKey.toProcess,
+          hiddenIds: {},
+        ).map((order) => order.id),
+        [1],
       );
-
-      expect(sections, hasLength(1));
-      expect(sections.single.title, 'Historique');
-      expect(sections.single.orders.map((order) => order.id), [6]);
-
-      final preparing = buyerOrderSections(
-        orders,
-        OrderFilterKey.preparing,
-        hiddenIds: {},
+      expect(
+        sellerOrdersForSegment(
+          orders,
+          OrderSegmentKey.active,
+          hiddenIds: {},
+        ).map((order) => order.id),
+        [2, 3, 4],
       );
-      expect(preparing.single.orders.map((order) => order.id), [3]);
+      expect(
+        sellerOrdersForSegment(
+          orders,
+          OrderSegmentKey.history,
+          hiddenIds: {5},
+        ).map((order) => order.id),
+        [6],
+      );
+    });
+
+    test(
+      'moves buyer orders into active, completed, and cancelled segments',
+      () {
+        expect(
+          buyerOrdersForSegment(
+            orders,
+            OrderSegmentKey.active,
+            hiddenIds: {},
+          ).map((order) => order.id),
+          [1, 2, 3, 4],
+        );
+        expect(
+          buyerOrdersForSegment(
+            orders,
+            OrderSegmentKey.completed,
+            hiddenIds: {},
+          ).map((order) => order.id),
+          [5],
+        );
+        expect(
+          buyerOrdersForSegment(
+            orders,
+            OrderSegmentKey.cancelled,
+            hiddenIds: {},
+          ).map((order) => order.id),
+          [6],
+        );
+      },
+    );
+
+    test('keeps detailed status choices as advanced filters only', () {
+      expect(orderAdvancedFilterOptions.map((option) => option.label), [
+        'Tous les statuts',
+        'Commande reçue',
+        'Confirmée',
+        'En préparation',
+        'Prête',
+        'Livrée',
+        'Annulée',
+      ]);
+      expect(
+        applyAdvancedOrderFilter(
+          orders,
+          OrderFilterKey.preparing,
+          hiddenIds: {},
+        ).map((order) => order.id),
+        [3],
+      );
     });
 
     test('keeps active and history counts available for summary chips', () {
