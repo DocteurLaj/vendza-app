@@ -137,6 +137,7 @@ Map<String, dynamic> _productToJson(ProductModel product) {
     'category': product.category,
     'storeId': product.storeId,
     'storeName': product.storeName,
+    'stock': product.stock,
     'contactClicks': product.contactClicks,
     'isActive': product.isActive,
     'variants': product.variants.map(_variantToJson).toList(),
@@ -158,6 +159,9 @@ ProductModel _productFromJson(Map<String, dynamic> json) {
     category: json['category']?.toString() ?? '',
     storeId: json['storeId']?.toString() ?? '',
     storeName: json['storeName']?.toString() ?? '',
+    stock: json.containsKey('stock')
+        ? _intFromJson(json['stock'])
+        : (json['isActive'] == false ? 0 : 1),
     contactClicks: _intFromJson(json['contactClicks']),
     isActive: json['isActive'] != false,
     variants: _mapList(json['variants'], _variantFromJson),
@@ -209,11 +213,7 @@ HomeFeedModel _homeFeedFromJson(dynamic raw) {
 }
 
 Map<String, dynamic> _sectionToJson(SectionModel section) {
-  return {
-    'id': section.id,
-    'name': section.name,
-    'imageUrl': section.imageUrl,
-  };
+  return {'id': section.id, 'name': section.name, 'imageUrl': section.imageUrl};
 }
 
 SectionModel _sectionFromJson(Map<String, dynamic> json) {

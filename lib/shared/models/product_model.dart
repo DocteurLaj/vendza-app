@@ -24,6 +24,7 @@ class ProductModel {
   final String category;
   final String storeId;
   final String storeName;
+  final int stock;
   final int contactClicks;
   final bool isActive;
   final List<ProductVariantModel> variants;
@@ -42,6 +43,7 @@ class ProductModel {
     this.category = "",
     this.storeId = "",
     this.storeName = "",
+    this.stock = 0,
     this.contactClicks = 0,
     this.isActive = true,
     this.variants = const [],
@@ -61,6 +63,7 @@ class ProductModel {
     String? category,
     String? storeId,
     String? storeName,
+    int? stock,
     int? contactClicks,
     bool? isActive,
     List<ProductVariantModel>? variants,
@@ -79,6 +82,7 @@ class ProductModel {
       category: category ?? this.category,
       storeId: storeId ?? this.storeId,
       storeName: storeName ?? this.storeName,
+      stock: stock ?? this.stock,
       contactClicks: contactClicks ?? this.contactClicks,
       isActive: isActive ?? this.isActive,
       variants: variants ?? this.variants,

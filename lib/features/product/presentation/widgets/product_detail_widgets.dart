@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/app_interaction_tokens.dart';
 import 'package:vendza/core/constants/colors.dart';
+import 'package:vendza/features/product/presentation/helpers/product_stock_presentation.dart';
 import 'package:vendza/features/home/data/models/store_model.dart' as detail;
 import 'package:vendza/features/store/data/models/store_customization_model.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart'
@@ -521,6 +522,8 @@ class ProductDetailHeader extends StatelessWidget {
             fontWeight: FontWeight.w900,
           ),
         ),
+        const SizedBox(height: 8),
+        ProductDetailStockBadge(product: product),
         if (description.trim().isNotEmpty) ...[
           const SizedBox(height: 10),
           Text(
@@ -533,6 +536,41 @@ class ProductDetailHeader extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class ProductDetailStockBadge extends StatelessWidget {
+  const ProductDetailStockBadge({super.key, required this.product});
+
+  final ProductModel product;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = productStockTone(product);
+    final color = productStockForeground(tone, context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: productStockBackground(tone, context),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(productStockIcon(product), color: color, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            productStockLabel(product),
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

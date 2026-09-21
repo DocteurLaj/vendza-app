@@ -60,6 +60,7 @@ ProductModel productFromApi(
     category: json['category'] as String? ?? '',
     storeId: json['store_idstore']?.toString() ?? '',
     storeName: storeName,
+    stock: stockValue,
     isActive: isActive,
     variants: _mapVariants(json['variation']),
   );

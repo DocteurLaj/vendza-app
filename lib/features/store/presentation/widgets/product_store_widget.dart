@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/sync/entity_sync_status.dart';
+import 'package:vendza/features/product/presentation/helpers/product_stock_presentation.dart';
 import 'package:vendza/features/product/presentation/pages/product_detail_page.dart';
 import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
@@ -177,6 +178,8 @@ class ProductStoreWidget extends StatelessWidget {
                                 color: AppColors.success(context),
                               ),
                             ),
+                            const SizedBox(height: 6),
+                            ProductStockBadge(product: product, compact: true),
                             if (ownerMode && product.syncStatus.isPending) ...[
                               const SizedBox(height: 6),
                               SyncStatusStrip(
@@ -221,6 +224,57 @@ class ProductStoreWidget extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class ProductStockBadge extends StatelessWidget {
+  const ProductStockBadge({
+    super.key,
+    required this.product,
+    this.compact = false,
+  });
+
+  final ProductModel product;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = productStockTone(product);
+    final color = productStockForeground(tone, context);
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 7 : 10,
+        vertical: compact ? 4 : 6,
+      ),
+      decoration: BoxDecoration(
+        color: productStockBackground(tone, context),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            productStockIcon(product),
+            color: color,
+            size: compact ? 12 : 15,
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              productStockLabel(product),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: compact ? 10 : 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

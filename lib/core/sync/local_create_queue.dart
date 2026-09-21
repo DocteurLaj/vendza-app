@@ -60,8 +60,8 @@ class LocalCreateOp {
 
   EntitySyncStatus get entityStatus => switch (status) {
     LocalCreatePhase.queued => EntitySyncStatus.queued,
-    LocalCreatePhase.uploading || LocalCreatePhase.creating =>
-      EntitySyncStatus.syncing,
+    LocalCreatePhase.uploading ||
+    LocalCreatePhase.creating => EntitySyncStatus.syncing,
     LocalCreatePhase.waitingNetwork => EntitySyncStatus.waitingNetwork,
     LocalCreatePhase.failed => EntitySyncStatus.error,
     LocalCreatePhase.completed => EntitySyncStatus.online,
@@ -331,11 +331,7 @@ class LocalCreateQueue {
       op.status = LocalCreatePhase.queued;
       op.errorMessage = null;
       op.progress = 0.08;
-      applyOpToCatalog(
-        op: op,
-        ownedStores: _ownedStores,
-        products: _products,
-      );
+      applyOpToCatalog(op: op, ownedStores: _ownedStores, products: _products);
       changed = true;
     }
     if (!changed) return;
@@ -360,6 +356,7 @@ class LocalCreateQueue {
     op.payload['price'] = product.price;
     op.payload['imagePath'] = product.imageurl;
     op.payload['category'] = product.category;
+    op.payload['stock'] = product.stock;
     op.payload['isActive'] = product.isActive;
     op.payload['variation'] = _variationMap(product.variants);
     op.payload['variants'] = product.variants.map(_variantToJson).toList();
@@ -398,6 +395,9 @@ class LocalCreateQueue {
       category: payload['category'] as String? ?? '',
       storeId: payload['storeId'] as String? ?? '',
       storeName: payload['storeName'] as String? ?? '',
+      stock: payload['stock'] is int
+          ? payload['stock'] as int
+          : int.tryParse('${payload['stock']}') ?? 0,
       syncStatus: op.entityStatus,
       syncProgress: op.progress,
       syncError: op.errorMessage,
@@ -413,9 +413,7 @@ class LocalCreateQueue {
         final store = storeFromOp(op);
         final index = ownedStores.indexWhere(
           (item) =>
-              item.id == store.id ||
-              item.localId == op.id ||
-              item.id == op.id,
+              item.id == store.id || item.localId == op.id || item.id == op.id,
         );
         if (index >= 0) {
           ownedStores[index] = store;
@@ -449,7 +447,8 @@ class LocalCreateQueue {
     if (op.kind == LocalCreateKind.store) {
       final store = storeFromOp(op);
       final index = ownedStores.indexWhere(
-        (item) => item.id == op.id || item.localId == op.id || item.id == store.id,
+        (item) =>
+            item.id == op.id || item.localId == op.id || item.id == store.id,
       );
       if (index >= 0) {
         ownedStores[index] = store;
@@ -584,11 +583,7 @@ class LocalCreateQueue {
       op.errorMessage = error is ApiException
           ? error.message
           : 'Échec de synchronisation.';
-      applyOpToCatalog(
-        op: op,
-        ownedStores: _ownedStores,
-        products: _products,
-      );
+      applyOpToCatalog(op: op, ownedStores: _ownedStores, products: _products);
       await persist();
       _onChanged();
       return false;
@@ -601,7 +596,8 @@ class LocalCreateQueue {
     final now = DateTime.now();
     if (force ||
         _lastProgressPush == null ||
-        now.difference(_lastProgressPush!) >= const Duration(milliseconds: 50)) {
+        now.difference(_lastProgressPush!) >=
+            const Duration(milliseconds: 50)) {
       _lastProgressPush = now;
       _onChanged();
     }
@@ -816,8 +812,7 @@ class LocalCreateQueue {
     } else {
       _products.insert(0, synced);
     }
-    if (synced.isActive &&
-        !_homeProducts.any((item) => item.id == synced.id)) {
+    if (synced.isActive && !_homeProducts.any((item) => item.id == synced.id)) {
       _homeProducts.insert(0, synced);
     }
     _ops.removeWhere((item) => item.id == op.id);
@@ -846,6 +841,7 @@ class LocalCreateQueue {
       'price': product.price,
       'imagePath': product.imageurl,
       'category': product.category,
+      'stock': product.stock,
       'isActive': product.isActive,
       'localId': product.localId,
       'variation': _variationMap(product.variants),
@@ -895,6 +891,9 @@ class LocalCreateQueue {
       price: op.payload['price'] as String? ?? current.price,
       imageurl: op.payload['imagePath'] as String? ?? current.imageurl,
       category: op.payload['category'] as String? ?? current.category,
+      stock: op.payload['stock'] is int
+          ? op.payload['stock'] as int
+          : int.tryParse('${op.payload['stock']}') ?? current.stock,
       isActive: op.payload['isActive'] as bool? ?? current.isActive,
       variants: _variantsFromPayload(op.payload['variants']),
       syncStatus: op.entityStatus,
@@ -1014,10 +1013,10 @@ class LocalCreateQueue {
       (item) => item.id == op.id || item.id == '$productId',
     );
     if (index >= 0) {
-      final synced = _productFromUpdateOp(op, _products[index]).copyWith(
-        syncStatus: EntitySyncStatus.online,
-        syncProgress: 1,
-      );
+      final synced = _productFromUpdateOp(
+        op,
+        _products[index],
+      ).copyWith(syncStatus: EntitySyncStatus.online, syncProgress: 1);
       _replaceProduct(synced);
     }
     op.status = LocalCreatePhase.completed;
