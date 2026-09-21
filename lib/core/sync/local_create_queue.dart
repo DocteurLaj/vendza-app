@@ -250,6 +250,7 @@ class LocalCreateQueue {
     required String description,
     required String price,
     required double numericPrice,
+    int stock = 1,
     required String imagePath,
     String category = '',
     Map<String, dynamic>? variation,
@@ -268,7 +269,7 @@ class LocalCreateQueue {
         'description': description,
         'price': price,
         'numericPrice': numericPrice,
-        'stock': 1,
+        'stock': stock,
         'imagePath': imagePath,
         'category': category,
         'variation': variation,
@@ -779,7 +780,9 @@ class LocalCreateQueue {
         title: title,
         description: op.payload['description'] as String?,
         price: (op.payload['numericPrice'] as num?)?.toDouble() ?? 0,
-        stock: 1,
+        stock: op.payload['stock'] is int
+            ? op.payload['stock'] as int
+            : int.tryParse('${op.payload['stock']}') ?? 1,
         images: imageUrl.isEmpty ? null : [imageUrl],
         variation: variation,
       );
@@ -1004,6 +1007,9 @@ class LocalCreateQueue {
       title: op.payload['title'] as String? ?? '',
       description: op.payload['description'] as String?,
       price: double.tryParse(priceDigits),
+      stock: op.payload['stock'] is int
+          ? op.payload['stock'] as int
+          : int.tryParse('${op.payload['stock']}'),
       isActive: op.payload['isActive'] as bool?,
       images: imageUrl.isEmpty ? null : [imageUrl],
       variation: variation,

@@ -366,6 +366,7 @@ class CatalogRepository {
       description: description,
       price: price.toString(),
       numericPrice: price,
+      stock: stock,
       imagePath: imagePath,
       category: category,
       variation: variation,
@@ -379,14 +380,17 @@ class CatalogRepository {
     required String description,
     required String price,
     required double numericPrice,
+    int stock = 1,
     required String imagePath,
     String category = '',
     Map<String, dynamic>? variation,
   }) {
     final trimmedStoreId = storeId.trim();
-    if (!isOwnedStoreId(trimmedStoreId) && int.tryParse(trimmedStoreId) == null) {
+    if (!isOwnedStoreId(trimmedStoreId) &&
+        int.tryParse(trimmedStoreId) == null) {
       throw const ApiException(
-        message: 'Vous ne pouvez ajouter un produit que dans votre propre boutique.',
+        message:
+            'Vous ne pouvez ajouter un produit que dans votre propre boutique.',
         statusCode: 403,
       );
     }
@@ -397,6 +401,7 @@ class CatalogRepository {
       description: description,
       price: price,
       numericPrice: numericPrice,
+      stock: stock,
       imagePath: imagePath,
       category: category,
       variation: variation,
@@ -422,9 +427,7 @@ class CatalogRepository {
     ownedStores.removeWhere((store) => store.id == id || store.localId == id);
     products.removeWhere(
       (product) =>
-          product.id == id ||
-          product.localId == id ||
-          product.storeId == id,
+          product.id == id || product.localId == id || product.storeId == id,
     );
     _notifyChanged();
   }

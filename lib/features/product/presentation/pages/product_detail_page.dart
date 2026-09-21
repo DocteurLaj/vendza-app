@@ -493,6 +493,7 @@ class _OwnerProductEditSheet extends StatefulWidget {
 class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _priceController;
+  late final TextEditingController _stockController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _categoryController;
   late String _currency;
@@ -501,6 +502,7 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
   late List<_VariantEditorDraft> _variants;
   String? _nameError;
   String? _priceError;
+  String? _stockError;
   String? _imageError;
 
   @override
@@ -510,6 +512,7 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
     final parsedPrice = parseProductPriceInputValue(product.price);
     _nameController = TextEditingController(text: product.name);
     _priceController = TextEditingController(text: parsedPrice.amount);
+    _stockController = TextEditingController(text: '${product.stock}');
     _currency = parsedPrice.currency;
     _imageUrl = product.imageurl;
     _descriptionController = TextEditingController(text: product.description);
@@ -524,6 +527,7 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
+    _stockController.dispose();
     _descriptionController.dispose();
     _categoryController.dispose();
     for (final variant in _variants) {
@@ -581,12 +585,16 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
   void _save() {
     final name = _nameController.text.trim();
     final price = _priceController.text.trim();
+    final stock = _stockController.text.trim();
     final imageUrl = _imageUrl.trim();
 
     setState(() {
       _nameError = name.isEmpty ? "Le nom du produit est obligatoire." : null;
       _priceError = price.isEmpty
           ? "Le prix du produit est obligatoire."
+          : null;
+      _stockError = stock.isEmpty
+          ? "Le stock du produit est obligatoire."
           : null;
       _imageError = imageUrl.isEmpty
           ? "Ajoutez une image pour enregistrer ce produit."
@@ -604,12 +612,26 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
         .map((variant) => variant.error)
         .whereType<String>()
         .toList();
-    final errors = [?_nameError, ?_priceError, ?_imageError, ...variantErrors];
+    final errors = [
+      ?_nameError,
+      ?_priceError,
+      ?_stockError,
+      ?_imageError,
+      ...variantErrors,
+    ];
 
     if (errors.isNotEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(errors.join("\n"))));
+      return;
+    }
+
+    final parsedStock = int.tryParse(stock);
+    if (parsedStock == null || parsedStock < 0) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Stock invalide.')));
       return;
     }
 
@@ -627,6 +649,7 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
         imageurl: imageUrl,
         description: _descriptionController.text.trim(),
         category: _categoryController.text.trim(),
+        stock: parsedStock,
         isActive: _isActive,
         variants: variants,
       ),
@@ -690,6 +713,16 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
                       },
                       onCurrencyChanged: (value) {
                         setState(() => _currency = value);
+                      },
+                    ),
+                    _OwnerStockField(
+                      label: "Stock disponible *",
+                      controller: _stockController,
+                      errorText: _stockError,
+                      onChanged: (value) {
+                        if (_stockError != null && value.trim().isNotEmpty) {
+                          setState(() => _stockError = null);
+                        }
                       },
                     ),
                     Padding(
@@ -1011,6 +1044,67 @@ class _OwnerPriceField extends StatelessWidget {
   }
 }
 
+class _OwnerStockField extends StatelessWidget {
+  const _OwnerStockField({
+    required this.label,
+    required this.controller,
+    this.errorText,
+    this.onChanged,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final String? errorText;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: label,
+          errorText: errorText,
+          filled: true,
+          fillColor: AppColors.searchSurface(context),
+          suffixIcon: Icon(
+            Icons.inventory_2_outlined,
+            color: AppColors.iconAccent(context),
+            size: 18,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.border(context)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.border(context)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: AppColors.accent(context),
+              width: 1.4,
+            ),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.red),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.red, width: 1.4),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _OwnerThousandsInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
@@ -1128,6 +1222,10 @@ class _VariantEditorCard extends StatelessWidget {
             currency: variant.currency,
             onCurrencyChanged: onCurrencyChanged,
           ),
+          _OwnerStockField(
+            label: "Stock de la variante",
+            controller: variant.quantityController,
+          ),
           CustomImageSelector(
             title: variant.imageUrl.isEmpty
                 ? "Ajouter l'image"
@@ -1150,10 +1248,14 @@ class _VariantEditorDraft {
   _VariantEditorDraft({
     required String name,
     required String price,
+    required String quantity,
     required this.currency,
     required String initialImageUrl,
   }) : nameController = TextEditingController(text: name),
        priceController = TextEditingController(text: price),
+       quantityController = TextEditingController(
+         text: quantity.trim().isEmpty ? '1' : quantity,
+       ),
        imageUrl = initialImageUrl;
 
   factory _VariantEditorDraft.fromModel(ProductVariantModel variant) {
@@ -1161,6 +1263,7 @@ class _VariantEditorDraft {
     return _VariantEditorDraft(
       name: variant.name,
       price: parsedPrice.amount,
+      quantity: variant.quantity,
       currency: parsedPrice.currency,
       initialImageUrl: variant.imageurl,
     );
@@ -1173,6 +1276,7 @@ class _VariantEditorDraft {
     return _VariantEditorDraft(
       name: "",
       price: price,
+      quantity: "1",
       currency: currency,
       initialImageUrl: "",
     );
@@ -1180,6 +1284,7 @@ class _VariantEditorDraft {
 
   final TextEditingController nameController;
   final TextEditingController priceController;
+  final TextEditingController quantityController;
   String currency;
   String imageUrl;
   String? error;
@@ -1189,7 +1294,9 @@ class _VariantEditorDraft {
     return ProductVariantModel(
       name: nameController.text.trim(),
       price: price.isEmpty ? "" : "$price $currency",
-      quantity: "",
+      quantity: quantityController.text.trim().isEmpty
+          ? "1"
+          : quantityController.text.trim(),
       imageurl: imageUrl.trim(),
     );
   }
@@ -1197,5 +1304,6 @@ class _VariantEditorDraft {
   void dispose() {
     nameController.dispose();
     priceController.dispose();
+    quantityController.dispose();
   }
 }

@@ -169,10 +169,7 @@ void main() {
     final url = 'https://cdn.vendza.test/store.jpg';
     expect(isRemoteMediaUrl(url), isTrue);
     expect(isRemoteMediaUrl('/data/user/0/logo.jpg'), isFalse);
-    expect(
-      await UploadApiService().uploadLocalImage(url),
-      url,
-    );
+    expect(await UploadApiService().uploadLocalImage(url), url);
   });
 
   test('missing local image is not treated as a network outage', () {
@@ -183,7 +180,9 @@ void main() {
       isFalse,
     );
     expect(
-      isNetworkFailure(const ApiException(message: 'La requete a expire.', statusCode: 408)),
+      isNetworkFailure(
+        const ApiException(message: 'La requete a expire.', statusCode: 408),
+      ),
       isTrue,
     );
   });
@@ -197,142 +196,155 @@ void main() {
     );
   });
 
-  test('retryFailedCreates replays stale failed store creates once API recovers', () async {
-    updateCurrentUser(_user());
-    final uploads = _FakeUploadApi()
-      ..error = const ApiException(
-        message: 'Endpoint /uploads/images/complete introuvable.',
-        statusCode: 404,
+  test(
+    'retryFailedCreates replays stale failed store creates once API recovers',
+    () async {
+      updateCurrentUser(_user());
+      final uploads = _FakeUploadApi()
+        ..error = const ApiException(
+          message: 'Endpoint /uploads/images/complete introuvable.',
+          statusCode: 404,
+        );
+      final storesApi = _FakeStoreApi();
+      final queue = LocalCreateQueue(
+        uploads: uploads,
+        stores: storesApi,
+        products: _FakeProductApi(),
+        auth: _FakeAuthApi(),
+        onChanged: () {},
+        storeFromApi: listStoreFromApi,
       );
-    final storesApi = _FakeStoreApi();
-    final queue = LocalCreateQueue(
-      uploads: uploads,
-      stores: storesApi,
-      products: _FakeProductApi(),
-      auth: _FakeAuthApi(),
-      onChanged: () {},
-      storeFromApi: listStoreFromApi,
-    );
-    final ownedStores = <ListStoreModel>[];
-    final products = <ProductModel>[];
-    queue.attachCatalog(
-      ownedStores: ownedStores,
-      products: products,
-      publicStores: <ListStoreModel>[],
-      homeProducts: <ProductModel>[],
-    );
-
-    final optimistic = await queue.enqueueStore(
-      name: 'Boutique Web',
-      description: 'Création web',
-      address: 'Port-au-Prince',
-      imagePath: 'logo-web',
-    );
-    await pumpEventQueue(times: 20);
-
-    expect(queue.opFor(optimistic.localId), isNotNull);
-    expect(queue.opFor(optimistic.localId)!.status, LocalCreatePhase.failed);
-    expect(storesApi.createCalls, 0);
-
-    uploads.error = null;
-    await queue.retryFailedCreates();
-
-    expect(queue.opFor(optimistic.localId), isNull);
-    expect(storesApi.createCalls, 1);
-    expect(ownedStores.single.id, '99');
-    expect(ownedStores.single.syncStatus, EntitySyncStatus.online);
-  });
-
-  test('numeric store id product create is queued even when owned cache is stale', () async {
-    updateCurrentUser(_user());
-    final productsApi = _FakeProductApi();
-    final queue = LocalCreateQueue(
-      uploads: _FakeUploadApi(),
-      stores: _FakeStoreApi(),
-      products: productsApi,
-      auth: _FakeAuthApi(),
-      onChanged: () {},
-      storeFromApi: listStoreFromApi,
-    );
-    final products = <ProductModel>[];
-    queue.attachCatalog(
-      ownedStores: <ListStoreModel>[],
-      products: products,
-      publicStores: <ListStoreModel>[],
-      homeProducts: <ProductModel>[],
-    );
-
-    final optimistic = await queue.enqueueProduct(
-      storeId: '99',
-      storeName: 'Boutique Web',
-      title: 'Produit Web',
-      description: 'Création web',
-      price: '10',
-      numericPrice: 10,
-      imagePath: 'produit-web',
-    );
-    await pumpEventQueue(times: 20);
-
-    expect(optimistic.storeId, '99');
-    expect(productsApi.addCalls, 1);
-    expect(products.single.id, '55');
-  });
-
-  test('retryFailedCreates replays stale failed product creates once API recovers', () async {
-    updateCurrentUser(_user());
-    final uploads = _FakeUploadApi()
-      ..error = const ApiException(
-        message: 'Endpoint /uploads/images/complete introuvable.',
-        statusCode: 404,
+      final ownedStores = <ListStoreModel>[];
+      final products = <ProductModel>[];
+      queue.attachCatalog(
+        ownedStores: ownedStores,
+        products: products,
+        publicStores: <ListStoreModel>[],
+        homeProducts: <ProductModel>[],
       );
-    final productsApi = _FakeProductApi();
-    final queue = LocalCreateQueue(
-      uploads: uploads,
-      stores: _FakeStoreApi(),
-      products: productsApi,
-      auth: _FakeAuthApi(),
-      onChanged: () {},
-      storeFromApi: listStoreFromApi,
-    );
-    final ownedStores = <ListStoreModel>[
-      ListStoreModel(
-        id: '99',
+
+      final optimistic = await queue.enqueueStore(
         name: 'Boutique Web',
-        description: '',
-        imageUrl: '',
-        rating: 0,
-        city: '',
-      ),
-    ];
-    final products = <ProductModel>[];
-    queue.attachCatalog(
-      ownedStores: ownedStores,
-      products: products,
-      publicStores: <ListStoreModel>[],
-      homeProducts: <ProductModel>[],
-    );
+        description: 'Création web',
+        address: 'Port-au-Prince',
+        imagePath: 'logo-web',
+      );
+      await pumpEventQueue(times: 20);
 
-    final optimistic = await queue.enqueueProduct(
-      storeId: '99',
-      storeName: 'Boutique Web',
-      title: 'Produit Web',
-      description: 'Création web',
-      price: '10',
-      numericPrice: 10,
-      imagePath: 'produit-web',
-    );
-    await pumpEventQueue(times: 20);
+      expect(queue.opFor(optimistic.localId), isNotNull);
+      expect(queue.opFor(optimistic.localId)!.status, LocalCreatePhase.failed);
+      expect(storesApi.createCalls, 0);
 
-    expect(queue.opFor(optimistic.localId), isNotNull);
-    expect(queue.opFor(optimistic.localId)!.status, LocalCreatePhase.failed);
-    expect(productsApi.addCalls, 0);
+      uploads.error = null;
+      await queue.retryFailedCreates();
 
-    uploads.error = null;
-    await queue.retryFailedCreates();
+      expect(queue.opFor(optimistic.localId), isNull);
+      expect(storesApi.createCalls, 1);
+      expect(ownedStores.single.id, '99');
+      expect(ownedStores.single.syncStatus, EntitySyncStatus.online);
+    },
+  );
 
-    expect(queue.opFor(optimistic.localId), isNull);
-    expect(productsApi.addCalls, 1);
-    expect(products.single.id, '55');
-    expect(products.single.syncStatus, EntitySyncStatus.online);
-  });
+  test(
+    'numeric store id product create is queued even when owned cache is stale',
+    () async {
+      updateCurrentUser(_user());
+      final productsApi = _FakeProductApi();
+      final queue = LocalCreateQueue(
+        uploads: _FakeUploadApi(),
+        stores: _FakeStoreApi(),
+        products: productsApi,
+        auth: _FakeAuthApi(),
+        onChanged: () {},
+        storeFromApi: listStoreFromApi,
+      );
+      final products = <ProductModel>[];
+      queue.attachCatalog(
+        ownedStores: <ListStoreModel>[],
+        products: products,
+        publicStores: <ListStoreModel>[],
+        homeProducts: <ProductModel>[],
+      );
+
+      final optimistic = await queue.enqueueProduct(
+        storeId: '99',
+        storeName: 'Boutique Web',
+        title: 'Produit Web',
+        description: 'Création web',
+        price: '10',
+        numericPrice: 10,
+        stock: 7,
+        imagePath: 'produit-web',
+      );
+      await pumpEventQueue(times: 20);
+
+      expect(optimistic.storeId, '99');
+      expect(optimistic.stock, 7);
+      expect(productsApi.addCalls, 1);
+      expect(products.single.id, '55');
+      expect(products.single.stock, 7);
+      expect(productsApi.products.single['stock'], 7);
+    },
+  );
+
+  test(
+    'retryFailedCreates replays stale failed product creates once API recovers',
+    () async {
+      updateCurrentUser(_user());
+      final uploads = _FakeUploadApi()
+        ..error = const ApiException(
+          message: 'Endpoint /uploads/images/complete introuvable.',
+          statusCode: 404,
+        );
+      final productsApi = _FakeProductApi();
+      final queue = LocalCreateQueue(
+        uploads: uploads,
+        stores: _FakeStoreApi(),
+        products: productsApi,
+        auth: _FakeAuthApi(),
+        onChanged: () {},
+        storeFromApi: listStoreFromApi,
+      );
+      final ownedStores = <ListStoreModel>[
+        ListStoreModel(
+          id: '99',
+          name: 'Boutique Web',
+          description: '',
+          imageUrl: '',
+          rating: 0,
+          city: '',
+        ),
+      ];
+      final products = <ProductModel>[];
+      queue.attachCatalog(
+        ownedStores: ownedStores,
+        products: products,
+        publicStores: <ListStoreModel>[],
+        homeProducts: <ProductModel>[],
+      );
+
+      final optimistic = await queue.enqueueProduct(
+        storeId: '99',
+        storeName: 'Boutique Web',
+        title: 'Produit Web',
+        description: 'Création web',
+        price: '10',
+        numericPrice: 10,
+        imagePath: 'produit-web',
+      );
+      await pumpEventQueue(times: 20);
+
+      expect(queue.opFor(optimistic.localId), isNotNull);
+      expect(queue.opFor(optimistic.localId)!.status, LocalCreatePhase.failed);
+      expect(productsApi.addCalls, 0);
+
+      uploads.error = null;
+      await queue.retryFailedCreates();
+
+      expect(queue.opFor(optimistic.localId), isNull);
+      expect(productsApi.addCalls, 1);
+      expect(products.single.id, '55');
+      expect(products.single.syncStatus, EntitySyncStatus.online);
+    },
+  );
 }

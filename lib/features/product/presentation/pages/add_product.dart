@@ -34,10 +34,12 @@ class _AddProductState extends State<AddProduct> {
   String _name = "";
   String _description = "";
   String _price = "";
+  String _stock = "1";
   String _currency = "CDF";
   String _category = "";
   String? _nameError;
   String? _priceError;
+  String? _stockError;
   String? _imageError;
   bool _isSubmitting = false;
   final _imageUpload = ImageUploadController(
@@ -89,6 +91,7 @@ class _AddProductState extends State<AddProduct> {
 
     final String trimmedName = _name.trim();
     final String trimmedPrice = _price.trim();
+    final String trimmedStock = _stock.trim();
 
     setState(() {
       _nameError = trimmedName.isEmpty
@@ -96,6 +99,9 @@ class _AddProductState extends State<AddProduct> {
           : null;
       _priceError = trimmedPrice.isEmpty
           ? "Le prix du produit est obligatoire."
+          : null;
+      _stockError = trimmedStock.isEmpty
+          ? "Le stock du produit est obligatoire."
           : null;
       _imageError = _imageUpload.hasImage
           ? null
@@ -113,7 +119,13 @@ class _AddProductState extends State<AddProduct> {
         .map((variant) => variant.error)
         .whereType<String>()
         .toList();
-    final errors = [?_nameError, ?_priceError, ?_imageError, ...variantErrors];
+    final errors = [
+      ?_nameError,
+      ?_priceError,
+      ?_stockError,
+      ?_imageError,
+      ...variantErrors,
+    ];
 
     if (errors.isNotEmpty) {
       ScaffoldMessenger.of(
@@ -139,6 +151,14 @@ class _AddProductState extends State<AddProduct> {
       return;
     }
 
+    final parsedStock = int.tryParse(trimmedStock);
+    if (parsedStock == null || parsedStock < 0) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Stock invalide.')));
+      return;
+    }
+
     setState(() => _isSubmitting = true);
     try {
       final variationEntries = <MapEntry<String, Map<String, dynamic>>>[];
@@ -160,6 +180,7 @@ class _AddProductState extends State<AddProduct> {
         description: _description.trim(),
         price: '$trimmedPrice $_currency',
         numericPrice: parsedPrice,
+        stock: parsedStock,
         imagePath: _imageUpload.enqueuePath,
         category: _category,
         variation: variationEntries.isEmpty
@@ -226,6 +247,17 @@ class _AddProductState extends State<AddProduct> {
                     },
                     onCurrencyChanged: (value) {
                       setState(() => _currency = value);
+                    },
+                  ),
+                  _StockField(
+                    label: "Stock disponible *",
+                    initialValue: _stock,
+                    errorText: _stockError,
+                    onChanged: (value) {
+                      _stock = value;
+                      if (_stockError != null && value.trim().isNotEmpty) {
+                        setState(() => _stockError = null);
+                      }
                     },
                   ),
                   _ProductCategorySelector(
@@ -302,6 +334,11 @@ class _AddProductState extends State<AddProduct> {
                             onCurrencyChanged: (value) {
                               setState(() => variant.currency = value);
                             },
+                          ),
+                          _StockField(
+                            label: "Stock de la variante",
+                            initialValue: variant.quantity,
+                            onChanged: (value) => variant.quantity = value,
                           ),
                           UploadImageSlot(
                             controller: variant.image,
@@ -407,6 +444,49 @@ class _PriceField extends StatelessWidget {
                   },
                 ),
               ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+}
+
+class _StockField extends StatelessWidget {
+  const _StockField({
+    required this.label,
+    required this.initialValue,
+    required this.onChanged,
+    this.errorText,
+  });
+
+  final String label;
+  final String initialValue;
+  final String? errorText;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.label(context)),
+        const SizedBox(height: 8),
+        TextFormField(
+          initialValue: initialValue,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          onChanged: onChanged,
+          style: TextStyle(color: AppColors.textPrimary(context)),
+          decoration: AppInputDecoration.field(
+            context,
+            hintText: "Ex: 10",
+            errorText: errorText,
+            suffixIcon: Icon(
+              Icons.inventory_2_outlined,
+              color: AppColors.iconAccent(context),
+              size: 18,
             ),
           ),
         ),
@@ -584,6 +664,7 @@ class _VariantDraft {
   String name = "";
   String price;
   String currency;
+  String quantity = "1";
   final ImageUploadController image;
   String? error;
 
@@ -596,7 +677,7 @@ class _VariantDraft {
     return ProductVariantModel(
       name: name.trim(),
       price: trimmedPrice.isEmpty ? "" : "$trimmedPrice $currency",
-      quantity: "",
+      quantity: quantity.trim().isEmpty ? "1" : quantity.trim(),
       imageurl: image.remoteUrl ?? image.previewUrl,
     );
   }
