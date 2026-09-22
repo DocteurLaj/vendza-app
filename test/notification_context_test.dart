@@ -69,10 +69,47 @@ void main() {
     ]);
 
     expect(threads.first.id, 'store:7');
+    expect(threads.first.title, 'Boutique');
     expect(threads.first.messageCount, 2);
     expect(threads.first.unreadCount, 2);
     expect(threads.last.id, 'general');
   });
+
+  test(
+    'store chat keeps boutique identity even when latest message has no store name',
+    () {
+      final threads = groupNotificationThreads([
+        NotificationModel(
+          id: '1',
+          name: 'store_order',
+          title: 'Commande',
+          description: 'Première commande',
+          imageUrl: '',
+          isRead: true,
+          storeId: 9,
+          storeName: 'Maison Laj',
+          storeImage: 'store.png',
+          threadId: 'store:9',
+          createdAt: DateTime(2026, 9, 10, 10),
+        ),
+        NotificationModel(
+          id: '2',
+          name: 'store_order',
+          title: 'Commande livrée',
+          description: 'Dernière mise à jour',
+          imageUrl: '',
+          isRead: false,
+          storeId: 9,
+          threadId: 'store:9',
+          createdAt: DateTime(2026, 9, 10, 12),
+        ),
+      ]);
+
+      expect(threads.single.title, 'Maison Laj');
+      expect(threads.single.imageUrl, 'store.png');
+      expect(threads.single.unreadCount, 1);
+    },
+  );
 
   test('markNotificationAsRead preserves navigation context', () async {
     notificationStore.value = [

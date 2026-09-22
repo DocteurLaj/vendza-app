@@ -5,8 +5,7 @@ import 'package:vendza/features/order/presentation/pages/store_orders_page.dart'
 import 'package:vendza/features/notification/data/models/notification_model.dart';
 import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/notification/presantation/helpers/notification_presentation.dart';
-import 'package:vendza/features/notification/presantation/widgets/notification_tilter_toggle.dart';
-import 'package:vendza/features/notification/presantation/widgets/notification_widget.dart';
+
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/shared/utils/date_time_label.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
@@ -20,19 +19,7 @@ class NotificationPage extends StatefulWidget {
 }
 
 class _NotificationPageState extends State<NotificationPage> {
-  bool showUnread = true;
-  final Set<String> _openedFromUnreadIds = {};
-
-  void _handleFilterChanged(bool value) {
-    if (value == showUnread) return;
-    setState(() {
-      showUnread = value;
-      _openedFromUnreadIds.clear();
-    });
-  }
-
   void _openNotification(NotificationModel notification) {
-    if (showUnread) setState(() => _openedFromUnreadIds.add(notification.id));
     markNotificationAsRead(notification.id);
 
     final storeId = notification.storeId;
@@ -95,6 +82,9 @@ class _NotificationPageState extends State<NotificationPage> {
   }
 
   void _openThread(NotificationThreadModel thread) {
+    for (final message in thread.messages) {
+      if (!message.isRead) markNotificationAsRead(message.id);
+    }
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => NotificationThreadPage(
@@ -125,13 +115,7 @@ class _NotificationPageState extends State<NotificationPage> {
         child: ValueListenableBuilder<List<NotificationModel>>(
           valueListenable: notificationStore,
           builder: (context, notifications, _) {
-            final filtered = notifications.where((notification) {
-              return showUnread
-                  ? !notification.isRead ||
-                        _openedFromUnreadIds.contains(notification.id)
-                  : notification.isRead;
-            }).toList();
-            final threads = groupNotificationThreads(filtered);
+            final threads = groupNotificationThreads(notifications);
             final unreadCount = unreadNotificationCount(notifications);
 
             return ResponsiveContent(
@@ -143,22 +127,15 @@ class _NotificationPageState extends State<NotificationPage> {
                     padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
                     child: _NotificationHeader(unreadCount: unreadCount),
                   ),
-                  NotificationFilterToggle(
-                    showUnread: showUnread,
-                    onChanged: _handleFilterChanged,
-                  ),
                   Expanded(
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 320),
                       child: threads.isEmpty
                           ? _EmptyNotificationState(
-                              key: ValueKey('empty-$showUnread'),
-                              showUnread: showUnread,
+                              key: const ValueKey('empty-notification-chats'),
                             )
                           : ListView.separated(
-                              key: ValueKey(
-                                'threads-$showUnread-${threads.length}',
-                              ),
+                              key: ValueKey('threads-${threads.length}'),
                               padding: const EdgeInsets.fromLTRB(16, 4, 16, 22),
                               itemCount: threads.length,
                               separatorBuilder: (context, index) =>
@@ -237,16 +214,186 @@ class NotificationThreadPage extends StatelessWidget {
           itemCount: messages.length,
           separatorBuilder: (context, index) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
-            return NotificationWidget(
-              notification: messages[index],
-              onOpen: onOpenNotification,
-              onDelete: onDeleteNotification,
+            final message = messages[index];
+            final previous = index == 0 ? null : messages[index - 1];
+            final showDate =
+                previous == null ||
+                !_sameDay(previous.createdAt, message.createdAt);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (showDate && message.createdAt != null)
+                  _ChatDateDivider(date: message.createdAt!),
+                _ChatMessageBubble(
+                  notification: message,
+                  onOpen: onOpenNotification,
+                  onDelete: onDeleteNotification,
+                ),
+              ],
             );
           },
         ),
       ),
     );
   }
+}
+
+class _ChatDateDivider extends StatelessWidget {
+  const _ChatDateDivider({required this.date});
+
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.card(context),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.border(context)),
+        ),
+        child: Text(
+          vendzaDateTimeLabel(date),
+          style: TextStyle(
+            color: AppColors.textSecondary(context),
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatMessageBubble extends StatelessWidget {
+  const _ChatMessageBubble({
+    required this.notification,
+    required this.onOpen,
+    required this.onDelete,
+  });
+
+  final NotificationModel notification;
+  final ValueChanged<NotificationModel> onOpen;
+  final ValueChanged<NotificationModel> onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(6),
+              topRight: Radius.circular(18),
+              bottomLeft: Radius.circular(18),
+              bottomRight: Radius.circular(18),
+            ),
+            border: Border.all(color: AppColors.border(context)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      notification.displayTitle,
+                      style: TextStyle(
+                        color: AppColors.textPrimary(context),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    padding: EdgeInsets.zero,
+                    icon: Icon(
+                      Icons.more_vert_rounded,
+                      size: 18,
+                      color: AppColors.textSecondary(context),
+                    ),
+                    onSelected: (value) {
+                      if (value == 'open') onOpen(notification);
+                      if (value == 'delete') onDelete(notification);
+                    },
+                    itemBuilder: (context) => [
+                      if (notification.actionLabel != null)
+                        const PopupMenuItem(
+                          value: 'open',
+                          child: Text('Ouvrir'),
+                        ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Supprimer'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                notification.description,
+                style: TextStyle(
+                  color: AppColors.textPrimary(context),
+                  fontSize: 13.5,
+                  height: 1.35,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (notification.productName != null) ...[
+                    Icon(
+                      Icons.shopping_bag_outlined,
+                      color: AppColors.textSecondary(context),
+                      size: 13,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        notification.productName!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.textSecondary(context),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (notification.createdAt != null)
+                    Text(
+                      vendzaDateTimeLabel(notification.createdAt!),
+                      style: TextStyle(
+                        color: AppColors.textSecondary(context),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+bool _sameDay(DateTime? a, DateTime? b) {
+  if (a == null || b == null) return false;
+  return a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
 class _NotificationThreadTile extends StatelessWidget {
@@ -321,30 +468,43 @@ class _NotificationThreadTile extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      if (thread.unreadCount > 0)
-                        _Pill(
-                          threadUnreadText,
-                          '${thread.unreadCount} nouveau${thread.unreadCount > 1 ? 'x' : ''}',
-                        ),
-                      _Pill('Messages', '${thread.messageCount}'),
-                      if ((latest.productName ?? '').isNotEmpty)
-                        _Pill('Produit', latest.productName!),
-                    ],
-                  ),
+                  if ((latest.productName ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      latest.productName!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.textSecondary(context),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            IconButton(
-              tooltip: 'Supprimer la conversation',
-              onPressed: onDelete,
-              icon: Icon(
-                Icons.delete_outline_rounded,
-                color: AppColors.textSecondary(context),
-              ),
+            const SizedBox(width: 8),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (thread.unreadCount > 0)
+                  _UnreadBubble(count: thread.unreadCount)
+                else
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textSecondary(context),
+                  ),
+                IconButton(
+                  tooltip: 'Supprimer la conversation',
+                  onPressed: onDelete,
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    color: AppColors.textSecondary(context),
+                    size: 19,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -353,28 +513,28 @@ class _NotificationThreadTile extends StatelessWidget {
   }
 }
 
-const String threadUnreadText = 'Nouveaux';
+class _UnreadBubble extends StatelessWidget {
+  const _UnreadBubble({required this.count});
 
-class _Pill extends StatelessWidget {
-  const _Pill(this.label, this.value);
-
-  final String label;
-  final String value;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.accent(context).withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(999),
+        color: AppColors.accent(context),
+        shape: count < 10 ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: count < 10 ? null : BorderRadius.circular(999),
       ),
+      alignment: Alignment.center,
       child: Text(
-        '$label: $value',
-        style: TextStyle(
-          color: AppColors.accent(context),
-          fontSize: 10.5,
-          fontWeight: FontWeight.w800,
+        count > 99 ? '99+' : '$count',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );
@@ -443,9 +603,7 @@ class _NotificationHeader extends StatelessWidget {
 }
 
 class _EmptyNotificationState extends StatelessWidget {
-  const _EmptyNotificationState({super.key, required this.showUnread});
-
-  final bool showUnread;
+  const _EmptyNotificationState({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -469,9 +627,7 @@ class _EmptyNotificationState extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             Text(
-              showUnread
-                  ? 'Aucune conversation non lue'
-                  : 'Aucune conversation lue',
+              'Aucune conversation pour le moment',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.textPrimary(context),

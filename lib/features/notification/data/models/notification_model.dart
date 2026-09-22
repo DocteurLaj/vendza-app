@@ -83,8 +83,28 @@ class NotificationThreadModel {
 
   int get unreadCount => messages.where((message) => !message.isRead).length;
   int get messageCount => messages.length;
-  String get title => latest.storeName ?? latest.title;
-  String get imageUrl => latest.imageUrl;
+  String get title {
+    final storeTitle = _firstNonEmpty(
+      messages.map((message) => message.storeName),
+    );
+    if (storeTitle != null) return storeTitle;
+    final latestTitle = latest.title.trim();
+    return latestTitle.isEmpty ? latest.name : latestTitle;
+  }
+
+  String get imageUrl {
+    return _firstNonEmpty(messages.map((message) => message.storeImage)) ??
+        _firstNonEmpty(messages.map((message) => message.imageUrl)) ??
+        '';
+  }
+}
+
+String? _firstNonEmpty(Iterable<String?> values) {
+  for (final value in values) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isNotEmpty) return trimmed;
+  }
+  return null;
 }
 
 List<NotificationThreadModel> groupNotificationThreads(
