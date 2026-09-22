@@ -10,6 +10,11 @@ void main() {
     GoogleAuthConfig.debugIsConfiguredOverride = null;
   });
 
+  test('Google OAuth is not configured by stale default client ID', () {
+    expect(GoogleAuthConfig.webClientId, isEmpty);
+    expect(GoogleAuthConfig.isConfigured, isFalse);
+  });
+
   testWidgets('Google Sign-In is hidden when OAuth is not configured', (
     tester,
   ) async {
