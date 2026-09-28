@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:vendza/core/services/api_config.dart';
 import 'package:vendza/core/services/media/data_image.dart';
+import 'package:vendza/shared/widgets/media/responsive_image_url.dart';
 
 import 'smart_image_io.dart'
     if (dart.library.html) 'smart_image_web.dart'
@@ -107,20 +108,28 @@ class SmartImage extends StatelessWidget {
                 ? constraints.maxHeight
                 : null);
 
+        final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0;
+        final displayPath = responsiveImageUrl(
+          trimmedPath,
+          width: cacheSourceW,
+          height: cacheSourceH,
+          devicePixelRatio: dpr,
+        );
+
         final Widget image;
-        if (isAssetPath(trimmedPath)) {
+        if (isAssetPath(displayPath)) {
           image = Image.asset(
-            trimmedPath,
+            displayPath,
             width: width,
             height: height,
             fit: fit,
             alignment: alignment,
             errorBuilder: (_, _, _) => fallback,
           );
-        } else if (isDataImagePath(trimmedPath)) {
+        } else if (isDataImagePath(displayPath)) {
           Uint8List? bytes;
           try {
-            bytes = decodeDataImageBytes(trimmedPath);
+            bytes = decodeDataImageBytes(displayPath);
           } on Object {
             bytes = null;
           }
@@ -134,8 +143,7 @@ class SmartImage extends StatelessWidget {
                   alignment: alignment,
                   errorBuilder: (_, _, _) => fallback,
                 );
-        } else if (isHttpPath(trimmedPath) && !kIsWeb) {
-          final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0;
+        } else if (isHttpPath(displayPath) && !kIsWeb) {
           final cache = resolveMemCacheSize(
             width: cacheSourceW,
             height: cacheSourceH,
@@ -143,8 +151,8 @@ class SmartImage extends StatelessWidget {
           );
 
           image = CachedNetworkImage(
-            imageUrl: trimmedPath,
-            cacheKey: trimmedPath,
+            imageUrl: displayPath,
+            cacheKey: displayPath,
             width: width,
             height: height,
             fit: fit,
@@ -160,9 +168,9 @@ class SmartImage extends StatelessWidget {
             ),
             errorWidget: (_, _, _) => fallback,
           );
-        } else if (isNetworkPath(trimmedPath) || kIsWeb) {
+        } else if (isNetworkPath(displayPath) || kIsWeb) {
           image = Image.network(
-            trimmedPath,
+            displayPath,
             width: width,
             height: height,
             fit: fit,
@@ -171,7 +179,7 @@ class SmartImage extends StatelessWidget {
           );
         } else {
           image = local.buildLocalImage(
-            path: trimmedPath,
+            path: displayPath,
             width: width,
             height: height,
             fit: fit,

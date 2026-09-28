@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
+import 'package:vendza/shared/widgets/media/smart_image.dart';
 
 class VendzaContextImage extends StatelessWidget {
   const VendzaContextImage({
@@ -23,11 +24,12 @@ class VendzaContextImage extends StatelessWidget {
         height: size,
         color: AppColors.accent(context).withValues(alpha: 0.10),
         child: url.startsWith('http')
-            ? Image.network(
-                url,
+            ? SmartImage(
+                path: url,
+                width: size,
+                height: size,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) =>
-                    Icon(icon, color: AppColors.iconAccent(context)),
+                errorWidget: Icon(icon, color: AppColors.iconAccent(context)),
               )
             : Icon(icon, color: AppColors.iconAccent(context)),
       ),
