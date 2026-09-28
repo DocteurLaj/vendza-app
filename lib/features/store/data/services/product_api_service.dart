@@ -41,6 +41,7 @@ class ProductApiService {
     final response = await _client.get(
       ApiEndpoints.productAllForStore(storeId),
       queryParameters: {'include_inactive': includeInactive ? 'true' : 'false'},
+      authenticated: includeInactive,
     );
     return Map<String, dynamic>.from(response as Map);
   }
