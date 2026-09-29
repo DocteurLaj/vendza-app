@@ -175,11 +175,9 @@ Future<void> _showEditProfileSheet(BuildContext context, UserModel user) {
                     final profileApi = ProfileApiService();
                     await profileApi.updateFullName(displayName);
                     await profileApi.updatePhone(phone.e164);
-                    if (addressController.text.trim().isNotEmpty) {
-                      await profileApi.updateAddress(
-                        city: addressController.text.trim(),
-                      );
-                    }
+                    await profileApi.updateAddress(
+                      address: addressController.text,
+                    );
 
                     updateCurrentUser(
                       UserModel(

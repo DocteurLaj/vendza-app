@@ -31,6 +31,7 @@ class _TrackingAuthApi extends AuthApiService {
   String meFullName = 'Ada Lovelace';
   String? meAvatarUrl =
       'http://127.0.0.1:9000/vendza-images/users/ada/avatar/one.jpg';
+  String meAddress = 'Kinshasa';
 
   @override
   Future<Map<String, dynamic>> googleSignIn(String idToken) async {
@@ -79,8 +80,9 @@ class _TrackingAuthApi extends AuthApiService {
       'iduser': meUserId,
       'email': meEmail,
       'fullName': meFullName,
-      'phone': '+243000000000',
+      'phone': '+243****0000',
       'avatarUrl': meAvatarUrl,
+      'address': meAddress,
     };
   }
 
@@ -140,6 +142,7 @@ void main() {
     expect(api.googleCalled, isTrue);
     expect(api.meCalled, isTrue);
     expect(currentUserStore.value.email, 'ada@example.com');
+    expect(currentUserStore.value.address, 'Kinshasa');
     expect(currentUserStore.value.firstname, 'Ada');
     expect(currentUserStore.value.lastname, 'Lovelace');
     expect(

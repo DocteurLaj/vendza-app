@@ -66,27 +66,11 @@ class ProfileApiService {
     return saved;
   }
 
-  Future<Map<String, dynamic>> updateAddress({
-    required String city,
-    String? addressLine1,
-    String? addressLine2,
-    String? region,
-    String? postalCode,
-    String? streetNumber,
-    int? countryId,
-  }) async {
+  Future<Map<String, dynamic>> updateAddress({required String address}) async {
     final response = await _client.put(
       ApiEndpoints.profileAddress,
       authenticated: true,
-      body: {
-        'new_city': city,
-        'new_address_line1': addressLine1,
-        'new_address_line2': addressLine2,
-        'new_region': region,
-        'new_postal_code': postalCode,
-        'new_street_number': streetNumber,
-        'new_country_idcountry': countryId,
-      },
+      body: {'new_city': address.trim()},
     );
     return Map<String, dynamic>.from(response as Map);
   }
