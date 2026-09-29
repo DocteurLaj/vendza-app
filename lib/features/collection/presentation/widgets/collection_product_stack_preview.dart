@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/shared/models/product_model.dart';
+import 'package:vendza/shared/widgets/media/smart_image.dart';
 
 class CollectionProductStackPreview extends StatelessWidget {
   const CollectionProductStackPreview({super.key, required this.products});
@@ -67,11 +68,10 @@ class _StackedProductImage extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: imageUrl.isEmpty
             ? const _PreviewPlaceholder()
-            : Image.asset(
-                imageUrl,
+            : SmartImage(
+                path: imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    const _PreviewPlaceholder(),
+                errorWidget: const _PreviewPlaceholder(),
               ),
       ),
     );

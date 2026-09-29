@@ -7,6 +7,7 @@ import 'package:vendza/shared/widgets/dialog/app_popup_actions.dart';
 import 'package:vendza/shared/widgets/dialog/show_app_popup.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
+import 'package:vendza/shared/widgets/media/smart_image.dart';
 import 'package:vendza/shared/widgets/product/product_price_text.dart';
 
 Future<List<ProductModel>?> showAssignProductsDialog({
@@ -324,11 +325,10 @@ class _ProductSelectionThumbnail extends StatelessWidget {
         color: AppColors.card(context),
         child: imageUrl.isEmpty
             ? _ProductImagePlaceholder()
-            : Image.asset(
-                imageUrl,
+            : SmartImage(
+                path: imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    const _ProductImagePlaceholder(),
+                errorWidget: const _ProductImagePlaceholder(),
               ),
       ),
     );
