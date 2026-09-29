@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -15,6 +17,7 @@ import 'package:vendza/features/product/presentation/pages/add_product.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/features/store/data/services/product_management_service.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
+import 'package:vendza/features/store/domain/owner_store_grouping.dart';
 import 'package:vendza/features/order/presentation/pages/store_orders_page.dart';
 import 'package:vendza/features/store/presentation/pages/custom_page.dart';
 import 'package:vendza/features/store/presentation/widgets/stacked_action_preview.dart';
@@ -49,6 +52,17 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
     _catalogTabs.addListener(() {
       if (!_catalogTabs.indexIsChanging && mounted) setState(() {});
     });
+    unawaited(_refreshOwnerOrganisation());
+  }
+
+  Future<void> _refreshOwnerOrganisation() async {
+    await cathegory_data.refreshCategories();
+    if (_storeSynced) {
+      await collection_data.collectionRepository.refreshCollections(
+        _currentStore.id,
+      );
+    }
+    if (mounted) setState(() {});
   }
 
   @override
@@ -84,13 +98,11 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
       _storeProducts.where((product) => !_isLiveProduct(product)).toList();
 
   List<ProductModel> get _categoryPreviewProducts {
-    final categoryNames = cathegory_data.categories
-        .map((category) => category.name)
-        .toSet();
-
-    return _storeProducts
-        .where((product) => categoryNames.contains(product.category))
-        .toList();
+    return ownerCategoryGroups(
+      store: _currentStore,
+      products: _storeProducts,
+      globalCategories: cathegory_data.categories,
+    ).expand((group) => group.products).toList();
   }
 
   List<ProductModel> get _collectionPreviewProducts {
@@ -211,67 +223,74 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
     return ValueListenableBuilder<int>(
       valueListenable: catalogRevision,
       builder: (context, _, _) {
-        return Scaffold(
-          appBar: _selectionMode
-              ? buildSelectionAppBar(
-                  context: context,
-                  selectedCount: _selectedProductIds.length,
-                  onCancel: () => setState(() => _selectedProductIds.clear()),
-                  onSelectAll: _selectAllProducts,
-                  onDelete: _deleteSelectedProducts,
-                )
-              : AppBar(title: Text(_currentStore.name)),
-          body: Column(
-            children: [
-              _storeToolbar(context),
-              if (!_selectionMode) _storeActions(context),
-              Material(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                child: TabBar(
-                  controller: _catalogTabs,
-                  indicatorColor: AppColors.accent(context),
-                  indicatorWeight: 3,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  labelColor: AppColors.accent(context),
-                  unselectedLabelColor: AppColors.textSecondary(context),
-                  tabs: const [
-                    Tab(text: 'En ligne'),
-                    Tab(text: 'Hors ligne'),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: TabBarView(
-                  controller: _catalogTabs,
-                  children: [
-                    RefreshIndicator(
-                      onRefresh: () => refreshCatalogWithFeedback(
-                        context,
-                        targetLabel: "Produits",
-                        successMessage: "Produits actualises.",
-                      ),
-                      child: _catalogList(_onlineProducts),
+        return ValueListenableBuilder<int>(
+          valueListenable: cathegory_data.categoryRevision,
+          builder: (context, _, _) => ValueListenableBuilder<int>(
+            valueListenable: collection_data.collectionRevision,
+            builder: (context, _, _) => Scaffold(
+              appBar: _selectionMode
+                  ? buildSelectionAppBar(
+                      context: context,
+                      selectedCount: _selectedProductIds.length,
+                      onCancel: () =>
+                          setState(() => _selectedProductIds.clear()),
+                      onSelectAll: _selectAllProducts,
+                      onDelete: _deleteSelectedProducts,
+                    )
+                  : AppBar(title: Text(_currentStore.name)),
+              body: Column(
+                children: [
+                  _storeToolbar(context),
+                  if (!_selectionMode) _storeActions(context),
+                  Material(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    child: TabBar(
+                      controller: _catalogTabs,
+                      indicatorColor: AppColors.accent(context),
+                      indicatorWeight: 3,
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      labelColor: AppColors.accent(context),
+                      unselectedLabelColor: AppColors.textSecondary(context),
+                      tabs: const [
+                        Tab(text: 'En ligne'),
+                        Tab(text: 'Hors ligne'),
+                      ],
                     ),
-                    RefreshIndicator(
-                      onRefresh: () => refreshCatalogWithFeedback(
-                        context,
-                        targetLabel: "Produits",
-                        successMessage: "Produits actualises.",
-                      ),
-                      child: _catalogList(_offlineProducts),
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _catalogTabs,
+                      children: [
+                        RefreshIndicator(
+                          onRefresh: () => refreshCatalogWithFeedback(
+                            context,
+                            targetLabel: "Produits",
+                            successMessage: "Produits actualises.",
+                          ),
+                          child: _catalogList(_onlineProducts),
+                        ),
+                        RefreshIndicator(
+                          onRefresh: () => refreshCatalogWithFeedback(
+                            context,
+                            targetLabel: "Produits",
+                            successMessage: "Produits actualises.",
+                          ),
+                          child: _catalogList(_offlineProducts),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+              floatingActionButton: _selectionMode
+                  ? null
+                  : FloatingActionButton.extended(
+                      onPressed: _openAddProduct,
+                      icon: const Icon(Icons.add),
+                      label: const Text("Produit"),
+                    ),
+            ),
           ),
-          floatingActionButton: _selectionMode
-              ? null
-              : FloatingActionButton.extended(
-                  onPressed: _openAddProduct,
-                  icon: const Icon(Icons.add),
-                  label: const Text("Produit"),
-                ),
         );
       },
     );
@@ -337,7 +356,7 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          const CathegoryPage(canManage: true),
+                          CathegoryPage(canManage: true, store: _currentStore),
                     ),
                   );
                   if (mounted) setState(() {});
@@ -358,6 +377,7 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
                     MaterialPageRoute(
                       builder: (context) => CollectionPage(
                         storeId: _currentStore.id,
+                        store: _currentStore,
                         canManage: true,
                       ),
                     ),

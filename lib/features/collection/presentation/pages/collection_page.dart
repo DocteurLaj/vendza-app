@@ -3,6 +3,7 @@ import 'package:vendza/features/collection/data/services/data_exemple.dart';
 import 'package:vendza/features/collection/presentation/pages/collection_produit_page.dart';
 import 'package:vendza/features/collection/presentation/widgets/add_collection_dialog.dart';
 import 'package:vendza/features/collection/presentation/widgets/collection_product_stack_preview.dart';
+import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/shared/widgets/bouton/list_button_section.dart';
 import 'package:vendza/shared/widgets/dialog/confirm_delete_dialog.dart';
 
@@ -10,10 +11,12 @@ class CollectionPage extends StatefulWidget {
   const CollectionPage({
     super.key,
     required this.storeId,
+    this.store,
     this.canManage = false,
   });
 
   final String storeId;
+  final ListStoreModel? store;
   final bool canManage;
 
   @override
@@ -135,6 +138,7 @@ class _CollectionPageState extends State<CollectionPage> {
                 MaterialPageRoute(
                   builder: (context) => CollectionProduitPage(
                     collection,
+                    store: widget.store,
                     canManage: widget.canManage,
                   ),
                 ),

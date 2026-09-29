@@ -3,8 +3,10 @@ import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/collection/data/services/data_exemple.dart';
 import 'package:vendza/features/collection/presentation/widgets/assign_products_dialog.dart';
+import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart'
     as store_data;
+import 'package:vendza/features/store/domain/owner_store_grouping.dart';
 import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/models/section_model.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
@@ -15,10 +17,12 @@ class CollectionProduitPage extends StatefulWidget {
   const CollectionProduitPage(
     this.collection, {
     super.key,
+    this.store,
     this.canManage = false,
   });
 
   final SectionModel collection;
+  final ListStoreModel? store;
   final bool canManage;
 
   @override
@@ -29,10 +33,19 @@ class _CollectionProduitPageState extends State<CollectionProduitPage> {
   List<ProductModel> get assignedProducts =>
       collectionProducts[widget.collection.id] ?? <ProductModel>[];
 
+  List<ProductModel> get assignableProducts {
+    final store = widget.store;
+    if (store == null) return store_data.products;
+    return ownerCollectionAssignableProducts(
+      store: store,
+      products: store_data.products,
+    );
+  }
+
   Future<void> _assignProducts() async {
     final List<ProductModel>? selectedProducts = await showAssignProductsDialog(
       context: context,
-      products: store_data.products,
+      products: assignableProducts,
       selectedProducts: assignedProducts,
     );
 
@@ -43,6 +56,9 @@ class _CollectionProduitPageState extends State<CollectionProduitPage> {
         collectionId: widget.collection.id,
         products: selectedProducts,
       );
+      if (widget.store != null) {
+        await collectionRepository.refreshCollections(widget.store!.id);
+      }
       if (mounted) setState(() {});
     } on Object catch (error) {
       if (!mounted) return;

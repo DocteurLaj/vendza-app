@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
-import 'package:vendza/features/collection/presentation/widgets/assign_products_dialog.dart';
+import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart'
     as store_data;
+import 'package:vendza/features/store/domain/owner_store_grouping.dart';
 import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/models/section_model.dart';
-import 'package:vendza/shared/widgets/dialog/category_change_warning_dialog.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/product/product_section.dart';
@@ -15,10 +15,12 @@ class CathegoryProduitPage extends StatefulWidget {
   const CathegoryProduitPage(
     this.cathegory, {
     super.key,
+    this.store,
     this.canManage = false,
   });
 
   final SectionModel cathegory;
+  final ListStoreModel? store;
   final bool canManage;
 
   @override
@@ -26,56 +28,18 @@ class CathegoryProduitPage extends StatefulWidget {
 }
 
 class _CathegoryProduitPageState extends State<CathegoryProduitPage> {
-  List<ProductModel> get categoryProducts => store_data.products
-      .where((product) => product.category == widget.cathegory.name)
-      .toList();
-
-  Future<void> _assignProducts() async {
-    final selectedProducts = await showAssignProductsDialog(
-      context: context,
-      products: store_data.products,
-      selectedProducts: categoryProducts,
-      title: "Assigner des produits",
-      subtitle:
-          "Choisis les produits à rattacher à ${widget.cathegory.name}. Les produits décochés quitteront cette catégorie.",
-    );
-
-    if (selectedProducts == null) return;
-    if (!mounted) return;
-
-    final selectedIds = selectedProducts.map((product) => product.id).toSet();
-    final movedProducts = selectedProducts
-        .where(
-          (product) =>
-              product.category.isNotEmpty &&
-              product.category != widget.cathegory.name,
-        )
-        .toList();
-
-    if (movedProducts.isNotEmpty) {
-      final confirmed = await showCategoryChangeWarningDialog(
-        context: context,
-        productCount: movedProducts.length,
-        categoryName: widget.cathegory.name,
-      );
-
-      if (!confirmed) return;
-      if (!mounted) return;
+  List<ProductModel> get categoryProducts {
+    final store = widget.store;
+    if (store == null) {
+      return store_data.products
+          .where((product) => product.catalogCategoryId == widget.cathegory.id)
+          .toList();
     }
-
-    setState(() {
-      for (int index = 0; index < store_data.products.length; index++) {
-        final product = store_data.products[index];
-
-        if (selectedIds.contains(product.id)) {
-          store_data.products[index] = product.copyWith(
-            category: widget.cathegory.name,
-          );
-        } else if (product.category == widget.cathegory.name) {
-          store_data.products[index] = product.copyWith(category: "");
-        }
-      }
-    });
+    return productsForOwnerCategory(
+      store: store,
+      category: widget.cathegory,
+      products: store_data.products,
+    );
   }
 
   @override
@@ -112,13 +76,6 @@ class _CathegoryProduitPageState extends State<CathegoryProduitPage> {
           ),
         ),
       ),
-      floatingActionButton: widget.canManage
-          ? FloatingActionButton.extended(
-              onPressed: _assignProducts,
-              icon: const Icon(Icons.add),
-              label: const Text("Produit"),
-            )
-          : null,
     );
   }
 }
