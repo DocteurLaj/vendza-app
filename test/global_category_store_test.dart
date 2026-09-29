@@ -17,10 +17,17 @@ class _CategoryClient extends http.BaseClient {
       Stream.value(
         utf8.encode(
           jsonEncode({
-            'data': [
-              {'id': 7, 'name': 'Electronique', 'is_active': true},
-              {'id': 8, 'name': 'Cachee', 'is_active': false},
-            ],
+            'success': true,
+            'message': 'Operation reussie',
+            'data': {
+              'items': [
+                {'id': 7, 'name': 'Electronique', 'is_active': true},
+                {'id': 8, 'name': 'Cachee', 'is_active': false},
+              ],
+              'total': 2,
+              'page': 1,
+              'page_size': 100,
+            },
           }),
         ),
       ),

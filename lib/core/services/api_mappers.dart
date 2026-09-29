@@ -130,6 +130,14 @@ List<Map<String, dynamic>> unwrapApiList(dynamic response) {
           .map((item) => Map<String, dynamic>.from(item as Map))
           .toList();
     }
+    if (data is Map<String, dynamic>) {
+      final items = data['items'];
+      if (items is List) {
+        return items
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
+      }
+    }
   }
   return const [];
 }

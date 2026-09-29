@@ -54,6 +54,14 @@ class _AddProductState extends State<AddProduct> {
   void initState() {
     super.initState();
     _imageUpload.addListener(_onUploadChanged);
+    cathegory_data
+        .refreshCategories()
+        .then((_) {
+          if (mounted) setState(() {});
+        })
+        .catchError((_) {
+          if (mounted) setState(() {});
+        });
   }
 
   @override

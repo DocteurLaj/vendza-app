@@ -38,6 +38,12 @@ class _AddCollectionDialogState extends State<AddCollectionDialog> {
       });
       return;
     }
+    if (name.length < 2) {
+      setState(() {
+        _errorText = 'Le nom doit contenir au moins 2 caractères';
+      });
+      return;
+    }
 
     Navigator.pop(context, name);
   }
