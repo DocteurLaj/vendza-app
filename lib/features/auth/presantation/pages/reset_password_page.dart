@@ -4,6 +4,7 @@ import 'package:vendza/features/auth/data/services/auth_api_service.dart';
 import 'package:vendza/features/auth/presantation/pages/login_page.dart';
 import 'package:vendza/features/auth/presantation/widgets/auth_card.dart';
 import 'package:vendza/features/auth/presantation/widgets/auth_layout.dart';
+import 'package:vendza/features/auth/presantation/widgets/forgot_password_dialog.dart';
 import 'package:vendza/features/auth/presantation/widgets/input_widget.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
 
@@ -21,6 +22,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   final _confirmationController = TextEditingController();
   final _authApiService = AuthApiService();
   bool _isLoading = false;
+  bool _canRequestNewLink = false;
 
   bool get _hasToken => widget.token.trim().isNotEmpty;
 
@@ -37,6 +39,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       (route) => false,
     );
   }
+
+  Future<void> _requestNewLink() => showForgotPasswordDialog(context);
 
   Future<void> _resetPassword() async {
     if (!_hasToken) return;
@@ -58,16 +62,17 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         newPassword: password,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mot de passe mis à jour.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Mot de passe mis à jour.')));
       _goToLogin();
     } on ApiException catch (error) {
       if (!mounted) return;
       final status = error.statusCode;
       if (status == 400 || status == 404 || status == 410) {
+        setState(() => _canRequestNewLink = true);
         _showMessage(
-          'Ce lien est invalide ou a déjà été utilisé. Demandez un nouveau lien.',
+          'Ce lien est invalide, expiré ou déjà utilisé. Demandez un nouveau lien.',
         );
       } else {
         _showMessage(error.message);
@@ -95,9 +100,14 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           heightFactor: 0.42,
           children: [
             AppBouton(
-              text: 'Retour à la connexion',
-              onPressed: _goToLogin,
+              text: 'Demander un nouveau lien',
+              onPressed: _requestNewLink,
               enabled: true,
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _goToLogin,
+              child: const Text('Retour à la connexion'),
             ),
           ],
         ),
@@ -133,6 +143,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             enabled: !_isLoading,
             isLoading: _isLoading,
           ),
+          if (_canRequestNewLink) ...[
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _isLoading ? null : _requestNewLink,
+              child: const Text('Demander un nouveau lien'),
+            ),
+          ],
         ],
       ),
     );

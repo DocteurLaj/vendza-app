@@ -25,4 +25,22 @@ void main() {
 
     expect(manifest, contains('android.permission.POST_NOTIFICATIONS'));
   });
+
+  test('Android can open public password reset links', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+
+    expect(manifest, contains('android:host="app.vendza.online"'));
+    expect(manifest, contains('android:pathPrefix="/reset-password"'));
+  });
+
+  test('reset password page offers a new link request path', () {
+    final page = File(
+      'lib/features/auth/presantation/pages/reset_password_page.dart',
+    ).readAsStringSync();
+
+    expect(page, contains('Demander un nouveau lien'));
+    expect(page, contains('showForgotPasswordDialog'));
+  });
 }
