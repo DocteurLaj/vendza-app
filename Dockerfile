@@ -38,6 +38,7 @@ RUN flutter pub get
 COPY . .
 RUN test -n "${VENDZA_API_BASE_URL}" \
     && case "${VENDZA_API_BASE_URL}" in https://*) ;; *) exit 1 ;; esac \
+    && case "${GOOGLE_WEB_CLIENT_ID}" in 838466400797*) echo "ERROR: legacy Google Web client is not allowed" >&2; exit 1 ;; esac \
     && if [ -z "${GOOGLE_WEB_CLIENT_ID}" ]; then \
          echo "WARNING: GOOGLE_WEB_CLIENT_ID build-arg is empty. The Google button will be hidden. Set it as a Docker BUILD ARG in Dokploy (not a runtime Environment variable), then rebuild without cache."; \
        else \
@@ -61,7 +62,9 @@ RUN test -n "${VENDZA_API_BASE_URL}" \
       --dart-define=VENDZA_FIREBASE_MESSAGING_SENDER_ID="${VENDZA_FIREBASE_MESSAGING_SENDER_ID}" \
       --dart-define=VENDZA_FIREBASE_PROJECT_ID="${VENDZA_FIREBASE_PROJECT_ID}" \
       --dart-define=VENDZA_FIREBASE_STORAGE_BUCKET="${VENDZA_FIREBASE_STORAGE_BUCKET}" \
-      --dart-define=VENDZA_FIREBASE_VAPID_KEY="${VENDZA_FIREBASE_VAPID_KEY}"
+      --dart-define=VENDZA_FIREBASE_VAPID_KEY="${VENDZA_FIREBASE_VAPID_KEY}" \
+    && ! grep -R "838466400797" build/web \
+    && grep -R "${GOOGLE_WEB_CLIENT_ID}" build/web/main.dart.js
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 

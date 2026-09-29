@@ -36,6 +36,8 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
+      - name: Guard Google OAuth configuration
+        run: python3 tool/guard_google_oauth.py --check-env
       - run: flutter analyze
         timeout-minutes: 10
       - run: flutter test
@@ -67,6 +69,11 @@ jobs:
           --dart-define=VENDZA_FIREBASE_PROJECT_ID=${{ env.VENDZA_FIREBASE_PROJECT_ID }}
           --dart-define=VENDZA_FIREBASE_STORAGE_BUCKET=${{ env.VENDZA_FIREBASE_STORAGE_BUCKET }}
           --dart-define=VENDZA_FIREBASE_VAPID_KEY=${{ env.VENDZA_FIREBASE_VAPID_KEY }}
+      - name: Guard built Web OAuth artifacts
+        run: >-
+          python3 tool/guard_google_oauth.py
+          --scan build/web/main.dart.js
+          --require-expected
 
   android:
     name: Android APK and AAB
