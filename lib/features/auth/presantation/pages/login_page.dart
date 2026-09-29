@@ -6,6 +6,7 @@ import 'package:vendza/core/constants/strings.dart';
 import 'package:vendza/core/session/current_user_store.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/features/auth/data/services/auth_session_service.dart';
+import 'package:vendza/features/auth/presantation/pages/email_verification_page.dart';
 import 'package:vendza/features/auth/presantation/pages/register_page.dart';
 import 'package:vendza/features/auth/presantation/widgets/auth_card.dart';
 import 'package:vendza/features/auth/presantation/widgets/auth_layout.dart';
@@ -56,8 +57,19 @@ class _LoginPageState extends State<LoginPage> {
     }
     setState(() => _isLoading = true);
     try {
-      await authSessionService.loginWithEmail(email: email, password: password);
+      final requiresVerification = await authSessionService.loginWithEmail(
+        email: email,
+        password: password,
+      );
       if (!mounted) return;
+      if (requiresVerification) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => EmailVerificationPage(email: email),
+          ),
+        );
+        return;
+      }
       _openMainPage();
     } on ApiException catch (error) {
       if (mounted) _showError(error.message);

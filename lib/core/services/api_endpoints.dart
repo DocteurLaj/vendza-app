@@ -4,6 +4,8 @@ class ApiEndpoints {
   static const authRegister = '/auth/register';
   static const authLogin = '/auth/login';
   static const authGoogle = '/auth/google';
+  static const authVerifyEmail = '/auth/verify-email';
+  static const authResendEmailVerification = '/auth/resend-email-verification';
   static const authForgotPassword = '/auth/forgot-password';
   static const authResetPassword = '/auth/reset-password';
   static const authRefresh = '/auth/refresh';

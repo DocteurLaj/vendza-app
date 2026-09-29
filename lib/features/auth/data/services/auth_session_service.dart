@@ -41,12 +41,20 @@ class AuthSessionService {
   final SessionCleaner _sessionCleaner;
   Future<bool>? _restoreInFlight;
 
-  Future<void> loginWithEmail({
+  Future<bool> loginWithEmail({
     required String email,
     required String password,
   }) async {
-    await _authApiService.login(email: email, password: password);
+    final result = await _authApiService.login(
+      email: email,
+      password: password,
+    );
+    if (result['requires_email_verification'] == true ||
+        result['email_verified'] == false) {
+      return true;
+    }
     await _synchronizeUser();
+    return false;
   }
 
   Future<bool> loginWithGoogle() async {
@@ -61,19 +69,24 @@ class AuthSessionService {
     await _synchronizeUser();
   }
 
-  Future<void> register({
+  Future<bool> register({
     required String email,
     required String password,
     required String fullName,
     required String phone,
   }) async {
-    await _authApiService.register(
+    final result = await _authApiService.register(
       email: email,
       password: password,
       fullName: fullName,
       phone: phone,
     );
+    if (result['requires_email_verification'] == true ||
+        result['email_verified'] == false) {
+      return true;
+    }
     await _synchronizeUser();
+    return false;
   }
 
   /// Restores a previously persisted session.
@@ -103,10 +116,7 @@ class AuthSessionService {
     }
 
     try {
-      await _synchronizeUser(
-        clearBeforeSync: false,
-        syncCatalog: syncCatalog,
-      );
+      await _synchronizeUser(clearBeforeSync: false, syncCatalog: syncCatalog);
       return true;
     } on ApiException catch (error) {
       if (isConfirmedAuthFailure(error)) {

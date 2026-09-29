@@ -8,6 +8,7 @@ import 'package:vendza/core/constants/site_links.dart';
 import 'package:vendza/core/session/current_user_store.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/features/auth/data/services/auth_session_service.dart';
+import 'package:vendza/features/auth/presantation/pages/email_verification_page.dart';
 import 'package:vendza/features/auth/presantation/pages/login_page.dart';
 import 'package:vendza/features/auth/presantation/widgets/auth_card.dart';
 import 'package:vendza/features/auth/presantation/widgets/auth_layout.dart';
@@ -50,8 +51,7 @@ class _RegisterPageState extends State<RegisterPage> {
     if (!NetworkStatus.ensureOnline(context)) return;
     final fullName = _nameController.text.trim();
     final email = _emailController.text.trim();
-    final phone =
-        _phoneFieldKey.currentState?.value ?? parsePhoneNumber('');
+    final phone = _phoneFieldKey.currentState?.value ?? parsePhoneNumber('');
     final password = _passwordController.text.trim();
     final confirm = _confirmPasswordController.text.trim();
 
@@ -82,13 +82,21 @@ class _RegisterPageState extends State<RegisterPage> {
 
     setState(() => _isLoading = true);
     try {
-      await authSessionService.register(
+      final requiresVerification = await authSessionService.register(
         email: email,
         password: password,
         fullName: fullName,
         phone: phone.e164,
       );
       if (!mounted) return;
+      if (requiresVerification) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => EmailVerificationPage(email: email),
+          ),
+        );
+        return;
+      }
       _openMainPage();
     } on ApiException catch (error) {
       if (mounted) _showError(error.message);
@@ -244,62 +252,62 @@ class _TermsCheckbox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.softSurface(context),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border(context)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: Checkbox(
-                value: value,
-                onChanged: onChanged,
-                activeColor: AppColors.accent(context),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(5),
-                ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.softSurface(context),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border(context)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: Checkbox(
+              value: value,
+              onChanged: onChanged,
+              activeColor: AppColors.accent(context),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(5),
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text.rich(
-                TextSpan(
-                  style: TextStyle(
-                    color: AppColors.accent(context),
-                    fontSize: 12.5,
-                    height: 1.25,
-                    fontWeight: FontWeight.w700,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: TextStyle(
+                  color: AppColors.accent(context),
+                  fontSize: 12.5,
+                  height: 1.25,
+                  fontWeight: FontWeight.w700,
+                ),
+                children: [
+                  const TextSpan(text: 'J\u2019accepte les '),
+                  TextSpan(
+                    text: 'conditions d\u2019utilisation',
+                    style: const TextStyle(
+                      decoration: TextDecoration.underline,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => _openLegalPage(SiteLinks.terms),
                   ),
-                  children: [
-                    const TextSpan(text: 'J\u2019accepte les '),
-                    TextSpan(
-                      text: 'conditions d\u2019utilisation',
-                      style: const TextStyle(
-                        decoration: TextDecoration.underline,
-                      ),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () => _openLegalPage(SiteLinks.terms),
+                  const TextSpan(text: ' et la '),
+                  TextSpan(
+                    text: 'politique de confidentialité',
+                    style: const TextStyle(
+                      decoration: TextDecoration.underline,
                     ),
-                    const TextSpan(text: ' et la '),
-                    TextSpan(
-                      text: 'politique de confidentialité',
-                      style: const TextStyle(
-                        decoration: TextDecoration.underline,
-                      ),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () => _openLegalPage(SiteLinks.privacy),
-                    ),
-                  ],
-                ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => _openLegalPage(SiteLinks.privacy),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
     );
   }
 }

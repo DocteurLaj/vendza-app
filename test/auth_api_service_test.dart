@@ -138,4 +138,27 @@ void main() {
       'new_password': 'new-strong-password',
     });
   });
+
+  test('verify email sends code and email to verification endpoint', () async {
+    final apiClient = _FakeApiClient();
+    final service = AuthApiService(client: apiClient);
+
+    await service.verifyEmail(email: 'buyer@example.com', code: '482913');
+
+    expect(apiClient.lastPath, ApiEndpoints.authVerifyEmail);
+    expect(apiClient.lastBody, {
+      'email': 'buyer@example.com',
+      'code': '482913',
+    });
+  });
+
+  test('resend email verification sends only the email', () async {
+    final apiClient = _FakeApiClient();
+    final service = AuthApiService(client: apiClient);
+
+    await service.resendEmailVerification('buyer@example.com');
+
+    expect(apiClient.lastPath, ApiEndpoints.authResendEmailVerification);
+    expect(apiClient.lastBody, {'email': 'buyer@example.com'});
+  });
 }

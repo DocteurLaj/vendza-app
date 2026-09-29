@@ -83,6 +83,26 @@ class AuthApiService {
     );
   }
 
+  Future<Map<String, dynamic>> verifyEmail({
+    required String email,
+    required String code,
+  }) async {
+    final response = await _client.post(
+      ApiEndpoints.authVerifyEmail,
+      body: {'email': email, 'code': code},
+      authenticated: true,
+    );
+    return Map<String, dynamic>.from(response as Map);
+  }
+
+  Future<void> resendEmailVerification(String email) async {
+    await _client.post(
+      ApiEndpoints.authResendEmailVerification,
+      body: {'email': email},
+      authenticated: true,
+    );
+  }
+
   Future<Map<String, dynamic>> refresh({required String refreshToken}) async {
     final response = await _client.post(
       ApiEndpoints.authRefresh,

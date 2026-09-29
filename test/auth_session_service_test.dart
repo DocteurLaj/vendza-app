@@ -18,6 +18,7 @@ class _TrackingAuthApi extends AuthApiService {
 
   final ApiTokenStore store;
   bool googleCalled = false;
+  bool registerRequiresEmailVerification = false;
   bool get meCalled => meCallCount > 0;
   bool get refreshCalled => refreshCallCount > 0;
   bool logoutCalled = false;
@@ -43,6 +44,27 @@ class _TrackingAuthApi extends AuthApiService {
       'refresh_token': 'google-refresh',
       'token_type': 'bearer',
       'role': 'buyer',
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> register({
+    required String email,
+    required String password,
+    String? fullName,
+    String? phone,
+  }) async {
+    await store.saveTokens(
+      accessToken: 'register-access',
+      refreshToken: 'register-refresh',
+    );
+    return {
+      'access_token': 'register-access',
+      'refresh_token': 'register-refresh',
+      'token_type': 'bearer',
+      'role': 'buyer',
+      'email_verified': !registerRequiresEmailVerification,
+      'requires_email_verification': registerRequiresEmailVerification,
     };
   }
 
@@ -142,6 +164,30 @@ void main() {
     expect(signedIn, isFalse);
     expect(api.googleCalled, isFalse);
     expect(api.meCalled, isFalse);
+  });
+
+  test('email registration reports pending email verification', () async {
+    final store = ApiTokenStore(storage: MemorySecureStorage());
+    final api = _TrackingAuthApi(store)
+      ..registerRequiresEmailVerification = true;
+    final service = AuthSessionService(
+      authApiService: api,
+      googleIdentityProvider: _FakeGoogleIdentityProvider(null),
+      tokenStore: store,
+      catalogSynchronizer: (_) async {},
+      sessionCleaner: () {},
+    );
+
+    final requiresVerification = await service.register(
+      email: 'pending@example.com',
+      password: 'strong-password',
+      fullName: 'Pending User',
+      phone: '+243000000000',
+    );
+
+    expect(requiresVerification, isTrue);
+    expect(api.meCalled, isFalse);
+    expect(store.hasAccessToken, isTrue);
   });
 
   test('restores a persisted authenticated session', () async {
