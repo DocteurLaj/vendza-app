@@ -17,6 +17,7 @@ class ProductApiService {
     bool isActive = true,
     List<String>? images,
     Map<String, dynamic>? variation,
+    int? catalogCategoryId,
   }) async {
     final response = await _client.post(
       ApiEndpoints.productAdd(storeId),
@@ -29,6 +30,7 @@ class ProductApiService {
         'is_active': isActive,
         'images': images,
         'variation': variation,
+        'catalog_category_id': catalogCategoryId,
       },
     );
     return Map<String, dynamic>.from(response as Map);
@@ -61,6 +63,8 @@ class ProductApiService {
     bool? isActive,
     List<String>? images,
     Map<String, dynamic>? variation,
+    int? catalogCategoryId,
+    bool clearCatalogCategory = false,
   }) async {
     final body = <String, dynamic>{};
     if (title != null) body['title'] = title;
@@ -70,6 +74,9 @@ class ProductApiService {
     if (isActive != null) body['is_active'] = isActive;
     if (images != null) body['images'] = images;
     if (variation != null) body['variation'] = variation;
+    if (catalogCategoryId != null || clearCatalogCategory) {
+      body['catalog_category_id'] = catalogCategoryId;
+    }
 
     final response = await _client.put(
       ApiEndpoints.productUpdate(storeId, productId),

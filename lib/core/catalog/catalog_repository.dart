@@ -357,6 +357,7 @@ class CatalogRepository {
     required int stock,
     required String imagePath,
     String category = '',
+    String catalogCategoryId = '',
     Map<String, dynamic>? variation,
   }) {
     return enqueueCreateProduct(
@@ -369,6 +370,7 @@ class CatalogRepository {
       stock: stock,
       imagePath: imagePath,
       category: category,
+      catalogCategoryId: catalogCategoryId,
       variation: variation,
     );
   }
@@ -383,6 +385,7 @@ class CatalogRepository {
     int stock = 1,
     required String imagePath,
     String category = '',
+    String catalogCategoryId = '',
     Map<String, dynamic>? variation,
   }) {
     final trimmedStoreId = storeId.trim();
@@ -404,6 +407,7 @@ class CatalogRepository {
       stock: stock,
       imagePath: imagePath,
       category: category,
+      catalogCategoryId: catalogCategoryId,
       variation: variation,
     );
   }

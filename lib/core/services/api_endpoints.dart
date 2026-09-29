@@ -45,6 +45,7 @@ class ApiEndpoints {
   static const productSearch = '/product/search';
 
   static const categories = '/categories';
+  static const catalogCategories = '/catalog/categories';
 
   static String categoryProducts(int collectionId) {
     return '/categories/$collectionId/products';

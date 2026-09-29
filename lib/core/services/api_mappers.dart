@@ -58,6 +58,7 @@ ProductModel productFromApi(
     status: '',
     description: json['description'] as String? ?? '',
     category: json['category'] as String? ?? '',
+    catalogCategoryId: json['catalog_category_id']?.toString() ?? '',
     storeId: json['store_idstore']?.toString() ?? '',
     storeName: storeName,
     stock: stockValue,

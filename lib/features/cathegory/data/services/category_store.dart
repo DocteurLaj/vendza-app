@@ -7,12 +7,15 @@ import 'package:vendza/shared/models/section_model.dart';
 final List<SectionModel> categories = [];
 final ValueNotifier<int> categoryRevision = ValueNotifier<int>(0);
 
-Future<void> refreshCategories() async {
-  final response = await apiClient.get(ApiEndpoints.categories);
+Future<void> refreshCategories({ApiClient? client}) async {
+  final response = await (client ?? apiClient).get(
+    ApiEndpoints.catalogCategories,
+  );
   final items = unwrapApiList(response)
+      .where((json) => json['is_active'] != false)
       .map(
         (json) => SectionModel(
-          id: json['idcollections'].toString(),
+          id: (json['id'] ?? json['idcollections']).toString(),
           name: json['name'] as String? ?? '',
           imageUrl: 'assets/images/product1.webp',
         ),

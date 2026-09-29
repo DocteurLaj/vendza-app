@@ -253,6 +253,7 @@ class LocalCreateQueue {
     int stock = 1,
     required String imagePath,
     String category = '',
+    String catalogCategoryId = '',
     Map<String, dynamic>? variation,
   }) async {
     final dependsOn = isLocalEntityId(storeId) ? storeId : null;
@@ -272,6 +273,7 @@ class LocalCreateQueue {
         'stock': stock,
         'imagePath': imagePath,
         'category': category,
+        'catalogCategoryId': catalogCategoryId,
         'variation': variation,
       },
     );
@@ -357,6 +359,7 @@ class LocalCreateQueue {
     op.payload['price'] = product.price;
     op.payload['imagePath'] = product.imageurl;
     op.payload['category'] = product.category;
+    op.payload['catalogCategoryId'] = product.catalogCategoryId;
     op.payload['stock'] = product.stock;
     op.payload['isActive'] = product.isActive;
     op.payload['variation'] = _variationMap(product.variants);
@@ -394,6 +397,7 @@ class LocalCreateQueue {
       status: '',
       description: payload['description'] as String? ?? '',
       category: payload['category'] as String? ?? '',
+      catalogCategoryId: payload['catalogCategoryId'] as String? ?? '',
       storeId: payload['storeId'] as String? ?? '',
       storeName: payload['storeName'] as String? ?? '',
       stock: payload['stock'] is int
@@ -785,6 +789,9 @@ class LocalCreateQueue {
             : int.tryParse('${op.payload['stock']}') ?? 1,
         images: imageUrl.isEmpty ? null : [imageUrl],
         variation: variation,
+        catalogCategoryId: int.tryParse(
+          op.payload['catalogCategoryId'] as String? ?? '',
+        ),
       );
       created = await _findProductByTitle(
         storeId: storeId,
@@ -844,6 +851,7 @@ class LocalCreateQueue {
       'price': product.price,
       'imagePath': product.imageurl,
       'category': product.category,
+      'catalogCategoryId': product.catalogCategoryId,
       'stock': product.stock,
       'isActive': product.isActive,
       'localId': product.localId,
@@ -898,6 +906,9 @@ class LocalCreateQueue {
           ? op.payload['stock'] as int
           : int.tryParse('${op.payload['stock']}') ?? current.stock,
       isActive: op.payload['isActive'] as bool? ?? current.isActive,
+      catalogCategoryId:
+          op.payload['catalogCategoryId'] as String? ??
+          current.catalogCategoryId,
       variants: _variantsFromPayload(op.payload['variants']),
       syncStatus: op.entityStatus,
       syncProgress: op.progress,
@@ -1013,6 +1024,11 @@ class LocalCreateQueue {
       isActive: op.payload['isActive'] as bool?,
       images: imageUrl.isEmpty ? null : [imageUrl],
       variation: variation,
+      catalogCategoryId: int.tryParse(
+        op.payload['catalogCategoryId'] as String? ?? '',
+      ),
+      clearCatalogCategory:
+          (op.payload['catalogCategoryId'] as String? ?? '').isEmpty,
     );
 
     final index = _products.indexWhere(

@@ -22,6 +22,7 @@ class ProductModel {
   final String status;
   final String description;
   final String category;
+  final String catalogCategoryId;
   final String storeId;
   final String storeName;
   final int stock;
@@ -41,6 +42,7 @@ class ProductModel {
     required this.status,
     this.description = "",
     this.category = "",
+    this.catalogCategoryId = "",
     this.storeId = "",
     this.storeName = "",
     this.stock = 0,
@@ -61,6 +63,7 @@ class ProductModel {
     String? status,
     String? description,
     String? category,
+    String? catalogCategoryId,
     String? storeId,
     String? storeName,
     int? stock,
@@ -80,6 +83,7 @@ class ProductModel {
       status: status ?? this.status,
       description: description ?? this.description,
       category: category ?? this.category,
+      catalogCategoryId: catalogCategoryId ?? this.catalogCategoryId,
       storeId: storeId ?? this.storeId,
       storeName: storeName ?? this.storeName,
       stock: stock ?? this.stock,

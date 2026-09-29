@@ -9,6 +9,7 @@ import 'package:vendza/features/cathegory/data/services/data_exemple.dart'
     as cathegory_data;
 import 'package:vendza/features/store/data/services/data_exemple.dart';
 import 'package:vendza/shared/models/product_model.dart';
+import 'package:vendza/shared/models/section_model.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
 import 'package:vendza/shared/widgets/input/app_input_decoration.dart';
 import 'package:vendza/shared/widgets/input/from_fiel_widget.dart';
@@ -37,6 +38,7 @@ class _AddProductState extends State<AddProduct> {
   String _stock = "1";
   String _currency = "CDF";
   String _category = "";
+  String _catalogCategoryId = "";
   String? _nameError;
   String? _priceError;
   String? _stockError;
@@ -183,6 +185,7 @@ class _AddProductState extends State<AddProduct> {
         stock: parsedStock,
         imagePath: _imageUpload.enqueuePath,
         category: _category,
+        catalogCategoryId: _catalogCategoryId,
         variation: variationEntries.isEmpty
             ? null
             : Map.fromEntries(variationEntries),
@@ -261,10 +264,11 @@ class _AddProductState extends State<AddProduct> {
                     },
                   ),
                   _ProductCategorySelector(
-                    selectedCategory: _category,
-                    onChanged: (value) {
+                    selectedCategoryId: _catalogCategoryId,
+                    onChanged: (category) {
                       setState(() {
-                        _category = value;
+                        _catalogCategoryId = category?.id ?? '';
+                        _category = category?.name ?? '';
                       });
                     },
                   ),
@@ -598,12 +602,12 @@ class _OptionalVariantsNotice extends StatelessWidget {
 
 class _ProductCategorySelector extends StatelessWidget {
   const _ProductCategorySelector({
-    required this.selectedCategory,
+    required this.selectedCategoryId,
     required this.onChanged,
   });
 
-  final String selectedCategory;
-  final ValueChanged<String> onChanged;
+  final String selectedCategoryId;
+  final ValueChanged<SectionModel?> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -615,7 +619,7 @@ class _ProductCategorySelector extends StatelessWidget {
         Text("Categorie", style: AppTextStyles.label(context)),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          initialValue: selectedCategory.isEmpty ? null : selectedCategory,
+          initialValue: selectedCategoryId.isEmpty ? null : selectedCategoryId,
           isExpanded: true,
           icon: Icon(
             Icons.keyboard_arrow_down_rounded,
@@ -638,14 +642,17 @@ class _ProductCategorySelector extends StatelessWidget {
             ),
             ...categories.map((category) {
               return DropdownMenuItem<String>(
-                value: category.name,
+                value: category.id,
                 child: Text(category.name),
               );
             }),
           ],
           onChanged: (value) {
             if (value == null) return;
-            onChanged(value);
+            final category = categories
+                .where((item) => item.id == value)
+                .firstOrNull;
+            onChanged(value.isEmpty ? null : category);
           },
         ),
         const SizedBox(height: 10),

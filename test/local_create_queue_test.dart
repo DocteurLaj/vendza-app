@@ -80,6 +80,7 @@ class _FakeProductApi extends ProductApiService {
     bool isActive = true,
     List<String>? images,
     Map<String, dynamic>? variation,
+    int? catalogCategoryId,
   }) async {
     addCalls += 1;
     products.add({
@@ -91,6 +92,7 @@ class _FakeProductApi extends ProductApiService {
       'is_active': isActive,
       'images': images ?? const <String>[],
       'variation': variation,
+      'catalog_category_id': catalogCategoryId,
       'store_idstore': storeId,
     });
     return products.last;

@@ -5,12 +5,15 @@ import 'package:vendza/core/session/liked_products_store.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/features/order/data/services/order_draft_store.dart';
 import 'package:vendza/features/order/presentation/pages/order_checkout_page.dart';
+import 'package:vendza/features/cathegory/data/services/data_exemple.dart'
+    as cathegory_data;
 import 'package:vendza/shared/utils/phone_number.dart';
 import 'package:vendza/features/product/presentation/widgets/product_detail_widgets.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
 import 'package:vendza/features/store/data/services/product_management_service.dart';
 import 'package:vendza/features/store/presentation/widgets/custom_image_selector.dart';
 import 'package:vendza/shared/models/product_model.dart';
+import 'package:vendza/shared/models/section_model.dart';
 import 'package:vendza/shared/utils/product_price_formatter.dart';
 import 'package:vendza/shared/widgets/dialog/confirm_delete_dialog.dart';
 import 'package:vendza/shared/widgets/dialog/show_app_popup.dart';
@@ -495,7 +498,8 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
   late final TextEditingController _priceController;
   late final TextEditingController _stockController;
   late final TextEditingController _descriptionController;
-  late final TextEditingController _categoryController;
+  late String _catalogCategoryId;
+  late String _categoryName;
   late String _currency;
   late String _imageUrl;
   late bool _isActive;
@@ -516,7 +520,8 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
     _currency = parsedPrice.currency;
     _imageUrl = product.imageurl;
     _descriptionController = TextEditingController(text: product.description);
-    _categoryController = TextEditingController(text: product.category);
+    _catalogCategoryId = product.catalogCategoryId;
+    _categoryName = product.category;
     _isActive = product.isActive;
     _variants = product.variants
         .map((variant) => _VariantEditorDraft.fromModel(variant))
@@ -529,7 +534,6 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
     _priceController.dispose();
     _stockController.dispose();
     _descriptionController.dispose();
-    _categoryController.dispose();
     for (final variant in _variants) {
       variant.dispose();
     }
@@ -648,7 +652,8 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
         price: "$price $_currency",
         imageurl: imageUrl,
         description: _descriptionController.text.trim(),
-        category: _categoryController.text.trim(),
+        category: _categoryName,
+        catalogCategoryId: _catalogCategoryId,
         stock: parsedStock,
         isActive: _isActive,
         variants: variants,
@@ -747,9 +752,14 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
                       minLines: 3,
                       maxLines: 5,
                     ),
-                    _OwnerTextField(
-                      label: "Catégorie",
-                      controller: _categoryController,
+                    _OwnerCategorySelector(
+                      selectedCategoryId: _catalogCategoryId,
+                      onChanged: (category) {
+                        setState(() {
+                          _catalogCategoryId = category?.id ?? '';
+                          _categoryName = category?.name ?? '';
+                        });
+                      },
                     ),
                     SwitchListTile(
                       value: _isActive,
@@ -894,6 +904,68 @@ class _OwnerVariantsNotice extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _OwnerCategorySelector extends StatelessWidget {
+  const _OwnerCategorySelector({
+    required this.selectedCategoryId,
+    required this.onChanged,
+  });
+
+  final String selectedCategoryId;
+  final ValueChanged<SectionModel?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final categories = cathegory_data.categories;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        initialValue: selectedCategoryId.isEmpty ? null : selectedCategoryId,
+        isExpanded: true,
+        dropdownColor: AppColors.card(context),
+        decoration: InputDecoration(
+          labelText: "Catégorie",
+          filled: true,
+          fillColor: AppColors.searchSurface(context),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.border(context)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.border(context)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: AppColors.accent(context),
+              width: 1.4,
+            ),
+          ),
+        ),
+        items: [
+          const DropdownMenuItem<String>(
+            value: '',
+            child: Text('Sans catégorie'),
+          ),
+          ...categories.map(
+            (category) => DropdownMenuItem<String>(
+              value: category.id,
+              child: Text(category.name),
+            ),
+          ),
+        ],
+        onChanged: (value) {
+          if (value == null) return;
+          final category = categories
+              .where((item) => item.id == value)
+              .firstOrNull;
+          onChanged(value.isEmpty ? null : category);
+        },
       ),
     );
   }
