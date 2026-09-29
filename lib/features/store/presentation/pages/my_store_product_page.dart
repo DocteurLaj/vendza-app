@@ -96,7 +96,11 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
   List<ProductModel> get _collectionPreviewProducts {
     return collection_data.collectionProducts.values
         .expand((products) => products)
-        .where((product) => product.storeId == _currentStore.id || product.storeId == _currentStore.localId)
+        .where(
+          (product) =>
+              product.storeId == _currentStore.id ||
+              product.storeId == _currentStore.localId,
+        )
         .toList();
   }
 
@@ -163,7 +167,9 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
 
   void _selectAllProducts() {
     setState(() {
-      final visible = _catalogTabs.index == 1 ? _offlineProducts : _onlineProducts;
+      final visible = _catalogTabs.index == 1
+          ? _offlineProducts
+          : _onlineProducts;
       _selectedProductIds
         ..clear()
         ..addAll(visible.map((product) => product.id));
@@ -292,11 +298,7 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
                           size: 35,
                         ),
                       )
-                    : FaIcon(
-                        social.icon,
-                        color: social.color,
-                        size: 35,
-                      );
+                    : FaIcon(social.icon, color: social.color, size: 35);
                 return Padding(
                   padding: const EdgeInsets.only(right: 10),
                   child: GestureDetector(
@@ -322,11 +324,6 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
           spacing: 14,
           runSpacing: 14,
           children: [
-            ActionButton(
-              icon: Icons.add_box_outlined,
-              label: "Produit",
-              onTap: _openAddProduct,
-            ),
             ActionButton(
               icon: Icons.category_outlined,
               label: "Catégorie",
