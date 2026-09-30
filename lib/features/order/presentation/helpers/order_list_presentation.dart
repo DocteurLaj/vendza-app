@@ -12,6 +12,8 @@ enum OrderFilterKey {
 
 enum OrderSegmentKey { toProcess, active, completed, cancelled, history }
 
+enum OrderListRole { buyer, seller }
+
 class OrderFilterOption {
   const OrderFilterOption({
     required this.key,
@@ -216,6 +218,36 @@ bool isHistoryOrder(OrderModel order) =>
     orderHistoryStatuses.contains(order.status);
 
 bool canHideOrder(OrderModel order) => isHistoryOrder(order);
+
+String buyerOrdersIntro(OrderSummary summary) {
+  if (summary.activeCount == 0) {
+    return 'Aucune commande en cours. Vos anciennes commandes restent disponibles dans les filtres.';
+  }
+  return 'Suivez uniquement vos commandes en cours. Les commandes livrées ou annulées restent accessibles dans les filtres.';
+}
+
+String sellerOrdersIntro(OrderSummary summary) {
+  if (summary.newCount == 0 && summary.activeCount == 0) {
+    return 'Aucune commande à traiter pour le moment. L’historique reste disponible dans les filtres.';
+  }
+  return 'Priorité aux commandes à traiter. Les contacts client et la prochaine action restent visibles dans chaque commande.';
+}
+
+List<String> visibleOrderMetricLabels({required OrderListRole role}) {
+  return const [];
+}
+
+Map<int, int> activeOrderAttentionByStore(List<OrderModel> orders) {
+  final counts = <int, int>{};
+  for (final order in orders) {
+    final storeId = order.storeId;
+    if (storeId == null || !orderActiveStatuses.contains(order.status)) {
+      continue;
+    }
+    counts[storeId] = (counts[storeId] ?? 0) + 1;
+  }
+  return Map.unmodifiable(counts);
+}
 
 OrderFilterOption orderAdvancedFilterOption(OrderFilterKey key) {
   return orderAdvancedFilterOptions.firstWhere((option) => option.key == key);

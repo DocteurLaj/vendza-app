@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/sync/entity_sync_status.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
+import 'package:vendza/shared/widgets/badge/attention_badge.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
 import 'package:vendza/shared/widgets/sync/sync_status_strip.dart';
 
@@ -17,6 +18,8 @@ class StoreWidget extends StatelessWidget {
     this.syncProgress = 1,
     this.syncError,
     this.onRetrySync,
+    this.attentionCount = 0,
+    this.attentionLabel,
   });
 
   final String name;
@@ -28,6 +31,8 @@ class StoreWidget extends StatelessWidget {
   final double syncProgress;
   final String? syncError;
   final VoidCallback? onRetrySync;
+  final int attentionCount;
+  final String? attentionLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -113,19 +118,32 @@ class StoreWidget extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: AppColors.softSurface(context),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.border(context)),
-                ),
-                child: Icon(
-                  Icons.arrow_forward_ios,
-                  color: AppColors.accent(context),
-                  size: 13,
-                ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (attentionCount > 0) ...[
+                    AttentionBadge(
+                      count: attentionCount,
+                      label: attentionLabel,
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.softSurface(context),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.border(context)),
+                    ),
+                    child: Icon(
+                      Icons.arrow_forward_ios,
+                      color: AppColors.accent(context),
+                      size: 13,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

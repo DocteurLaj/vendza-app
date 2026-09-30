@@ -4,6 +4,9 @@ import 'package:vendza/features/home/data/models/store_model.dart' as detail;
 import 'package:vendza/features/notification/data/models/notification_model.dart';
 import 'package:vendza/features/notification/data/services/notification_badge_counters.dart';
 import 'package:vendza/features/notification/data/services/notification_store.dart';
+import 'package:vendza/features/order/data/services/order_api_service.dart';
+import 'package:vendza/features/order/presentation/helpers/order_list_presentation.dart';
+import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
 import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
 import 'package:vendza/features/store/presentation/pages/add_store_page.dart';
@@ -25,12 +28,71 @@ class MyStorePage extends StatefulWidget {
 
 class _MyStorePageState extends State<MyStorePage> {
   final _searchController = TextEditingController();
+  final _orderApi = OrderApiService();
   String _searchQuery = '';
+  Map<String, int> _activeOrderAttentionByStore = const {};
+  String _loadedStoreSignature = '';
+  bool _loadingStoreAttention = false;
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _scheduleStoreAttentionLoad(List<ListStoreModel> stores) {
+    final ids = stores
+        .map((store) => store.id.trim())
+        .where((id) => int.tryParse(id) != null)
+        .toList(growable: false);
+    final signature = ids.join('|');
+    if (signature == _loadedStoreSignature || _loadingStoreAttention) return;
+    _loadedStoreSignature = signature;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadStoreAttention(ids);
+    });
+  }
+
+  Future<void> _loadStoreAttention(List<String> storeIds) async {
+    if (storeIds.isEmpty) {
+      if (mounted) setState(() => _activeOrderAttentionByStore = const {});
+      return;
+    }
+    setState(() => _loadingStoreAttention = true);
+    final counts = <String, int>{};
+    for (final rawId in storeIds) {
+      final storeId = int.tryParse(rawId);
+      if (storeId == null) continue;
+      try {
+        final orders = await _orderApi.storeOrders(
+          storeId: storeId,
+          pageSize: 100,
+        );
+        final active = activeOrderAttentionByStore(orders)[storeId] ?? 0;
+        if (active > 0) counts[rawId] = active;
+      } on Object {
+        // Keep the page usable; unread notifications still provide attention.
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _activeOrderAttentionByStore = Map.unmodifiable(counts);
+      _loadingStoreAttention = false;
+    });
+  }
+
+  Map<String, int> _mergedStoreAttention(
+    NotificationBadgeCounters counters,
+    List<ListStoreModel> stores,
+  ) {
+    final result = <String, int>{};
+    for (final store in stores) {
+      final apiCount = _activeOrderAttentionByStore[store.id] ?? 0;
+      final unreadCount = counters.storeOrdersFor(store.id);
+      final count = apiCount > unreadCount ? apiCount : unreadCount;
+      if (count > 0) result[store.id] = count;
+    }
+    return result;
   }
 
   @override
@@ -67,6 +129,7 @@ class _MyStorePageState extends State<MyStorePage> {
                           (store) => matchesStoreListItem(_searchQuery, store),
                         )
                         .toList();
+                    _scheduleStoreAttentionLoad(ownedStores);
 
                     return RefreshIndicator(
                       onRefresh: () => refreshCatalogWithFeedback(
@@ -94,10 +157,14 @@ class _MyStorePageState extends State<MyStorePage> {
                                     >(
                                       valueListenable: notificationStore,
                                       builder: (context, notifications, _) {
-                                        final orderCount =
+                                        final counters =
                                             notificationBadgeCounters(
                                               notifications,
-                                            ).orders;
+                                            );
+                                        final orderCount =
+                                            counters.orders +
+                                            _activeOrderAttentionByStore.values
+                                                .fold<int>(0, (a, b) => a + b);
                                         return ListTile(
                                           tileColor: Theme.of(
                                             context,
@@ -162,6 +229,12 @@ class _MyStorePageState extends State<MyStorePage> {
                                 stores: filteredOwned,
                                 emptyText:
                                     "Vous n'avez pas encore cree de boutique.",
+                                attentionCounts: _mergedStoreAttention(
+                                  notificationBadgeCounters(
+                                    notificationStore.value,
+                                  ),
+                                  filteredOwned,
+                                ),
                                 onStoreTap: (store) {
                                   Navigator.push(
                                     context,

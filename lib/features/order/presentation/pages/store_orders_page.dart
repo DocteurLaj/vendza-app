@@ -162,8 +162,7 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
                     maxWidth: 720,
                     child: _OrdersHeader(
                       title: 'Commandes',
-                      subtitle:
-                          '${summary.newCount} à traiter · ${summary.activeCount - summary.newCount} en cours · ${summary.historyCount} historique',
+                      subtitle: sellerOrdersIntro(summary),
                       summary: summary,
                     ),
                   ),
@@ -256,7 +255,7 @@ class _StoreOrderCard extends StatelessWidget {
       expanded: expanded,
       onToggle: onToggle,
       collapsedSubtitle:
-          '${vendzaDateTimeLabel(order.createdAt)} · ${order.totalAmount.toStringAsFixed(0)} · ${order.items.length} article(s)',
+          '${vendzaDateTimeLabel(order.createdAt)} · ${order.items.length} article(s) · ${order.totalAmount.toStringAsFixed(0)}',
       expandedChildren: [
         _OrderItemsPreview(items: order.items),
         if ((order.contactPhone ?? '').trim().isNotEmpty) ...[
@@ -488,20 +487,6 @@ class _OrdersHeader extends StatelessWidget {
             subtitle,
             style: TextStyle(color: AppColors.textSecondary(context)),
           ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _MetricChip(label: 'Total', value: '${summary.total}'),
-              _MetricChip(label: 'Nouvelles', value: '${summary.newCount}'),
-              _MetricChip(label: 'En cours', value: '${summary.activeCount}'),
-              _MetricChip(
-                label: 'Historique',
-                value: '${summary.historyCount}',
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -604,33 +589,6 @@ class _AdvancedFilterButton extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MetricChip extends StatelessWidget {
-  const _MetricChip({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.card(context).withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.border(context)),
-      ),
-      child: Text(
-        '$label · $value',
-        style: TextStyle(
-          color: AppColors.textPrimary(context),
-          fontWeight: FontWeight.w800,
-          fontSize: 12,
         ),
       ),
     );

@@ -13,12 +13,14 @@ class StoreListSection extends StatelessWidget {
     required this.stores,
     required this.onStoreTap,
     this.emptyText = "Aucune boutique disponible",
+    this.attentionCounts = const {},
   });
 
   final String title;
   final List<ListStoreModel> stores;
   final ValueChanged<ListStoreModel> onStoreTap;
   final String emptyText;
+  final Map<String, int> attentionCounts;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +59,8 @@ class StoreListSection extends StatelessWidget {
                         store.localId.isNotEmpty ? store.localId : store.id,
                       )
                     : null,
+                attentionCount: attentionCounts[store.id] ?? 0,
+                attentionLabel: 'À traiter',
                 onTap: () => onStoreTap(store),
               ),
             ),
