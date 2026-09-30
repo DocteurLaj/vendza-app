@@ -619,48 +619,60 @@ class _ProductCategorySelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final categories = cathegory_data.categories;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text("Categorie", style: AppTextStyles.label(context)),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: selectedCategoryId.isEmpty ? null : selectedCategoryId,
-          isExpanded: true,
-          icon: Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: AppColors.iconAccent(context),
-          ),
-          dropdownColor: AppColors.card(context),
-          style: TextStyle(
-            color: AppColors.textPrimary(context),
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-          decoration: AppInputDecoration.field(
-            context,
-            hintText: "Choisir la categorie du produit",
-          ),
-          items: [
-            const DropdownMenuItem<String>(
-              value: "",
-              child: Text("Sans catégorie"),
-            ),
-            ...categories.map((category) {
-              return DropdownMenuItem<String>(
-                value: category.id,
-                child: Text(category.name),
-              );
-            }),
-          ],
-          onChanged: (value) {
-            if (value == null) return;
-            final category = categories
-                .where((item) => item.id == value)
-                .firstOrNull;
-            onChanged(value.isEmpty ? null : category);
+        ValueListenableBuilder<int>(
+          valueListenable: cathegory_data.categoryRevision,
+          builder: (context, _, _) {
+            final categories = List<SectionModel>.from(
+              cathegory_data.categories,
+            );
+            final currentValue =
+                categories.any((category) => category.id == selectedCategoryId)
+                ? selectedCategoryId
+                : null;
+
+            return DropdownButtonFormField<String>(
+              key: ValueKey('product-category-${categories.length}'),
+              initialValue: currentValue,
+              isExpanded: true,
+              icon: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: AppColors.iconAccent(context),
+              ),
+              dropdownColor: AppColors.card(context),
+              style: TextStyle(
+                color: AppColors.textPrimary(context),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              decoration: AppInputDecoration.field(
+                context,
+                hintText: "Choisir la categorie du produit",
+              ),
+              items: [
+                const DropdownMenuItem<String>(
+                  value: "",
+                  child: Text("Sans catégorie"),
+                ),
+                ...categories.map((category) {
+                  return DropdownMenuItem<String>(
+                    value: category.id,
+                    child: Text(category.name),
+                  );
+                }),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                final category = categories
+                    .where((item) => item.id == value)
+                    .firstOrNull;
+                onChanged(value.isEmpty ? null : category);
+              },
+            );
           },
         ),
         const SizedBox(height: 10),
