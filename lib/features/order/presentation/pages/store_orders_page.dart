@@ -9,6 +9,7 @@ import 'package:vendza/features/order/presentation/helpers/order_list_presentati
 import 'package:vendza/features/order/presentation/helpers/order_status_presentation.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/shared/utils/date_time_label.dart';
+import 'package:vendza/shared/widgets/badge/attention_badge.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/media/context_image.dart';
@@ -175,6 +176,14 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
                           child: _OrderSegmentTabs(
                             selected: _segment,
                             options: sellerOrderSegmentOptions,
+                            attentionCounts: {
+                              for (final option in sellerOrderSegmentOptions)
+                                option.key: sellerAttentionCountForSegment(
+                                  _orders,
+                                  option.key,
+                                  hiddenIds: _hiddenIds,
+                                ),
+                            },
                             onSelected: (segment) =>
                                 setState(() => _segment = segment),
                           ),
@@ -254,10 +263,11 @@ class _StoreOrderCard extends StatelessWidget {
       order: order,
       expanded: expanded,
       onToggle: onToggle,
+      attentionLabel: orderSellerAttentionLabel(order),
       collapsedSubtitle:
           '${vendzaDateTimeLabel(order.createdAt)} · ${order.items.length} article(s) · ${order.totalAmount.toStringAsFixed(0)}',
       expandedChildren: [
-        _OrderItemsPreview(items: order.items),
+        _OrderItemsPreview(order: order),
         if ((order.contactPhone ?? '').trim().isNotEmpty) ...[
           const SizedBox(height: 12),
           _CustomerContactRow(phone: order.contactPhone!.trim()),
@@ -323,6 +333,7 @@ class _PremiumOrderShell extends StatelessWidget {
     required this.order,
     required this.expanded,
     required this.onToggle,
+    this.attentionLabel,
     required this.collapsedSubtitle,
     required this.expandedChildren,
   });
@@ -330,6 +341,7 @@ class _PremiumOrderShell extends StatelessWidget {
   final OrderModel order;
   final bool expanded;
   final VoidCallback onToggle;
+  final String? attentionLabel;
   final String collapsedSubtitle;
   final List<Widget> expandedChildren;
 
@@ -391,6 +403,10 @@ class _PremiumOrderShell extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
+                if (attentionLabel != null) ...[
+                  AttentionBadge(count: 1, label: attentionLabel),
+                  const SizedBox(width: 6),
+                ],
                 _StatusPill(status: order.status),
                 IconButton(
                   tooltip: expanded ? 'Plier' : 'Déplier',
@@ -497,11 +513,13 @@ class _OrderSegmentTabs extends StatelessWidget {
   const _OrderSegmentTabs({
     required this.selected,
     required this.options,
+    required this.attentionCounts,
     required this.onSelected,
   });
 
   final OrderSegmentKey selected;
   final List<OrderSegmentOption> options;
+  final Map<OrderSegmentKey, int> attentionCounts;
   final ValueChanged<OrderSegmentKey> onSelected;
 
   @override
@@ -514,7 +532,19 @@ class _OrderSegmentTabs extends StatelessWidget {
               (option) => Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
-                  label: Text(option.label),
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(option.label),
+                      if ((attentionCounts[option.key] ?? 0) > 0) ...[
+                        const SizedBox(width: 6),
+                        AttentionBadge(
+                          count: attentionCounts[option.key] ?? 0,
+                          small: true,
+                        ),
+                      ],
+                    ],
+                  ),
                   selected: selected == option.key,
                   onSelected: (_) => onSelected(option.key),
                   showCheckmark: false,
@@ -670,15 +700,15 @@ class _InfoBoxWithAction extends StatelessWidget {
 }
 
 class _OrderItemsPreview extends StatelessWidget {
-  const _OrderItemsPreview({required this.items});
+  const _OrderItemsPreview({required this.order});
 
-  final List<OrderItemModel> items;
+  final OrderModel order;
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
+    if (order.items.isEmpty) return const SizedBox.shrink();
     return Column(
-      children: items
+      children: order.items
           .map(
             (item) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -691,14 +721,27 @@ class _OrderItemsPreview extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      '${item.productName ?? 'Produit'} × ${item.quantity}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppColors.textPrimary(context),
-                        fontWeight: FontWeight.w700,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${item.productName ?? 'Produit'} × ${item.quantity}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: AppColors.textPrimary(context),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (orderItemNeedsSellerAttention(order, item)) ...[
+                          const SizedBox(height: 4),
+                          const AttentionBadge(
+                            count: 1,
+                            small: true,
+                            label: 'À préparer',
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   Text(

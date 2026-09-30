@@ -217,6 +217,29 @@ OrderSummary summarizeOrders(
 bool isHistoryOrder(OrderModel order) =>
     orderHistoryStatuses.contains(order.status);
 
+bool orderNeedsSellerAttention(OrderModel order) => order.status == 'pending';
+
+bool orderItemNeedsSellerAttention(OrderModel order, OrderItemModel item) {
+  return orderNeedsSellerAttention(order);
+}
+
+String? orderSellerAttentionLabel(OrderModel order) {
+  if (order.status == 'pending') return 'À traiter';
+  return null;
+}
+
+int sellerAttentionCountForSegment(
+  List<OrderModel> orders,
+  OrderSegmentKey segment, {
+  required Set<int> hiddenIds,
+}) {
+  if (segment != OrderSegmentKey.toProcess) return 0;
+  return orders
+      .where((order) => !hiddenIds.contains(order.id))
+      .where(orderNeedsSellerAttention)
+      .length;
+}
+
 bool canHideOrder(OrderModel order) => isHistoryOrder(order);
 
 String buyerOrdersIntro(OrderSummary summary) {

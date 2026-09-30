@@ -55,4 +55,24 @@ void main() {
 
     expect(counts, {7: 2, 9: 1});
   });
+
+  test('seller attention follows the exact order and product task', () {
+    final pending = _order(1, 'pending', storeId: 7);
+    final confirmed = _order(2, 'confirmed', storeId: 7);
+    final delivered = _order(3, 'delivered', storeId: 7);
+
+    expect(orderNeedsSellerAttention(pending), isTrue);
+    expect(orderSellerAttentionLabel(pending), 'À traiter');
+    expect(
+      orderItemNeedsSellerAttention(pending, pending.items.single),
+      isTrue,
+    );
+
+    expect(orderNeedsSellerAttention(confirmed), isFalse);
+    expect(
+      orderItemNeedsSellerAttention(confirmed, confirmed.items.single),
+      isFalse,
+    );
+    expect(orderNeedsSellerAttention(delivered), isFalse);
+  });
 }
