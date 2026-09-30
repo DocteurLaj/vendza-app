@@ -88,7 +88,9 @@ class _MyStorePageState extends State<MyStorePage> {
     final result = <String, int>{};
     for (final store in stores) {
       final apiCount = _activeOrderAttentionByStore[store.id] ?? 0;
-      final unreadCount = counters.storeOrdersFor(store.id);
+      final unreadCount =
+          counters.storeOrdersFor(store.id) +
+          counters.storeAttentionFor(store.id);
       final count = apiCount > unreadCount ? apiCount : unreadCount;
       if (count > 0) result[store.id] = count;
     }

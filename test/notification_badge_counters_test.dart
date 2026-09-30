@@ -34,12 +34,14 @@ void main() {
         notif(id: '3', name: 'store_order', storeId: 7, orderId: 44),
         notif(id: '4', name: 'order', orderId: 45),
         notif(id: '5', name: 'message', threadType: 'chat', read: true),
+        notif(id: '6', name: 'product_low_stock', storeId: 7),
       ]);
 
-      expect(counters.store, 1);
+      expect(counters.store, 2);
       expect(counters.chat, 1);
       expect(counters.orders, 2);
       expect(counters.storeOrdersFor('7'), 1);
+      expect(counters.storeAttentionFor('7'), 2);
     },
   );
 

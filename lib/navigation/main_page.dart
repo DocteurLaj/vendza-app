@@ -130,6 +130,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                       chat: 0,
                                       orders: 0,
                                       storeOrders: {},
+                                      storeAttention: {},
                                     );
 
                               return _buildNavigationRail(
@@ -180,6 +181,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                   chat: 0,
                                   orders: 0,
                                   storeOrders: {},
+                                  storeAttention: {},
                                 );
 
                           return _buildBottomNavigationBar(

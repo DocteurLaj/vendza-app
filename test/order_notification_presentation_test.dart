@@ -69,5 +69,32 @@ void main() {
       expect(notification.actionLabel, isNull);
       expect(notification.categoryLabel, 'Annonce');
     });
+
+    test('turns product stock alerts into store actions', () {
+      final low = NotificationModel(
+        id: '3',
+        name: 'product_low_stock',
+        description: 'Stock faible pour Savon doux: 2 restants.',
+        imageUrl: '',
+        isRead: false,
+        storeId: 7,
+        productId: 12,
+      );
+      final out = NotificationModel(
+        id: '4',
+        name: 'product_out_of_stock',
+        description: 'Savon doux est en rupture de stock.',
+        imageUrl: '',
+        isRead: false,
+        storeId: 7,
+        productId: 12,
+      );
+
+      expect(low.displayTitle, 'Stock faible');
+      expect(out.displayTitle, 'Rupture de stock');
+      expect(low.categoryLabel, 'Stock');
+      expect(low.actionLabel, 'Modifier le stock');
+      expect(low.icon, Icons.inventory_2_outlined);
+    });
   });
 }
