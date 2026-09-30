@@ -10,10 +10,12 @@ import 'package:vendza/core/services/deep_link/deep_link_service.dart';
 import 'package:vendza/core/session/notifications_enabled_store.dart';
 import 'package:vendza/features/home/presantation/pages/home.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
+import 'package:vendza/features/notification/data/services/notification_badge_counters.dart';
 import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/notification/presantation/pages/notification_page.dart';
 import 'package:vendza/features/profil/presantation/pages/profile_page.dart';
 import 'package:vendza/features/store/presentation/pages/my_store_page.dart';
+import 'package:vendza/shared/widgets/badge/attention_badge.dart';
 
 class _NavItem {
   const _NavItem({required this.icon, required this.label});
@@ -25,11 +27,12 @@ class _NavItem {
 const _navItems = [
   _NavItem(icon: Symbols.home, label: 'Home'),
   _NavItem(icon: Symbols.store, label: 'Store'),
-  _NavItem(icon: Symbols.notifications, label: 'Notifications'),
+  _NavItem(icon: Symbols.notifications, label: 'Chat'),
   _NavItem(icon: Symbols.person, label: 'Profile'),
 ];
 
-const _notificationNavIndex = 2;
+const _chatNavIndex = 2;
+const _storeNavIndex = 1;
 const _homeNavIndex = 0;
 
 class MainPage extends StatefulWidget {
@@ -75,6 +78,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
   void _setIndex(int nextIndex) {
     if (index == nextIndex) return;
+    if (nextIndex == _storeNavIndex) {
+      markStoreAttentionNotificationsAsRead();
+    }
+    if (nextIndex == _chatNavIndex) {
+      markChatNotificationsAsRead();
+    }
     setState(() => index = nextIndex);
     _syncCatalogPolling();
   }
@@ -109,16 +118,23 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       ValueListenableBuilder<bool>(
                         valueListenable: notificationsEnabledStore,
                         builder: (context, notificationsEnabled, _) {
-                          return ValueListenableBuilder<List<NotificationModel>>(
+                          return ValueListenableBuilder<
+                            List<NotificationModel>
+                          >(
                             valueListenable: notificationStore,
                             builder: (context, notifications, _) {
-                              final unreadCount = notificationsEnabled
-                                  ? unreadNotificationCount(notifications)
-                                  : 0;
+                              final counters = notificationsEnabled
+                                  ? notificationBadgeCounters(notifications)
+                                  : const NotificationBadgeCounters(
+                                      store: 0,
+                                      chat: 0,
+                                      orders: 0,
+                                      storeOrders: {},
+                                    );
 
                               return _buildNavigationRail(
                                 context: context,
-                                unreadCount: unreadCount,
+                                counters: counters,
                               );
                             },
                           );
@@ -157,13 +173,18 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       return ValueListenableBuilder<List<NotificationModel>>(
                         valueListenable: notificationStore,
                         builder: (context, notifications, _) {
-                          final unreadCount = notificationsEnabled
-                              ? unreadNotificationCount(notifications)
-                              : 0;
+                          final counters = notificationsEnabled
+                              ? notificationBadgeCounters(notifications)
+                              : const NotificationBadgeCounters(
+                                  store: 0,
+                                  chat: 0,
+                                  orders: 0,
+                                  storeOrders: {},
+                                );
 
                           return _buildBottomNavigationBar(
                             context: context,
-                            unreadCount: unreadCount,
+                            counters: counters,
                           );
                         },
                       );
@@ -177,7 +198,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
   Widget _buildNavigationRail({
     required BuildContext context,
-    required int unreadCount,
+    required NotificationBadgeCounters counters,
   }) {
     return NavigationRail(
       extended: _railExtended,
@@ -216,8 +237,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       destinations: [
         for (var i = 0; i < _navItems.length; i++)
           NavigationRailDestination(
-            icon: i == _notificationNavIndex
-                ? _NotificationNavIcon(unreadCount: unreadCount)
+            icon: i == _chatNavIndex
+                ? BadgedIcon(icon: _navItems[i].icon, count: counters.chat)
+                : i == _storeNavIndex
+                ? BadgedIcon(icon: _navItems[i].icon, count: counters.storeNav)
                 : Icon(_navItems[i].icon),
             label: Text(_navItems[i].label),
           ),
@@ -227,7 +250,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
   Widget _buildBottomNavigationBar({
     required BuildContext context,
-    required int unreadCount,
+    required NotificationBadgeCounters counters,
   }) {
     return BottomNavigationBar(
       currentIndex: index,
@@ -241,73 +264,14 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       items: [
         for (var i = 0; i < _navItems.length; i++)
           BottomNavigationBarItem(
-            icon: i == _notificationNavIndex
-                ? _NotificationNavIcon(unreadCount: unreadCount)
+            icon: i == _chatNavIndex
+                ? BadgedIcon(icon: _navItems[i].icon, count: counters.chat)
+                : i == _storeNavIndex
+                ? BadgedIcon(icon: _navItems[i].icon, count: counters.storeNav)
                 : Icon(_navItems[i].icon),
             label: _navItems[i].label,
           ),
       ],
-    );
-  }
-}
-
-class _NotificationNavIcon extends StatelessWidget {
-  const _NotificationNavIcon({required this.unreadCount});
-
-  final int unreadCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final displayCount = unreadCount > 99 ? '99+' : '$unreadCount';
-    final isDark = AppColors.isDark(context);
-
-    return SizedBox(
-      width: 28,
-      height: 28,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          const Icon(Symbols.notifications),
-          Positioned(
-            right: -6,
-            top: -4,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              switchInCurve: Curves.easeOutBack,
-              switchOutCurve: Curves.easeInCubic,
-              child: unreadCount <= 0
-                  ? const SizedBox.shrink()
-                  : Container(
-                      key: ValueKey(displayCount),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE74747),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: isDark ? AppColors.darkSurface : Colors.white,
-                          width: 1.4,
-                        ),
-                      ),
-                      child: Text(
-                        displayCount,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          height: 1,
-                        ),
-                      ),
-                    ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -12,6 +12,9 @@ import 'package:vendza/features/cathegory/presentation/pages/cathegory_page.dart
 import 'package:vendza/features/collection/data/services/data_exemple.dart'
     as collection_data;
 import 'package:vendza/features/collection/presentation/pages/collection_page.dart';
+import 'package:vendza/features/notification/data/models/notification_model.dart';
+import 'package:vendza/features/notification/data/services/notification_badge_counters.dart';
+import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/product/presentation/pages/product_detail_page.dart';
 import 'package:vendza/features/product/presentation/pages/add_product.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
@@ -386,19 +389,29 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
                 });
               },
             ),
-            ActionButton(
-              icon: Icons.receipt_long_outlined,
-              label: "Commandes",
-              onTap: () {
-                _requireSyncedStore(() {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          StoreOrdersPage(store: _currentStore),
-                    ),
-                  );
-                });
+            ValueListenableBuilder<List<NotificationModel>>(
+              valueListenable: notificationStore,
+              builder: (context, notifications, _) {
+                final orderCount = notificationBadgeCounters(
+                  notifications,
+                ).storeOrdersFor(_currentStore.id);
+                return ActionButton(
+                  icon: Icons.receipt_long_outlined,
+                  label: "Commandes",
+                  badgeCount: orderCount,
+                  onTap: () {
+                    _requireSyncedStore(() {
+                      markStoreOrderNotificationsAsRead(_currentStore.id);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              StoreOrdersPage(store: _currentStore),
+                        ),
+                      );
+                    });
+                  },
+                );
               },
             ),
             ActionButton(

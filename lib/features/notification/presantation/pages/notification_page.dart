@@ -19,6 +19,14 @@ class NotificationPage extends StatefulWidget {
 }
 
 class _NotificationPageState extends State<NotificationPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      markChatNotificationsAsRead();
+    });
+  }
+
   void _openNotification(NotificationModel notification) {
     markNotificationAsRead(notification.id);
 

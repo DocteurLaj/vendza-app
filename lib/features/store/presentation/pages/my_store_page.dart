@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/utils/search/catalog_search.dart';
 import 'package:vendza/features/home/data/models/store_model.dart' as detail;
+import 'package:vendza/features/notification/data/models/notification_model.dart';
+import 'package:vendza/features/notification/data/services/notification_badge_counters.dart';
+import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
 import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
 import 'package:vendza/features/store/presentation/pages/add_store_page.dart';
@@ -8,6 +11,7 @@ import 'package:vendza/features/store/presentation/pages/my_store_product_page.d
 import 'package:vendza/features/store/presentation/pages/store_detail_page.dart';
 import 'package:vendza/features/store/presentation/widgets/store_list_section.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
+import 'package:vendza/shared/widgets/badge/attention_badge.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/search/search_bar.dart';
 import 'package:vendza/shared/utils/catalog_refresh_feedback.dart';
@@ -84,31 +88,53 @@ class _MyStorePageState extends State<MyStorePage> {
                                   20,
                                   16,
                                 ),
-                                child: ListTile(
-                                  tileColor: Theme.of(
-                                    context,
-                                  ).colorScheme.surface,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  leading: const Icon(
-                                    Icons.receipt_long_outlined,
-                                  ),
-                                  title: const Text('Mes commandes'),
-                                  subtitle: const Text(
-                                    'Voir les commandes passees',
-                                  ),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const BuyerOrdersPage(),
-                                      ),
-                                    );
-                                  },
-                                ),
+                                child:
+                                    ValueListenableBuilder<
+                                      List<NotificationModel>
+                                    >(
+                                      valueListenable: notificationStore,
+                                      builder: (context, notifications, _) {
+                                        final orderCount =
+                                            notificationBadgeCounters(
+                                              notifications,
+                                            ).orders;
+                                        return ListTile(
+                                          tileColor: Theme.of(
+                                            context,
+                                          ).colorScheme.surface,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          leading: const Icon(
+                                            Icons.receipt_long_outlined,
+                                          ),
+                                          title: const Text('Mes commandes'),
+                                          subtitle: const Text(
+                                            'Voir les commandes passees',
+                                          ),
+                                          trailing: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              AttentionBadge(count: orderCount),
+                                              const SizedBox(width: 8),
+                                              const Icon(Icons.chevron_right),
+                                            ],
+                                          ),
+                                          onTap: () {
+                                            markOrderNotificationsAsRead();
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    const BuyerOrdersPage(),
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
                               ),
                               StoreListSection(
                                 title: "Mes favoris",
