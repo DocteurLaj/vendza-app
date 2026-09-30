@@ -32,6 +32,7 @@ List<OwnerCategoryGroup> ownerCategoryGroups({
   for (final product in products.where(
     (product) => productBelongsToOwnerStore(product, store),
   )) {
+    if (!product.isActive) continue;
     final category =
         categoriesById[product.catalogCategoryId] ??
         categoriesByName[product.category.trim().toLowerCase()];
@@ -58,6 +59,7 @@ List<ProductModel> productsForOwnerCategory({
   final lowerName = category.name.trim().toLowerCase();
   return products
       .where((product) => productBelongsToOwnerStore(product, store))
+      .where((product) => product.isActive)
       .where(
         (product) =>
             product.catalogCategoryId == category.id ||

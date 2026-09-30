@@ -76,6 +76,21 @@ void main() {
     },
   );
 
+  test('owner categories ignore inactive products', () {
+    final categories = [
+      SectionModel(id: '10', name: 'Electronique', imageUrl: ''),
+    ];
+    final groups = ownerCategoryGroups(
+      store: store,
+      products: [
+        product(id: 'p1', storeId: '1', categoryId: '10', active: false),
+      ],
+      globalCategories: categories,
+    );
+
+    expect(groups, isEmpty);
+  });
+
   test(
     'collection assignable products are scoped to the current store and online ids',
     () {

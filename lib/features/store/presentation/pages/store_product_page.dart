@@ -4,6 +4,8 @@ import 'package:vendza/core/utils/search/catalog_search.dart';
 import 'package:vendza/features/cathegory/presentation/pages/cathegory_page.dart';
 import 'package:vendza/features/collection/presentation/pages/collection_page.dart';
 import 'package:vendza/features/home/data/models/store_model.dart';
+import 'package:vendza/features/store/data/models/store_model.dart'
+    as list_store_model;
 import 'package:vendza/features/store/data/services/data_exemple.dart';
 import 'package:vendza/features/store/data/services/product_management_service.dart';
 import 'package:vendza/features/store/presentation/pages/store_all_products_page.dart';
@@ -117,7 +119,16 @@ class _StoreProductPageState extends State<StoreProductPage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => CathegoryPage(),
+                                  builder: (context) => CathegoryPage(
+                                    store: list_store_model.ListStoreModel(
+                                      id: widget.store.id,
+                                      name: widget.store.name,
+                                      description:
+                                          widget.store.description ?? '',
+                                      imageUrl: widget.store.image,
+                                      rating: 0,
+                                    ),
+                                  ),
                                 ),
                               );
                             },
