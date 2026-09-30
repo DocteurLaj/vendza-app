@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:vendza/core/catalog/catalog_repository.dart';
 import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/services/api_client.dart';
@@ -7,6 +9,7 @@ import 'package:vendza/core/services/push_notification_service.dart';
 import 'package:vendza/core/session/current_user_store.dart';
 import 'package:vendza/features/auth/data/services/auth_api_service.dart';
 import 'package:vendza/features/auth/data/services/google_identity_service.dart';
+import 'package:vendza/features/notification/data/services/realtime_notification_service.dart';
 import 'package:vendza/features/profil/data/model/user_model.dart';
 import 'package:vendza/features/store/data/services/store_customization_state.dart';
 
@@ -161,6 +164,7 @@ class AuthSessionService {
     try {
       await _authApiService.logout();
     } finally {
+      await realtimeNotificationService.stop();
       _sessionCleaner();
       clearCurrentUser();
       try {
@@ -177,6 +181,7 @@ class AuthSessionService {
       confirmation: 'SUPPRIMER',
       password: password,
     );
+    await realtimeNotificationService.stop();
     await _tokenStore.clear();
     _sessionCleaner();
     clearCurrentUser();
@@ -189,6 +194,7 @@ class AuthSessionService {
   }
 
   Future<void> _invalidateLocalSession() async {
+    await realtimeNotificationService.stop();
     await _tokenStore.clear();
     _sessionCleaner();
     clearCurrentUser();
@@ -236,6 +242,7 @@ class AuthSessionService {
       syncStoreCustomizationFromCatalog();
     }
     await pushNotificationService.syncCurrentToken();
+    unawaited(realtimeNotificationService.start());
   }
 }
 
