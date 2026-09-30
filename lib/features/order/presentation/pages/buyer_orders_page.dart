@@ -4,6 +4,7 @@ import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/order/data/models/order_model.dart';
 import 'package:vendza/features/order/data/services/order_api_service.dart';
+import 'package:vendza/features/order/data/services/realtime_order_store.dart';
 import 'package:vendza/features/order/presentation/helpers/order_list_presentation.dart';
 import 'package:vendza/features/order/presentation/helpers/order_status_presentation.dart';
 import 'package:vendza/shared/utils/date_time_label.dart';
@@ -32,7 +33,21 @@ class _BuyerOrdersPageState extends State<BuyerOrdersPage> {
   @override
   void initState() {
     super.initState();
+    liveOrderStore.addListener(_syncLiveOrders);
     _load();
+  }
+
+  @override
+  void dispose() {
+    liveOrderStore.removeListener(_syncLiveOrders);
+    super.dispose();
+  }
+
+  void _syncLiveOrders() {
+    if (!mounted) return;
+    setState(() {
+      _orders = List<OrderModel>.from(liveOrderStore.value);
+    });
   }
 
   Future<void> _load() async {
@@ -47,6 +62,7 @@ class _BuyerOrdersPageState extends State<BuyerOrdersPage> {
         _orders = orders;
         _loading = false;
       });
+      replaceLiveOrders(orders);
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
@@ -70,6 +86,7 @@ class _BuyerOrdersPageState extends State<BuyerOrdersPage> {
             .toList(growable: false);
         _expandedIds.add(updated.id);
       });
+      upsertLiveOrder(updated);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Commande annulée.')));

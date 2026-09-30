@@ -8,6 +8,8 @@ import 'package:vendza/core/services/api_endpoints.dart';
 import 'package:vendza/core/services/api_mappers.dart';
 import 'package:vendza/core/services/api_token_store.dart';
 import 'package:vendza/features/notification/data/services/sse_parser.dart';
+import 'package:vendza/features/order/data/models/order_model.dart';
+import 'package:vendza/features/order/data/services/realtime_order_store.dart';
 
 class RealtimeNotificationService {
   RealtimeNotificationService({
@@ -67,16 +69,31 @@ class RealtimeNotificationService {
 
   void _handleChunk(String chunk) {
     for (final message in parseSseMessages(chunk)) {
-      if (message.event != 'notification') continue;
-      final notification = notificationFromApi(message.data);
-      final existing = notificationStore.value;
-      if (existing.any((item) => item.id == notification.id)) {
-        notificationStore.value = existing
-            .map((item) => item.id == notification.id ? notification : item)
-            .toList(growable: false);
-      } else {
-        notificationStore.value = [notification, ...existing];
+      if (message.event == 'notification') {
+        _upsertNotification(message.data);
+        continue;
       }
+      if (_orderEvents.contains(message.event)) {
+        upsertLiveOrder(OrderModel.fromJson(message.data));
+      }
+    }
+  }
+
+  static const _orderEvents = {
+    'order_created',
+    'order_status_updated',
+    'order_cancelled',
+  };
+
+  void _upsertNotification(Map<String, dynamic> data) {
+    final notification = notificationFromApi(data);
+    final existing = notificationStore.value;
+    if (existing.any((item) => item.id == notification.id)) {
+      notificationStore.value = existing
+          .map((item) => item.id == notification.id ? notification : item)
+          .toList(growable: false);
+    } else {
+      notificationStore.value = [notification, ...existing];
     }
   }
 

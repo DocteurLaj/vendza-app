@@ -4,6 +4,7 @@ import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/order/data/models/order_model.dart';
 import 'package:vendza/features/order/data/services/order_api_service.dart';
+import 'package:vendza/features/order/data/services/realtime_order_store.dart';
 import 'package:vendza/features/order/presentation/helpers/customer_contact_launcher.dart';
 import 'package:vendza/features/order/presentation/helpers/order_list_presentation.dart';
 import 'package:vendza/features/order/presentation/helpers/order_status_presentation.dart';
@@ -37,7 +38,22 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
   @override
   void initState() {
     super.initState();
+    liveOrderStore.addListener(_syncLiveOrders);
     _load();
+  }
+
+  @override
+  void dispose() {
+    liveOrderStore.removeListener(_syncLiveOrders);
+    super.dispose();
+  }
+
+  void _syncLiveOrders() {
+    final storeId = int.tryParse(widget.store.id);
+    if (!mounted || storeId == null) return;
+    setState(() {
+      _orders = liveOrdersForStore(storeId);
+    });
   }
 
   Future<void> _load() async {
@@ -60,6 +76,7 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
         _orders = orders;
         _loading = false;
       });
+      replaceLiveOrdersForStore(storeId, orders);
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
@@ -88,6 +105,7 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
             .toList(growable: false);
         _expandedIds.add(updated.id);
       });
+      upsertLiveOrder(updated);
     } on ApiException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
