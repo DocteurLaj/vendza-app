@@ -42,6 +42,43 @@ void main() {
       expect(find.byIcon(Icons.inventory_2_outlined), findsOneWidget);
     });
 
+    testWidgets(
+      'header gives back icon, context icon and title room to breathe',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              appBar: VendzaPageHeader.back(
+                title: 'Ajouter Produit',
+                subtitle: 'Completez les details de vente',
+                icon: Icons.inventory_2_outlined,
+              ),
+            ),
+          ),
+        );
+
+        final appBar = tester.widget<AppBar>(find.byType(AppBar));
+        expect(appBar.toolbarHeight, greaterThanOrEqualTo(88));
+        expect(appBar.leadingWidth, greaterThanOrEqualTo(76));
+        expect(appBar.titleSpacing, greaterThanOrEqualTo(8));
+
+        final titleTopLeft = tester.getTopLeft(find.text('Ajouter Produit'));
+        final backTopRight = tester.getTopRight(
+          find.byIcon(Icons.arrow_back_ios_new_rounded),
+        );
+        final contextTopRight = tester.getTopRight(
+          find.byIcon(Icons.inventory_2_outlined),
+        );
+        expect(titleTopLeft.dx - contextTopRight.dx, greaterThanOrEqualTo(18));
+        expect(contextTopRight.dx - backTopRight.dx, greaterThanOrEqualTo(56));
+
+        final subtitle = tester.widget<Text>(
+          find.text('Completez les details de vente'),
+        );
+        expect(subtitle.style?.color, isNot(equals(Colors.black)));
+      },
+    );
+
     testWidgets('loading state gives context instead of a bare spinner', (
       tester,
     ) async {

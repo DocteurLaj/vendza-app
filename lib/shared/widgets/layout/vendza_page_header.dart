@@ -32,7 +32,7 @@ class VendzaPageHeader extends StatelessWidget implements PreferredSizeWidget {
   final Color? foregroundColor;
 
   @override
-  Size get preferredSize => Size.fromHeight(subtitle == null ? 64 : 74);
+  Size get preferredSize => Size.fromHeight(subtitle == null ? 82 : 96);
 
   @override
   Widget build(BuildContext context) {
@@ -47,31 +47,31 @@ class VendzaPageHeader extends StatelessWidget implements PreferredSizeWidget {
       elevation: 0,
       centerTitle: false,
       toolbarHeight: preferredSize.height,
-      leadingWidth: 64,
+      leadingWidth: 84,
       leading: Padding(
-        padding: const EdgeInsets.only(left: 12),
+        padding: const EdgeInsets.only(left: 16),
         child: _HeaderIconButton(
           icon: showBack ? Icons.arrow_back_ios_new_rounded : icon,
           tooltip: showBack ? 'Retour' : title,
           onPressed: showBack ? () => Navigator.maybePop(context) : null,
         ),
       ),
-      titleSpacing: 0,
+      titleSpacing: 12,
       title: Row(
         children: [
           if (showBack) ...[
             Container(
-              width: 38,
-              height: 38,
+              width: 46,
+              height: 46,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: accent.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(13),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: accent.withValues(alpha: 0.16)),
               ),
-              child: Icon(icon, color: AppColors.iconAccent(context), size: 20),
+              child: Icon(icon, color: AppColors.iconAccent(context), size: 21),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 20),
           ],
           Expanded(
             child: Column(
@@ -86,18 +86,20 @@ class VendzaPageHeader extends StatelessWidget implements PreferredSizeWidget {
                     color: fg,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
+                    height: 1.12,
                   ),
                 ),
                 if (subtitle != null) ...[
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 6),
                   Text(
                     subtitle!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: AppColors.textSecondary(context),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
+                      height: 1.18,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -106,8 +108,22 @@ class VendzaPageHeader extends StatelessWidget implements PreferredSizeWidget {
           ),
         ],
       ),
-      actions: actions,
+      actions: _spacedActions(actions),
     );
+  }
+
+  List<Widget>? _spacedActions(List<Widget>? source) {
+    if (source == null || source.isEmpty) return null;
+    return [
+      const SizedBox(width: 8),
+      ...source.map(
+        (action) => Padding(
+          padding: const EdgeInsets.only(left: 4, right: 6),
+          child: Center(child: action),
+        ),
+      ),
+      const SizedBox(width: 10),
+    ];
   }
 }
 
@@ -126,8 +142,8 @@ class _HeaderIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = AppColors.accent(context);
     final child = Container(
-      width: 42,
-      height: 42,
+      width: 48,
+      height: 48,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: AppColors.card(context),
@@ -143,7 +159,7 @@ class _HeaderIconButton extends StatelessWidget {
           ),
         ],
       ),
-      child: Icon(icon, color: accent, size: 20),
+      child: Icon(icon, color: accent, size: 21),
     );
 
     if (onPressed == null) {
@@ -153,7 +169,7 @@ class _HeaderIconButton extends StatelessWidget {
       message: tooltip,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(21),
+        borderRadius: BorderRadius.circular(24),
         child: child,
       ),
     );
