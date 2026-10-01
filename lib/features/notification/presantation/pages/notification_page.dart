@@ -8,6 +8,7 @@ import 'package:vendza/features/notification/presantation/helpers/notification_p
 
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/shared/utils/date_time_label.dart';
+import 'package:vendza/shared/widgets/dialog/destructive_action_dialog.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/media/context_image.dart';
 
@@ -56,37 +57,63 @@ class _NotificationPageState extends State<NotificationPage> {
   }
 
   Future<void> _deleteThread(NotificationThreadModel thread) async {
-    final confirmed = await _confirmDelete('Supprimer cette conversation ?');
-    if (confirmed != true) return;
-    await deleteNotificationThreadLocallyAndRemote(thread.id);
+    final confirmed = await showDestructiveActionDialog(
+      context: context,
+      title: 'Supprimer cette conversation ?',
+      message:
+          'La conversation "${thread.title}" sera masquée seulement pour votre compte.',
+      details: [
+        '${thread.messageCount} message${thread.messageCount > 1 ? 's' : ''} masqué${thread.messageCount > 1 ? 's' : ''} de votre boîte.',
+        'Les autres utilisateurs gardent leur propre historique.',
+        'Dernier message : ${_shortPreview(thread.latest.description)}',
+      ],
+      confirmLabel: 'Supprimer la conversation',
+    );
+    if (!confirmed || !mounted) return;
+    final success = await deleteNotificationThreadLocallyAndRemote(thread.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Conversation supprimée pour vous.'
+              : 'Suppression impossible. La conversation a été restaurée.',
+        ),
+      ),
+    );
   }
 
   Future<void> _deleteMessage(NotificationModel notification) async {
-    final confirmed = await _confirmDelete('Supprimer ce message ?');
-    if (confirmed != true) return;
-    await deleteNotificationLocallyAndRemote(notification.id);
-  }
-
-  Future<bool?> _confirmDelete(String title) {
-    return showDialog<bool>(
+    final confirmed = await showDestructiveActionDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: const Text(
-          'Cette suppression masque l’élément seulement pour votre compte.',
+      title: 'Supprimer ce message ?',
+      message: 'Ce message sera masqué seulement pour votre compte.',
+      details: [
+        'Aperçu : ${_shortPreview(notification.description)}',
+        'La conversation restera disponible si elle contient d’autres messages.',
+        'Les autres utilisateurs gardent leur propre historique.',
+      ],
+      confirmLabel: 'Supprimer le message',
+    );
+    if (!confirmed || !mounted) return;
+    final success = await deleteNotificationLocallyAndRemote(notification.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Message supprimé pour vous.'
+              : 'Suppression impossible. Le message a été restauré.',
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Supprimer'),
-          ),
-        ],
       ),
     );
+  }
+
+  String _shortPreview(String value) {
+    final normalized = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (normalized.isEmpty) return 'Aucun contenu';
+    if (normalized.length <= 90) return normalized;
+    return '${normalized.substring(0, 87)}...';
   }
 
   void _openThread(NotificationThreadModel thread) {

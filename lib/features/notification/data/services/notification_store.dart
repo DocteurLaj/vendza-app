@@ -87,31 +87,41 @@ Future<void> _markReadRemote(String id) async {
   }
 }
 
-Future<void> deleteNotificationLocallyAndRemote(String id) async {
+Future<bool> deleteNotificationLocallyAndRemote(
+  String id, {
+  NotificationApiService? api,
+}) async {
   final before = List<NotificationModel>.from(notificationStore.value);
   notificationStore.value = before
       .where((notification) => notification.id != id)
       .toList(growable: false);
 
   final notificationId = int.tryParse(id);
-  if (notificationId == null) return;
+  if (notificationId == null) return true;
 
   try {
-    await NotificationApiService().deleteNotification(notificationId);
+    await (api ?? NotificationApiService()).deleteNotification(notificationId);
+    return true;
   } on Object {
     notificationStore.value = before;
+    return false;
   }
 }
 
-Future<void> deleteNotificationThreadLocallyAndRemote(String threadId) async {
+Future<bool> deleteNotificationThreadLocallyAndRemote(
+  String threadId, {
+  NotificationApiService? api,
+}) async {
   final before = List<NotificationModel>.from(notificationStore.value);
   notificationStore.value = before
       .where((notification) => notification.threadKey != threadId)
       .toList(growable: false);
 
   try {
-    await NotificationApiService().deleteThread(threadId);
+    await (api ?? NotificationApiService()).deleteThread(threadId);
+    return true;
   } on Object {
     notificationStore.value = before;
+    return false;
   }
 }

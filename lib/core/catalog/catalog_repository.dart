@@ -46,6 +46,22 @@ bool isOwnedStoreId(String storeId) {
   return ownedStores.any((store) => store.id == id || store.localId == id);
 }
 
+void removeDeletedStoreFromCatalog(String storeId) {
+  final id = storeId.trim();
+  if (id.isEmpty) return;
+
+  ownedStores.removeWhere((store) => store.id == id || store.localId == id);
+  stores.removeWhere((store) => store.id == id || store.localId == id);
+  favoriteStores.removeWhere((store) => store.id == id || store.localId == id);
+  homeStores.removeWhere((store) => store.id == id);
+  products.removeWhere((product) => product.storeId == id);
+  homeProducts.removeWhere((product) => product.storeId == id);
+
+  syncStoreCustomizationFromCatalog();
+  favoriteStoreChanges.value++;
+  catalogRevision.value++;
+}
+
 class CatalogRepository {
   CatalogRepository({
     StoreApiService? storeApiService,
@@ -324,6 +340,10 @@ class CatalogRepository {
     syncStoreCustomizationFromCatalog();
     favoriteStoreChanges.value++;
     _notifyChanged();
+  }
+
+  void removeDeletedStore(String storeId) {
+    removeDeletedStoreFromCatalog(storeId);
   }
 
   Future<ListStoreModel> createStore({

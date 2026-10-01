@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vendza/core/catalog/catalog_repository.dart';
 import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
@@ -18,7 +19,7 @@ import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/utils/phone_number.dart';
 import 'package:vendza/shared/utils/social_url.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
-import 'package:vendza/shared/widgets/dialog/confirm_delete_dialog.dart';
+import 'package:vendza/shared/widgets/dialog/destructive_action_dialog.dart';
 import 'package:vendza/shared/widgets/input/phone_number_field.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
@@ -269,20 +270,30 @@ class _CustomPageState extends State<CustomPage> {
       );
       return;
     }
-    final confirmed = await showConfirmDeleteDialog(
+    final confirmed = await showDestructiveActionDialog(
       context: context,
-      title: 'Supprimer cette boutique ?',
+      title: 'Supprimer ${widget.store.name} ?',
       message:
-          'La boutique et ses produits seront masqués au public. Les commandes existantes resteront consultables.',
+          'Cette boutique sera masquée au public. Vérifiez bien avant de confirmer.',
+      details: const [
+        'La boutique disparaîtra de Mes Stores et du catalogue public.',
+        'Les produits de cette boutique ne seront plus visibles publiquement.',
+        'Les commandes existantes restent conservées et consultables.',
+      ],
+      confirmPhrase: 'SUPPRIMER',
+      confirmLabel: 'Supprimer la boutique',
     );
     if (!confirmed || !mounted) return;
     setState(() => _isSubmitting = true);
     try {
       await StoreApiService().deleteStore(storeId);
+      removeDeletedStoreFromCatalog(widget.store.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Boutique supprimée.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Boutique masquée. Les commandes restent disponibles.'),
+        ),
+      );
       Navigator.of(context).pop(true);
     } on Object catch (error) {
       if (!mounted) return;
