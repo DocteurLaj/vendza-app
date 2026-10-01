@@ -28,6 +28,9 @@ class ProductModel {
   final int stock;
   final int contactClicks;
   final bool isActive;
+  final bool adminDisabled;
+  final String? moderationReason;
+  final DateTime? moderatedAt;
   final List<ProductVariantModel> variants;
   final String localId;
   final EntitySyncStatus syncStatus;
@@ -48,6 +51,9 @@ class ProductModel {
     this.stock = 0,
     this.contactClicks = 0,
     this.isActive = true,
+    this.adminDisabled = false,
+    this.moderationReason,
+    this.moderatedAt,
     this.variants = const [],
     this.localId = "",
     this.syncStatus = EntitySyncStatus.online,
@@ -69,6 +75,9 @@ class ProductModel {
     int? stock,
     int? contactClicks,
     bool? isActive,
+    bool? adminDisabled,
+    String? moderationReason,
+    DateTime? moderatedAt,
     List<ProductVariantModel>? variants,
     String? localId,
     EntitySyncStatus? syncStatus,
@@ -89,6 +98,9 @@ class ProductModel {
       stock: stock ?? this.stock,
       contactClicks: contactClicks ?? this.contactClicks,
       isActive: isActive ?? this.isActive,
+      adminDisabled: adminDisabled ?? this.adminDisabled,
+      moderationReason: moderationReason ?? this.moderationReason,
+      moderatedAt: moderatedAt ?? this.moderatedAt,
       variants: variants ?? this.variants,
       localId: localId ?? this.localId,
       syncStatus: syncStatus ?? this.syncStatus,

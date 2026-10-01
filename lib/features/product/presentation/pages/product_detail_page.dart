@@ -329,6 +329,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   right: 14,
                   child: _OwnerProductTopBar(
                     isActive: product.isActive,
+                    adminDisabled: product.adminDisabled,
                     onEdit: _openOwnerEditor,
                     onVisibilityChanged: _toggleProductVisibility,
                     onDelete: _deleteOwnerProduct,
@@ -411,12 +412,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 class _OwnerProductTopBar extends StatelessWidget {
   const _OwnerProductTopBar({
     required this.isActive,
+    required this.adminDisabled,
     required this.onEdit,
     required this.onVisibilityChanged,
     required this.onDelete,
   });
 
   final bool isActive;
+  final bool adminDisabled;
   final VoidCallback onEdit;
   final ValueChanged<bool> onVisibilityChanged;
   final VoidCallback onDelete;
@@ -449,7 +452,7 @@ class _OwnerProductTopBar extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           Text(
-            isActive ? "Actif" : "Inactif",
+            adminDisabled ? "Bloque" : (isActive ? "Actif" : "Inactif"),
             style: TextStyle(
               color: AppColors.textPrimary(context),
               fontSize: 12,
@@ -461,7 +464,7 @@ class _OwnerProductTopBar extends StatelessWidget {
             child: Switch(
               value: isActive,
               activeThumbColor: AppColors.accent(context),
-              onChanged: onVisibilityChanged,
+              onChanged: adminDisabled ? null : onVisibilityChanged,
             ),
           ),
           const Spacer(),
@@ -763,18 +766,31 @@ class _OwnerProductEditSheetState extends State<_OwnerProductEditSheet> {
                     ),
                     SwitchListTile(
                       value: _isActive,
-                      onChanged: (value) {
-                        setState(() => _isActive = value);
-                      },
+                      onChanged: widget.product.adminDisabled
+                          ? null
+                          : (value) {
+                              setState(() => _isActive = value);
+                            },
                       activeThumbColor: AppColors.accent(context),
                       contentPadding: EdgeInsets.zero,
                       title: Text(
-                        "Produit visible côté client",
+                        widget.product.adminDisabled
+                            ? "Produit bloque par Vendza"
+                            : "Produit visible côté client",
                         style: TextStyle(
                           color: AppColors.textPrimary(context),
                           fontWeight: FontWeight.w800,
                         ),
                       ),
+                      subtitle: widget.product.adminDisabled
+                          ? Text(
+                              "Le support doit lever le blocage avant de le remettre en ligne.",
+                              style: TextStyle(
+                                color: AppColors.textSecondary(context),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                          : null,
                     ),
                   ],
                 ),

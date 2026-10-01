@@ -104,6 +104,7 @@ class ProductStoreWidget extends StatelessWidget {
                                   ? _OwnerSyncBadge(status: product.syncStatus)
                                   : _OwnerProductStatusBadge(
                                       isActive: product.isActive,
+                                      adminDisabled: product.adminDisabled,
                                     ),
                             ),
                           if (product.syncStatus.isPending)
@@ -305,16 +306,24 @@ class _OwnerSyncBadge extends StatelessWidget {
 }
 
 class _OwnerProductStatusBadge extends StatelessWidget {
-  const _OwnerProductStatusBadge({required this.isActive});
+  const _OwnerProductStatusBadge({
+    required this.isActive,
+    required this.adminDisabled,
+  });
 
   final bool isActive;
+  final bool adminDisabled;
 
   @override
   Widget build(BuildContext context) {
-    final Color backgroundColor = isActive
+    final Color backgroundColor = adminDisabled
+        ? const Color(0xFFFFF3E0)
+        : isActive
         ? const Color(0xFFEAF4EE)
         : const Color(0xFFFFECEC);
-    final Color foregroundColor = isActive
+    final Color foregroundColor = adminDisabled
+        ? const Color(0xFFB45309)
+        : isActive
         ? const Color(0xFF1F7A4B)
         : const Color(0xFFB3261E);
 
@@ -336,7 +345,9 @@ class _OwnerProductStatusBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isActive
+            adminDisabled
+                ? Icons.gpp_maybe_outlined
+                : isActive
                 ? Icons.visibility_outlined
                 : Icons.visibility_off_outlined,
             color: foregroundColor,
@@ -344,7 +355,7 @@ class _OwnerProductStatusBadge extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            isActive ? "Actif" : "Inactif",
+            adminDisabled ? "Bloque" : (isActive ? "Actif" : "Inactif"),
             style: TextStyle(
               color: foregroundColor,
               fontSize: 11,

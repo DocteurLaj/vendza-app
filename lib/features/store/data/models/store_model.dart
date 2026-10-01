@@ -11,6 +11,9 @@ class ListStoreModel {
   final String whatsappUrl;
   final String instagramUrl;
   final String facebookUrl;
+  final bool adminHidden;
+  final String? moderationReason;
+  final DateTime? moderatedAt;
   final EntitySyncStatus syncStatus;
   final double syncProgress;
   final String? syncError;
@@ -26,6 +29,9 @@ class ListStoreModel {
     this.whatsappUrl = "",
     this.instagramUrl = "",
     this.facebookUrl = "",
+    this.adminHidden = false,
+    this.moderationReason,
+    this.moderatedAt,
     this.syncStatus = EntitySyncStatus.online,
     this.syncProgress = 1,
     this.syncError,
@@ -44,6 +50,9 @@ class ListStoreModel {
     String? whatsappUrl,
     String? instagramUrl,
     String? facebookUrl,
+    bool? adminHidden,
+    String? moderationReason,
+    DateTime? moderatedAt,
     EntitySyncStatus? syncStatus,
     double? syncProgress,
     String? syncError,
@@ -59,6 +68,9 @@ class ListStoreModel {
       whatsappUrl: whatsappUrl ?? this.whatsappUrl,
       instagramUrl: instagramUrl ?? this.instagramUrl,
       facebookUrl: facebookUrl ?? this.facebookUrl,
+      adminHidden: adminHidden ?? this.adminHidden,
+      moderationReason: moderationReason ?? this.moderationReason,
+      moderatedAt: moderatedAt ?? this.moderatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       syncProgress: syncProgress ?? this.syncProgress,
       syncError: syncError ?? this.syncError,

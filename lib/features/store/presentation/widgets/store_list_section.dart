@@ -61,6 +61,8 @@ class StoreListSection extends StatelessWidget {
                     : null,
                 attentionCount: attentionCounts[store.id] ?? 0,
                 attentionLabel: 'À traiter',
+                adminHidden: store.adminHidden,
+                moderationReason: store.moderationReason,
                 onTap: () => onStoreTap(store),
               ),
             ),

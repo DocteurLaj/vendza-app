@@ -33,6 +33,13 @@ List<ProductVariantModel> _mapVariants(dynamic variation) {
   return variants;
 }
 
+DateTime? _parseDateTime(dynamic value) {
+  if (value is String && value.trim().isNotEmpty) {
+    return DateTime.tryParse(value);
+  }
+  return null;
+}
+
 ProductModel productFromApi(
   Map<String, dynamic> json, {
   String storeName = '',
@@ -63,6 +70,9 @@ ProductModel productFromApi(
     storeName: storeName,
     stock: stockValue,
     isActive: isActive,
+    adminDisabled: json['admin_disabled'] == true,
+    moderationReason: json['moderation_reason'] as String?,
+    moderatedAt: _parseDateTime(json['moderated_at']),
     variants: _mapVariants(json['variation']),
   );
 }
@@ -79,6 +89,9 @@ ListStoreModel listStoreFromApi(Map<String, dynamic> json) {
     whatsappUrl: json['whatsappUrl'] as String? ?? '',
     instagramUrl: json['instagramUrl'] as String? ?? '',
     facebookUrl: json['facebookUrl'] as String? ?? '',
+    adminHidden: json['admin_hidden'] == true,
+    moderationReason: json['moderation_reason'] as String?,
+    moderatedAt: _parseDateTime(json['moderated_at']),
   );
 }
 

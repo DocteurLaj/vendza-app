@@ -11,6 +11,7 @@ import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/models/social_item.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
+import 'package:vendza/shared/widgets/moderation/moderation_notice.dart';
 import 'package:vendza/shared/widgets/product/product_price_text.dart';
 import 'package:vendza/shared/widgets/social/social_media_links.dart';
 
@@ -291,6 +292,11 @@ class ProductDetailContentPanel extends StatelessWidget {
             price: displayedPrice,
             description: product.description.trim(),
           ),
+          if (product.adminDisabled)
+            ModerationNotice(
+              title: 'Produit bloque',
+              reason: product.moderationReason,
+            ),
           if (hasVariants) ...[
             const SizedBox(height: 18),
             Text(

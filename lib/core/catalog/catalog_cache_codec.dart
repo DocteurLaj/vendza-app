@@ -84,6 +84,9 @@ Map<String, dynamic> _storeToJson(ListStoreModel store) {
     'whatsappUrl': store.whatsappUrl,
     'instagramUrl': store.instagramUrl,
     'facebookUrl': store.facebookUrl,
+    'adminHidden': store.adminHidden,
+    'moderationReason': store.moderationReason,
+    'moderatedAt': store.moderatedAt?.toIso8601String(),
     'syncStatus': store.syncStatus.name,
     'syncProgress': store.syncProgress,
     'syncError': store.syncError,
@@ -102,6 +105,9 @@ ListStoreModel _storeFromJson(Map<String, dynamic> json) {
     whatsappUrl: json['whatsappUrl']?.toString() ?? '',
     instagramUrl: json['instagramUrl']?.toString() ?? '',
     facebookUrl: json['facebookUrl']?.toString() ?? '',
+    adminHidden: json['adminHidden'] == true,
+    moderationReason: json['moderationReason']?.toString(),
+    moderatedAt: _dateTimeFromJson(json['moderatedAt']),
     syncStatus: _syncStatusFromJson(json['syncStatus']),
     syncProgress: _doubleFromJson(json['syncProgress'], fallback: 1),
     syncError: json['syncError']?.toString(),
@@ -140,6 +146,9 @@ Map<String, dynamic> _productToJson(ProductModel product) {
     'stock': product.stock,
     'contactClicks': product.contactClicks,
     'isActive': product.isActive,
+    'adminDisabled': product.adminDisabled,
+    'moderationReason': product.moderationReason,
+    'moderatedAt': product.moderatedAt?.toIso8601String(),
     'variants': product.variants.map(_variantToJson).toList(),
     'localId': product.localId,
     'syncStatus': product.syncStatus.name,
@@ -164,6 +173,9 @@ ProductModel _productFromJson(Map<String, dynamic> json) {
         : (json['isActive'] == false ? 0 : 1),
     contactClicks: _intFromJson(json['contactClicks']),
     isActive: json['isActive'] != false,
+    adminDisabled: json['adminDisabled'] == true,
+    moderationReason: json['moderationReason']?.toString(),
+    moderatedAt: _dateTimeFromJson(json['moderatedAt']),
     variants: _mapList(json['variants'], _variantFromJson),
     localId: json['localId']?.toString() ?? '',
     syncStatus: _syncStatusFromJson(json['syncStatus']),
@@ -240,4 +252,11 @@ int _intFromJson(dynamic value) {
 double _doubleFromJson(dynamic value, {required double fallback}) {
   if (value is num) return value.toDouble();
   return double.tryParse(value?.toString() ?? '') ?? fallback;
+}
+
+DateTime? _dateTimeFromJson(dynamic value) {
+  if (value is String && value.trim().isNotEmpty) {
+    return DateTime.tryParse(value);
+  }
+  return null;
 }

@@ -4,6 +4,7 @@ import 'package:vendza/core/sync/entity_sync_status.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
 import 'package:vendza/shared/widgets/badge/attention_badge.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
+import 'package:vendza/shared/widgets/moderation/moderation_notice.dart';
 import 'package:vendza/shared/widgets/sync/sync_status_strip.dart';
 
 class StoreWidget extends StatelessWidget {
@@ -20,6 +21,8 @@ class StoreWidget extends StatelessWidget {
     this.onRetrySync,
     this.attentionCount = 0,
     this.attentionLabel,
+    this.adminHidden = false,
+    this.moderationReason,
   });
 
   final String name;
@@ -33,6 +36,8 @@ class StoreWidget extends StatelessWidget {
   final VoidCallback? onRetrySync;
   final int attentionCount;
   final String? attentionLabel;
+  final bool adminHidden;
+  final String? moderationReason;
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +119,12 @@ class StoreWidget extends StatelessWidget {
                         compact: true,
                       ),
                     ],
+                    if (adminHidden)
+                      ModerationNotice(
+                        title: 'Boutique bloquee',
+                        reason: moderationReason,
+                        compact: true,
+                      ),
                   ],
                 ),
               ),

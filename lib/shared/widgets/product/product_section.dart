@@ -6,6 +6,7 @@ import 'package:vendza/features/store/presentation/widgets/product_store_widget.
 import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
+import 'package:vendza/shared/widgets/moderation/moderation_notice.dart';
 import 'package:vendza/shared/widgets/product/product_price_text.dart';
 import 'package:vendza/shared/widgets/product/product_view_mode.dart';
 
@@ -391,6 +392,12 @@ class _ProductListTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     ProductStockBadge(product: product, compact: true),
+                    if (ownerMode && product.adminDisabled)
+                      ModerationNotice(
+                        title: 'Produit bloque',
+                        reason: product.moderationReason,
+                        compact: true,
+                      ),
                   ],
                 ),
               ),
