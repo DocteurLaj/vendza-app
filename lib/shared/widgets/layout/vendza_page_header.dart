@@ -47,16 +47,16 @@ class VendzaPageHeader extends StatelessWidget implements PreferredSizeWidget {
       elevation: 0,
       centerTitle: false,
       toolbarHeight: preferredSize.height,
-      leadingWidth: 84,
+      leadingWidth: 64,
       leading: Padding(
-        padding: const EdgeInsets.only(left: 16),
+        padding: const EdgeInsets.only(left: 12),
         child: _HeaderIconButton(
           icon: showBack ? Icons.arrow_back_ios_new_rounded : icon,
           tooltip: showBack ? 'Retour' : title,
           onPressed: showBack ? () => Navigator.maybePop(context) : null,
         ),
       ),
-      titleSpacing: 12,
+      titleSpacing: 10,
       title: Row(
         children: [
           if (showBack) ...[
@@ -141,25 +141,32 @@ class _HeaderIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = AppColors.accent(context);
-    final child = Container(
-      width: 48,
-      height: 48,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        shape: BoxShape.circle,
-        border: Border.all(color: AppColors.border(context)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(
-              alpha: AppColors.isDark(context) ? 0.18 : 0.04,
-            ),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+    final child = SizedBox(
+      width: 44,
+      height: 44,
+      child: Center(
+        child: Container(
+          key: const Key('vendza_header_leading_button_surface'),
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.card(context),
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.border(context)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: AppColors.isDark(context) ? 0.12 : 0.025,
+                ),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-        ],
+          child: Icon(icon, color: accent, size: 18),
+        ),
       ),
-      child: Icon(icon, color: accent, size: 21),
     );
 
     if (onPressed == null) {

@@ -59,8 +59,14 @@ void main() {
 
         final appBar = tester.widget<AppBar>(find.byType(AppBar));
         expect(appBar.toolbarHeight, greaterThanOrEqualTo(88));
-        expect(appBar.leadingWidth, greaterThanOrEqualTo(76));
+        expect(appBar.leadingWidth, inInclusiveRange(60, 68));
         expect(appBar.titleSpacing, greaterThanOrEqualTo(8));
+
+        final backSurface = tester.getSize(
+          find.byKey(const Key('vendza_header_leading_button_surface')).first,
+        );
+        expect(backSurface.width, lessThanOrEqualTo(40));
+        expect(backSurface.height, lessThanOrEqualTo(40));
 
         final titleTopLeft = tester.getTopLeft(find.text('Ajouter Produit'));
         final backTopRight = tester.getTopRight(
@@ -70,7 +76,7 @@ void main() {
           find.byIcon(Icons.inventory_2_outlined),
         );
         expect(titleTopLeft.dx - contextTopRight.dx, greaterThanOrEqualTo(18));
-        expect(contextTopRight.dx - backTopRight.dx, greaterThanOrEqualTo(56));
+        expect(contextTopRight.dx - backTopRight.dx, greaterThanOrEqualTo(44));
 
         final subtitle = tester.widget<Text>(
           find.text('Completez les details de vente'),
