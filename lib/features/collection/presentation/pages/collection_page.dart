@@ -6,6 +6,7 @@ import 'package:vendza/features/collection/presentation/widgets/collection_produ
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/shared/widgets/bouton/list_button_section.dart';
 import 'package:vendza/shared/widgets/dialog/confirm_delete_dialog.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 
 class CollectionPage extends StatefulWidget {
   const CollectionPage({
@@ -114,7 +115,11 @@ class _CollectionPageState extends State<CollectionPage> {
                   onSelectAll: _selectAll,
                   onDelete: _deleteSelected,
                 )
-              : AppBar(title: const Text("Collection")),
+              : const VendzaPageHeader.back(
+                  title: 'Collections',
+                  subtitle: 'Regrouper les produits',
+                  icon: Icons.collections_outlined,
+                ),
           body: ListButtonSection(
             icon: Icons.collections_outlined,
             items: collections,

@@ -3,6 +3,7 @@ import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/settings/presentation/pages/settings_detail_pages.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -12,12 +13,10 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBackground(context),
-        foregroundColor: AppColors.textPrimary(context),
-        elevation: 0,
-        centerTitle: true,
-        title: Text("Parametres", style: AppTextStyles.pageTitle(context)),
+      appBar: const VendzaPageHeader.root(
+        title: 'Paramètres',
+        subtitle: 'Préférences, confidentialité et support',
+        icon: Icons.settings_outlined,
       ),
       body: SafeArea(
         child: ListView(

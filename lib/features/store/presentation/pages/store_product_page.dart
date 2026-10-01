@@ -13,6 +13,7 @@ import 'package:vendza/features/store/presentation/widgets/store_product_toolbar
 import 'package:vendza/shared/models/social_item.dart';
 import 'package:vendza/shared/widgets/bouton/text_icon_button.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/product/product_section.dart';
 import 'package:vendza/shared/widgets/show_title.dart';
 import 'package:vendza/shared/utils/catalog_refresh_feedback.dart';
@@ -81,7 +82,11 @@ class _StoreProductPageState extends State<StoreProductPage> {
         );
 
         return Scaffold(
-          appBar: AppBar(title: Text(widget.store.name)),
+          appBar: VendzaPageHeader.back(
+            title: widget.store.name,
+            subtitle: 'Catalogue de la boutique',
+            icon: Icons.storefront_outlined,
+          ),
           body: RefreshIndicator(
             onRefresh: () => refreshCatalogWithFeedback(
               context,

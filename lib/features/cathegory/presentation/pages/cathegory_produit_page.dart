@@ -9,6 +9,7 @@ import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/models/section_model.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/product/product_section.dart';
 
 class CathegoryProduitPage extends StatefulWidget {
@@ -48,7 +49,11 @@ class _CathegoryProduitPageState extends State<CathegoryProduitPage> {
 
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
-      appBar: AppBar(title: Text(widget.cathegory.name)),
+      appBar: VendzaPageHeader.back(
+        title: widget.cathegory.name,
+        subtitle: 'Produits de la catégorie',
+        icon: Icons.category_outlined,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.only(top: 14, bottom: 88),
         child: ResponsiveContent(

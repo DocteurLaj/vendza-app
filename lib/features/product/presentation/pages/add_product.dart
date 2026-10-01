@@ -15,6 +15,7 @@ import 'package:vendza/shared/widgets/input/app_input_decoration.dart';
 import 'package:vendza/shared/widgets/input/from_fiel_widget.dart';
 import 'package:vendza/shared/widgets/input/from_section.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/media/upload_image_slot.dart';
 
 class AddProduct extends StatefulWidget {
@@ -216,7 +217,11 @@ class _AddProductState extends State<AddProduct> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Ajouter Produit")),
+      appBar: const VendzaPageHeader.back(
+        title: 'Ajouter produit',
+        subtitle: 'Photo, prix, stock et catégorie',
+        icon: Icons.inventory_2_outlined,
+      ),
       body: SingleChildScrollView(
         child: ResponsiveContent(
           maxWidth: 760,

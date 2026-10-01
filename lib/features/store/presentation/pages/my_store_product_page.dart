@@ -28,6 +28,7 @@ import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/widgets/bouton/action_button.dart';
 import 'package:vendza/shared/widgets/dialog/confirm_delete_dialog.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/product/product_section.dart';
 import 'package:vendza/shared/widgets/search/search_bar.dart';
 import 'package:vendza/shared/utils/catalog_refresh_feedback.dart';
@@ -240,7 +241,11 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
                       onSelectAll: _selectAllProducts,
                       onDelete: _deleteSelectedProducts,
                     )
-                  : AppBar(title: Text(_currentStore.name)),
+                  : VendzaPageHeader.back(
+                      title: _currentStore.name,
+                      subtitle: 'Produits, catégories et commandes',
+                      icon: Icons.storefront_outlined,
+                    ),
               body: Column(
                 children: [
                   _storeToolbar(context),

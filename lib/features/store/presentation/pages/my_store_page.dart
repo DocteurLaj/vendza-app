@@ -16,6 +16,7 @@ import 'package:vendza/features/store/presentation/widgets/store_list_section.da
 import 'package:vendza/shared/widgets/bouton/button.dart';
 import 'package:vendza/shared/widgets/badge/attention_badge.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/search/search_bar.dart';
 import 'package:vendza/shared/utils/catalog_refresh_feedback.dart';
 
@@ -100,7 +101,11 @@ class _MyStorePageState extends State<MyStorePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text("Mes Stores")),
+      appBar: const VendzaPageHeader.root(
+        title: 'Mes Stores',
+        subtitle: 'Boutiques, commandes et produits',
+        icon: Icons.storefront_outlined,
+      ),
       body: Column(
         children: [
           const SizedBox(height: 10),

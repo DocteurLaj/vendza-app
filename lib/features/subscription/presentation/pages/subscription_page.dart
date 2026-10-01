@@ -12,6 +12,7 @@ import 'package:vendza/shared/widgets/bouton/button.dart';
 import 'package:vendza/shared/widgets/dialog/app_popup_actions.dart';
 import 'package:vendza/shared/widgets/dialog/show_app_popup.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 
 class SubscriptionPage extends StatefulWidget {
   const SubscriptionPage({super.key});
@@ -169,43 +170,47 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Abonnement')),
+      appBar: const VendzaPageHeader.back(
+        title: 'Abonnement',
+        subtitle: 'Options vendeur Vendza',
+        icon: Icons.workspace_premium_outlined,
+      ),
       body: _offersEnabled
           ? LayoutBuilder(
-        builder: (context, constraints) {
-          final layoutMode = AppBreakpoints.authLayoutMode(
-            constraints.maxWidth,
-          );
+              builder: (context, constraints) {
+                final layoutMode = AppBreakpoints.authLayoutMode(
+                  constraints.maxWidth,
+                );
 
-          return SingleChildScrollView(
-            child: ResponsiveContent(
-              maxWidth: 920,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Padding(
-                padding: const EdgeInsets.only(top: 20, bottom: 32),
-                child: switch (layoutMode) {
-                  AuthLayoutMode.expanded => _ExpandedSubscriptionLayout(
-                    subscriptions: _subscriptions,
-                    selectedIndex: selectedIndex,
-                    selectedSub: _selectedSub,
-                    onSelect: _selectPlan,
-                    onConfirm: _confirmSubscription,
+                return SingleChildScrollView(
+                  child: ResponsiveContent(
+                    maxWidth: 920,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 20, bottom: 32),
+                      child: switch (layoutMode) {
+                        AuthLayoutMode.expanded => _ExpandedSubscriptionLayout(
+                          subscriptions: _subscriptions,
+                          selectedIndex: selectedIndex,
+                          selectedSub: _selectedSub,
+                          onSelect: _selectPlan,
+                          onConfirm: _confirmSubscription,
+                        ),
+                        AuthLayoutMode.medium ||
+                        AuthLayoutMode.compact => _StackedSubscriptionLayout(
+                          layoutMode: layoutMode,
+                          subscriptions: _subscriptions,
+                          selectedIndex: selectedIndex,
+                          selectedSub: _selectedSub,
+                          onSelect: _selectPlan,
+                          onConfirm: _confirmSubscription,
+                        ),
+                      },
+                    ),
                   ),
-                  AuthLayoutMode.medium ||
-                  AuthLayoutMode.compact => _StackedSubscriptionLayout(
-                    layoutMode: layoutMode,
-                    subscriptions: _subscriptions,
-                    selectedIndex: selectedIndex,
-                    selectedSub: _selectedSub,
-                    onSelect: _selectPlan,
-                    onConfirm: _confirmSubscription,
-                  ),
-                },
-              ),
-            ),
-          );
-        },
-      )
+                );
+              },
+            )
           : _comingSoonBody(context),
     );
   }

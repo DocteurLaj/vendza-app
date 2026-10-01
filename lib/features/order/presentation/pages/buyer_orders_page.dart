@@ -10,6 +10,8 @@ import 'package:vendza/features/order/presentation/helpers/order_status_presenta
 import 'package:vendza/shared/utils/date_time_label.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
+import 'package:vendza/shared/widgets/loading/vendza_loading_state.dart';
 import 'package:vendza/shared/widgets/media/context_image.dart';
 
 class BuyerOrdersPage extends StatefulWidget {
@@ -121,15 +123,19 @@ class _BuyerOrdersPageState extends State<BuyerOrdersPage> {
     );
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
-      appBar: AppBar(
-        title: const Text('Mes commandes'),
-        backgroundColor: AppColors.appBackground(context),
-        foregroundColor: AppColors.textPrimary(context),
+      appBar: const VendzaPageHeader.back(
+        title: 'Mes commandes',
+        subtitle: 'Suivi clair de vos achats',
+        icon: Icons.receipt_long_outlined,
       ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const VendzaLoadingState(
+                title: 'Chargement des commandes',
+                message: 'Nous préparons vos commandes et leur état.',
+                icon: Icons.receipt_long_outlined,
+              )
             : _error != null
             ? ListView(
                 children: [

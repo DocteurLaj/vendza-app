@@ -4,6 +4,7 @@ import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/features/product/presentation/pages/product_detail_page.dart';
 import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/product/product_section.dart';
 
 class HomeProductListPage extends StatelessWidget {
@@ -22,7 +23,11 @@ class HomeProductListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
-      appBar: AppBar(title: Text(title)),
+      appBar: VendzaPageHeader.back(
+        title: title,
+        subtitle: 'Sélection de produits',
+        icon: Icons.inventory_2_outlined,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.only(top: 14, bottom: 20),
         child: ResponsiveContent(

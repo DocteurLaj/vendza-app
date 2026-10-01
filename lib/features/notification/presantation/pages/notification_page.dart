@@ -10,6 +10,7 @@ import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/shared/utils/date_time_label.dart';
 import 'package:vendza/shared/widgets/dialog/destructive_action_dialog.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/media/context_image.dart';
 
 class NotificationPage extends StatefulWidget {
@@ -135,15 +136,10 @@ class _NotificationPageState extends State<NotificationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBackground(context),
-        foregroundColor: AppColors.textPrimary(context),
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'Notifications',
-          style: TextStyle(fontWeight: FontWeight.w900),
-        ),
+      appBar: const VendzaPageHeader.root(
+        title: 'Notifications',
+        subtitle: 'Messages, commandes et alertes',
+        icon: Icons.notifications_none_rounded,
       ),
       body: SafeArea(
         top: false,

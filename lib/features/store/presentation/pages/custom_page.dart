@@ -22,6 +22,7 @@ import 'package:vendza/shared/widgets/bouton/button.dart';
 import 'package:vendza/shared/widgets/dialog/destructive_action_dialog.dart';
 import 'package:vendza/shared/widgets/input/phone_number_field.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
 
 class CustomPage extends StatefulWidget {
@@ -312,15 +313,16 @@ class _CustomPageState extends State<CustomPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
-      appBar: AppBar(
+      appBar: VendzaPageHeader.back(
+        title: 'Personnaliser',
+        subtitle: widget.store.name,
+        icon: Icons.tune_outlined,
         backgroundColor: AppColors.isDark(context)
             ? AppColors.darkSurface
             : AppColors.primary,
         foregroundColor: AppColors.isDark(context)
             ? AppColors.darkTextPrimary
             : Colors.white,
-        centerTitle: true,
-        title: const Text("Custom"),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),

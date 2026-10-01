@@ -6,6 +6,7 @@ import 'package:vendza/features/home/data/models/store_model.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
 import 'package:vendza/features/store/presentation/widgets/store_presentation_widget.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 
 class StoreDetailPage extends StatefulWidget {
   const StoreDetailPage({super.key, required this.store});
@@ -24,19 +25,11 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
 
     return Scaffold(
       backgroundColor: storeSurface,
-      appBar: AppBar(
+      appBar: VendzaPageHeader.back(
+        title: widget.store.name,
+        subtitle: 'Boutique Vendza',
+        icon: Icons.storefront_outlined,
         backgroundColor: storeSurface,
-        foregroundColor: AppColors.textPrimary(context),
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          "Boutique",
-          style: TextStyle(
-            color: AppColors.textPrimary(context),
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
         actions: [
           IconButton(
             onPressed: () async {

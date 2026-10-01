@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/constants/site_links.dart';
 import 'package:vendza/core/services/api_exception.dart';
-import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/auth/data/services/auth_session_service.dart';
 import 'package:vendza/features/auth/presantation/pages/onbording_page.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 
 class DeleteAccountPage extends StatefulWidget {
   const DeleteAccountPage({super.key, this.sessionService, this.isGoogleOnly});
@@ -81,14 +81,10 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBackground(context),
-        foregroundColor: AppColors.textPrimary(context),
-        elevation: 0,
-        title: Text(
-          'Supprimer mon compte',
-          style: AppTextStyles.pageTitle(context),
-        ),
+      appBar: const VendzaPageHeader.back(
+        title: 'Supprimer mon compte',
+        subtitle: 'Action définitive et sensible',
+        icon: Icons.warning_amber_rounded,
       ),
       body: SafeArea(
         child: ListView(

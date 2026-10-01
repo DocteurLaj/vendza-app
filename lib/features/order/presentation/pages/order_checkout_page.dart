@@ -7,6 +7,7 @@ import 'package:vendza/features/order/data/services/order_api_service.dart';
 import 'package:vendza/features/order/data/services/order_draft_store.dart';
 import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/media/context_image.dart';
 
 class OrderCheckoutPage extends StatefulWidget {
@@ -89,10 +90,10 @@ class _OrderCheckoutPageState extends State<OrderCheckoutPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
-      appBar: AppBar(
-        title: const Text('Confirmer la commande'),
-        backgroundColor: AppColors.appBackground(context),
-        foregroundColor: AppColors.textPrimary(context),
+      appBar: const VendzaPageHeader.back(
+        title: 'Confirmer la commande',
+        subtitle: 'Téléphone, adresse et récapitulatif',
+        icon: Icons.shopping_bag_outlined,
       ),
       body: AnimatedBuilder(
         animation: orderDraftStore,

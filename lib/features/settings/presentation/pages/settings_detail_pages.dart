@@ -9,6 +9,7 @@ import 'package:vendza/core/theme/theme_controller.dart';
 import 'package:vendza/features/settings/presentation/pages/delete_account_page.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 
 Future<void> _openExternalLink(BuildContext context, String value) async {
   final bool opened = await SiteLinks.open(value);
@@ -69,12 +70,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBackground(context),
-        foregroundColor: AppColors.textPrimary(context),
-        elevation: 0,
-        centerTitle: true,
-        title: Text("Apparence", style: AppTextStyles.pageTitle(context)),
+      appBar: const VendzaPageHeader.back(
+        title: 'Apparence',
+        subtitle: 'Thème clair, sombre ou système',
+        icon: Icons.palette_outlined,
       ),
       body: SafeArea(
         child: ListView(
@@ -507,12 +506,10 @@ class _SettingsSimpleScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.appBackground(context),
-        foregroundColor: AppColors.textPrimary(context),
-        elevation: 0,
-        centerTitle: true,
-        title: Text(title, style: AppTextStyles.pageTitle(context)),
+      appBar: VendzaPageHeader.back(
+        title: title,
+        subtitle: 'Réglages Vendza',
+        icon: _settingsHeaderIcon(title),
       ),
       body: SafeArea(
         child: ListView(
@@ -703,6 +700,17 @@ class _SettingsText extends StatelessWidget {
       ],
     );
   }
+}
+
+IconData _settingsHeaderIcon(String title) {
+  return switch (title) {
+    'Notifications' => Icons.notifications_outlined,
+    'Confidentialite' || 'Confidentialité' => Icons.privacy_tip_outlined,
+    'Support' => Icons.support_agent_outlined,
+    'Feedback' => Icons.rate_review_outlined,
+    'A propos' || 'À propos' => Icons.info_outline,
+    _ => Icons.settings_outlined,
+  };
 }
 
 BoxDecoration _settingsBoxDecoration(BuildContext context) {

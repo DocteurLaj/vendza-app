@@ -5,8 +5,8 @@ import 'package:vendza/features/store/presentation/pages/store_detail_page.dart'
 import 'package:vendza/features/store/presentation/widgets/store_catalog_card.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/product/product_section.dart';
-import 'package:vendza/shared/widgets/search/search_bar.dart';
 
 class SearchResultsPage extends StatelessWidget {
   const SearchResultsPage(this.query, {super.key});
@@ -19,8 +19,10 @@ class SearchResultsPage extends StatelessWidget {
     final hasResults = results.stores.isNotEmpty || results.products.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(
-        title: ResponsiveContent(maxWidth: 720, child: SearchBarWidget()),
+      appBar: const VendzaPageHeader.back(
+        title: 'Recherche',
+        subtitle: 'Boutiques et produits',
+        icon: Icons.search_rounded,
       ),
       body: ResponsiveContent(
         maxWidth: 720,

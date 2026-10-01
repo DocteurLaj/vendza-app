@@ -13,6 +13,8 @@ import 'package:vendza/shared/utils/date_time_label.dart';
 import 'package:vendza/shared/widgets/badge/attention_badge.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
+import 'package:vendza/shared/widgets/loading/vendza_loading_state.dart';
 import 'package:vendza/shared/widgets/media/context_image.dart';
 
 class StoreOrdersPage extends StatefulWidget {
@@ -139,15 +141,19 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
     );
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
-      appBar: AppBar(
-        title: Text('Commandes · ${widget.store.name}'),
-        backgroundColor: AppColors.appBackground(context),
-        foregroundColor: AppColors.textPrimary(context),
+      appBar: VendzaPageHeader.back(
+        title: 'Commandes',
+        subtitle: widget.store.name,
+        icon: Icons.storefront_outlined,
       ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const VendzaLoadingState(
+                title: 'Chargement des commandes',
+                message: 'Nous préparons les commandes de cette boutique.',
+                icon: Icons.storefront_outlined,
+              )
             : _error != null
             ? ListView(
                 children: [

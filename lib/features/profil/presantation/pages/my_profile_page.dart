@@ -7,6 +7,7 @@ import 'package:vendza/features/profil/presantation/widget/avatar_widget.dart';
 import 'package:vendza/shared/utils/phone_number.dart';
 import 'package:vendza/shared/widgets/input/phone_number_field.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 
 class MyProfilePage extends StatelessWidget {
   const MyProfilePage({super.key});
@@ -20,15 +21,10 @@ class MyProfilePage extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: AppColors.appBackground(context),
-          appBar: AppBar(
-            backgroundColor: AppColors.appBackground(context),
-            foregroundColor: AppColors.textPrimary(context),
-            elevation: 0,
-            centerTitle: true,
-            title: const Text(
-              "Mon profil",
-              style: TextStyle(fontWeight: FontWeight.w900),
-            ),
+          appBar: const VendzaPageHeader.root(
+            title: 'Mon profil',
+            subtitle: 'Identité, téléphone et avatar',
+            icon: Icons.person_outline_rounded,
           ),
           body: SafeArea(
             top: false,

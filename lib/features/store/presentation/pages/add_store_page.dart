@@ -18,6 +18,7 @@ import 'package:vendza/shared/widgets/input/from_section.dart';
 import 'package:vendza/shared/widgets/input/phone_number_field.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/media/upload_image_slot.dart';
 
 class AddStore extends StatefulWidget {
@@ -166,8 +167,8 @@ class _AddStoreState extends State<AddStore> {
       return;
     }
 
-    final whatsapp = _whatsappFieldKey.currentState?.value ??
-        parsePhoneNumber(_whatsapp);
+    final whatsapp =
+        _whatsappFieldKey.currentState?.value ?? parsePhoneNumber(_whatsapp);
     if (!whatsapp.isValid && whatsapp.national.isEmpty) {
       final skipWhatsapp = await _confirmMissingWhatsapp();
       if (skipWhatsapp != true) {
@@ -184,9 +185,7 @@ class _AddStoreState extends State<AddStore> {
       }
     } else if (!whatsapp.isValid) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Le numero WhatsApp est incomplet.'),
-        ),
+        const SnackBar(content: Text('Le numero WhatsApp est incomplet.')),
       );
       return;
     }
@@ -201,7 +200,9 @@ class _AddStoreState extends State<AddStore> {
         description: trimmedDescription,
         address: _city.trim(),
         imagePath: _imageUpload.enqueuePath,
-        whatsappUrl: whatsapp.e164.isEmpty ? null : whatsappUrlFromPhone(whatsapp.e164),
+        whatsappUrl: whatsapp.e164.isEmpty
+            ? null
+            : whatsappUrlFromPhone(whatsapp.e164),
         instagramUrl: _instagram.trim().isEmpty ? null : _instagram.trim(),
         facebookUrl: _facebook.trim().isEmpty ? null : _facebook.trim(),
       );
@@ -261,7 +262,11 @@ class _AddStoreState extends State<AddStore> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Creer un store")),
+      appBar: const VendzaPageHeader.back(
+        title: 'Créer un store',
+        subtitle: 'Identité, image et contacts',
+        icon: Icons.add_business_outlined,
+      ),
       body: SingleChildScrollView(
         child: ResponsiveContent(
           maxWidth: 760,

@@ -7,6 +7,7 @@ import 'package:vendza/features/store/data/services/data_exemple.dart'
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/features/store/domain/owner_store_grouping.dart';
 import 'package:vendza/shared/widgets/bouton/list_button_section.dart';
+import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 
 class CathegoryPage extends StatefulWidget {
   const CathegoryPage({super.key, this.canManage = false, this.store});
@@ -39,7 +40,11 @@ class _CathegoryPageState extends State<CathegoryPage> {
         : groups.map((group) => group.category).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Catégories utilisées")),
+      appBar: const VendzaPageHeader.back(
+        title: 'Catégories utilisées',
+        subtitle: 'Navigation par familles de produits',
+        icon: Icons.category_outlined,
+      ),
       body: ListButtonSection(
         icon: Icons.category_outlined,
         items: visibleCategories,
