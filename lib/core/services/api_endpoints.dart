@@ -90,6 +90,14 @@ class ApiEndpoints {
     return '/notification/threads/$threadId';
   }
 
+  static const subscriptionPlans = '/subscription/plans';
+  static const subscriptionMe = '/subscription/me';
+  static const subscriptionCheckout = '/subscription/checkout';
+
+  static String subscriptionPaymentStatus(int paymentId) {
+    return '/subscription/payments/$paymentId/status';
+  }
+
   static const orders = '/orders';
 
   static String orderDetail(int orderId) => '/orders/$orderId';

@@ -228,7 +228,10 @@ class ApiClient {
     try {
       response = await request(authenticated).timeout(timeout ?? _timeout);
     } on TimeoutException {
-      throw const ApiException(message: 'La requete a expire.', statusCode: 408);
+      throw const ApiException(
+        message: 'La requete a expire.',
+        statusCode: 408,
+      );
     } on http.ClientException catch (error) {
       throw ApiException(message: error.message);
     }
@@ -276,6 +279,19 @@ class ApiClient {
     if (decodedBody is Map<String, dynamic>) {
       final detail = decodedBody['detail'];
       if (detail is String && detail.isNotEmpty) return detail;
+      if (detail is Map) {
+        final detailMessage = detail['message'];
+        if (detailMessage is String && detailMessage.isNotEmpty) {
+          return detailMessage;
+        }
+      }
+      final details = decodedBody['details'];
+      if (details is Map) {
+        final detailsMessage = details['message'];
+        if (detailsMessage is String && detailsMessage.isNotEmpty) {
+          return detailsMessage;
+        }
+      }
       final message = decodedBody['message'];
       if (message is String && message.isNotEmpty) return message;
     }

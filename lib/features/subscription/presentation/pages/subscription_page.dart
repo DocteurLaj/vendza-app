@@ -1,10 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
-import 'package:vendza/core/constants/site_links.dart';
+import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
+import 'package:vendza/core/session/subscription_store.dart';
 import 'package:vendza/features/subscription/data/models/subscription_model.dart';
+import 'package:vendza/features/subscription/data/services/subscription_api_service.dart';
 import 'package:vendza/features/subscription/presentation/widgets/subscription_cart.dart';
 import 'package:vendza/features/subscription/presentation/widgets/subscription_features.dart';
 import 'package:vendza/features/subscription/presentation/widgets/text_intro.dart';
@@ -22,53 +25,17 @@ class SubscriptionPage extends StatefulWidget {
 }
 
 class _SubscriptionPageState extends State<SubscriptionPage> {
-  int selectedIndex = 1;
-  bool _comingSoonShown = false;
-  static const bool _offersEnabled = false;
+  int selectedIndex = 0;
+  bool _loading = true;
+  String? _error;
+  bool _paying = false;
+  List<SubscriptionModel> _subscriptions = const [];
 
-  static final List<SubscriptionModel> _subscriptions = [
-    SubscriptionModel(
-      id: 'starter',
-      title: 'Vendeur Débutant',
-      price: 3000,
-      duration: 'mois',
-      subtitle: 'Au lieu de 10000 FC Prix Normal',
-      features: [
-        'Vente d’articles simples',
-        'Nombre limité d’annonces',
-        'Visibilité de base',
-      ],
-    ),
-    SubscriptionModel(
-      id: 'growth',
-      title: 'Vendeur Actif',
-      price: 5000,
-      duration: 'mois',
-      subtitle: 'Au lieu de 15000 FC Prix  Normal',
-      features: [
-        'Meilleure visibilité',
-        'Plus de produits',
-        'Meilleur positionnement',
-        'Messagerie avec les clients',
-      ],
-    ),
-    SubscriptionModel(
-      id: 'business',
-      title: 'Boutique Pro',
-      price: 15000,
-      duration: 'mois',
-      subtitle: 'Au lieu de 25000 FC Prix  Normal',
-      features: [
-        'Produits illimités',
-        'Position en tête de recherche',
-        'Page boutique complète',
-        'Tableau de bord analytique',
-        'Support prioritaire',
-      ],
-    ),
-  ];
-
-  SubscriptionModel get _selectedSub => _subscriptions[selectedIndex];
+  SubscriptionModel? get _selectedSub {
+    if (_subscriptions.isEmpty) return null;
+    final safeIndex = selectedIndex.clamp(0, _subscriptions.length - 1);
+    return _subscriptions[safeIndex];
+  }
 
   void _selectPlan(int index) {
     setState(() => selectedIndex = index);
@@ -77,25 +44,107 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   @override
   void initState() {
     super.initState();
+    unawaited(_loadPlans());
   }
 
-  Future<void> _openAbout() async {
-    final opened = await SiteLinks.open(SiteLinks.subscription);
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Impossible d'ouvrir ce lien")),
-      );
+  Future<void> _loadPlans() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final plans = await refreshSubscriptionPlans();
+      final initialIndex = plans.indexWhere((plan) => !plan.isFree);
+      if (!mounted) return;
+      setState(() {
+        _subscriptions = plans;
+        selectedIndex = initialIndex >= 0 ? initialIndex : 0;
+        _loading = false;
+      });
+      try {
+        await refreshActiveSubscription();
+      } on Object {
+        // The plan list is public. A missing seller session must not hide offers.
+      }
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error is ApiException ? error.message : error.toString();
+        _loading = false;
+      });
     }
   }
 
-  Future<void> _showComingSoon({bool force = false}) async {
-    if (!force && _comingSoonShown) return;
-    if (!mounted) return;
-    _comingSoonShown = true;
+  Future<void> _startCheckout() async {
+    final selected = _selectedSub;
+    if (selected == null || !mounted || _paying) return;
+    if (selected.isFree) {
+      await showAppPopup<void>(
+        context: context,
+        size: PopupSize.medium,
+        builder: (context) {
+          return Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Offre gratuite', style: AppTextStyles.pageTitle(context)),
+                const SizedBox(height: 10),
+                Text(
+                  'Votre compte utilise automatiquement l’offre gratuite quand aucun abonnement payant n’est actif.',
+                  style: AppTextStyles.body(context),
+                ),
+                const SizedBox(height: 18),
+                AppPopupActions(
+                  cancelLabel: 'Fermer',
+                  confirmLabel: 'Compris',
+                  onCancel: () => Navigator.pop(context),
+                  onConfirm: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _paying = true);
+    try {
+      final checkout = await subscriptionApiService.createCheckout(
+        selected.code,
+      );
+      final uri = Uri.parse(checkout.checkoutUrl);
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Impossible d’ouvrir SasPay.')),
+        );
+        return;
+      }
+      if (!mounted) return;
+      await _showPaymentVerificationDialog(checkout);
+    } on Object catch (error) {
+      if (!mounted) return;
+      final message = error is ApiException
+          ? error.message
+          : 'Impossible de démarrer le paiement: $error';
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) setState(() => _paying = false);
+    }
+  }
+
+  Future<void> _showPaymentVerificationDialog(
+    SubscriptionCheckoutModel checkout,
+  ) async {
     await showAppPopup<void>(
       context: context,
       size: PopupSize.medium,
-      builder: (context) {
+      barrierDismissible: false,
+      builder: (dialogContext) {
         return Padding(
           padding: const EdgeInsets.all(8),
           child: Column(
@@ -103,23 +152,54 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Abonnements bientôt disponibles',
-                style: AppTextStyles.pageTitle(context),
+                'Paiement ouvert dans SasPay',
+                style: AppTextStyles.pageTitle(dialogContext),
               ),
               const SizedBox(height: 10),
               Text(
-                "L'application est actuellement disponible gratuitement. Les abonnements seront prochainement proposés aux utilisateurs souhaitant accéder à davantage de fonctionnalités professionnelles.",
-                style: AppTextStyles.body(context),
+                'Terminez le paiement sur SasPay, puis revenez ici pour activer votre abonnement.',
+                style: AppTextStyles.body(dialogContext),
               ),
               const SizedBox(height: 18),
               AppPopupActions(
-                cancelLabel: 'En savoir plus',
-                confirmLabel: 'Compris',
-                onCancel: () {
-                  Navigator.pop(context);
-                  unawaited(_openAbout());
+                cancelLabel: 'Plus tard',
+                confirmLabel: 'J’ai payé, vérifier',
+                onCancel: () => Navigator.pop(dialogContext),
+                onConfirm: () async {
+                  final navigator = Navigator.of(dialogContext);
+                  final messenger = ScaffoldMessenger.of(context);
+                  try {
+                    final status = await subscriptionApiService.paymentStatus(
+                      checkout.paymentId,
+                    );
+                    if (!mounted) return;
+                    if (status.subscriptionActive) {
+                      await refreshActiveSubscription();
+                      navigator.pop();
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Abonnement ${status.plan?.title ?? ''} activé.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Paiement encore en attente chez SasPay.',
+                        ),
+                      ),
+                    );
+                  } on Object catch (error) {
+                    if (!mounted) return;
+                    final message = error is ApiException
+                        ? error.message
+                        : 'Impossible de vérifier le paiement: $error';
+                    messenger.showSnackBar(SnackBar(content: Text(message)));
+                  }
                 },
-                onConfirm: () => Navigator.pop(context),
               ),
             ],
           ),
@@ -128,42 +208,82 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     );
   }
 
-  void _confirmSubscription() {
-    unawaited(_showComingSoon(force: true));
-  }
-
-  Widget _comingSoonBody(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
+  Widget _stateBody(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Abonnements bientôt disponibles',
-                style: AppTextStyles.pageTitle(context),
+                'Impossible de charger les offres',
+                style: AppTextStyles.sectionTitle(context),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
-                "L'application est actuellement disponible gratuitement. Les abonnements seront prochainement proposés aux utilisateurs souhaitant accéder à davantage de fonctionnalités professionnelles.",
+                _error!,
+                textAlign: TextAlign.center,
                 style: AppTextStyles.body(context),
               ),
-              const SizedBox(height: 18),
-              AppPopupActions(
-                cancelLabel: 'En savoir plus',
-                confirmLabel: 'Compris',
-                onCancel: () {
-                  unawaited(_openAbout());
-                },
-                onConfirm: () => Navigator.pop(context),
+              const SizedBox(height: 16),
+              AppBouton(
+                text: 'Réessayer',
+                onPressed: _loadPlans,
+                enabled: true,
               ),
             ],
           ),
         ),
-      ),
+      );
+    }
+    if (_subscriptions.isEmpty || _selectedSub == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Aucune offre active pour le moment.',
+            style: AppTextStyles.body(context),
+          ),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final layoutMode = AppBreakpoints.authLayoutMode(constraints.maxWidth);
+
+        return SingleChildScrollView(
+          child: ResponsiveContent(
+            maxWidth: 920,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 20, bottom: 32),
+              child: switch (layoutMode) {
+                AuthLayoutMode.expanded => _ExpandedSubscriptionLayout(
+                  subscriptions: _subscriptions,
+                  selectedIndex: selectedIndex,
+                  selectedSub: _selectedSub!,
+                  onSelect: _selectPlan,
+                  onConfirm: _startCheckout,
+                ),
+                AuthLayoutMode.medium ||
+                AuthLayoutMode.compact => _StackedSubscriptionLayout(
+                  layoutMode: layoutMode,
+                  subscriptions: _subscriptions,
+                  selectedIndex: selectedIndex,
+                  selectedSub: _selectedSub!,
+                  onSelect: _selectPlan,
+                  onConfirm: _startCheckout,
+                ),
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -175,43 +295,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         subtitle: 'Options vendeur Vendza',
         icon: Icons.workspace_premium_outlined,
       ),
-      body: _offersEnabled
-          ? LayoutBuilder(
-              builder: (context, constraints) {
-                final layoutMode = AppBreakpoints.authLayoutMode(
-                  constraints.maxWidth,
-                );
-
-                return SingleChildScrollView(
-                  child: ResponsiveContent(
-                    maxWidth: 920,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 20, bottom: 32),
-                      child: switch (layoutMode) {
-                        AuthLayoutMode.expanded => _ExpandedSubscriptionLayout(
-                          subscriptions: _subscriptions,
-                          selectedIndex: selectedIndex,
-                          selectedSub: _selectedSub,
-                          onSelect: _selectPlan,
-                          onConfirm: _confirmSubscription,
-                        ),
-                        AuthLayoutMode.medium ||
-                        AuthLayoutMode.compact => _StackedSubscriptionLayout(
-                          layoutMode: layoutMode,
-                          subscriptions: _subscriptions,
-                          selectedIndex: selectedIndex,
-                          selectedSub: _selectedSub,
-                          onSelect: _selectPlan,
-                          onConfirm: _confirmSubscription,
-                        ),
-                      },
-                    ),
-                  ),
-                );
-              },
-            )
-          : _comingSoonBody(context),
+      body: _stateBody(context),
     );
   }
 }

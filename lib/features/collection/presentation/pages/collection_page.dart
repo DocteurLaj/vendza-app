@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vendza/features/subscription/presentation/widgets/upgrade_required_popup.dart';
 import 'package:vendza/features/collection/data/services/data_exemple.dart';
 import 'package:vendza/features/collection/presentation/pages/collection_produit_page.dart';
 import 'package:vendza/features/collection/presentation/widgets/add_collection_dialog.dart';
@@ -43,10 +44,10 @@ class _CollectionPageState extends State<CollectionPage> {
   bool get _selectionMode => widget.canManage && _selectedIds.isNotEmpty;
 
   Future<void> _showAddDialog(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
     final name = await showAddCollectionDialog(context);
     if (!mounted || name == null || name.trim().isEmpty) return;
 
-    final messenger = ScaffoldMessenger.of(this.context);
     try {
       await collectionRepository.createCollection(
         storeId: widget.storeId,
@@ -54,7 +55,13 @@ class _CollectionPageState extends State<CollectionPage> {
       );
       if (mounted) setState(() {});
     } on Object catch (error) {
-      if (!mounted) return;
+      if (!mounted || !context.mounted) return;
+      if (await showUpgradeRequiredPopupFromError(
+        context: context,
+        error: error,
+      )) {
+        return;
+      }
       messenger.showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }

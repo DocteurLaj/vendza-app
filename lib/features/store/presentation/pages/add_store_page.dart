@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vendza/features/subscription/presentation/widgets/upgrade_required_popup.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
@@ -167,6 +168,7 @@ class _AddStoreState extends State<AddStore> {
       return;
     }
 
+    final messenger = ScaffoldMessenger.of(context);
     final whatsapp =
         _whatsappFieldKey.currentState?.value ?? parsePhoneNumber(_whatsapp);
     if (!whatsapp.isValid && whatsapp.national.isEmpty) {
@@ -184,7 +186,7 @@ class _AddStoreState extends State<AddStore> {
         return;
       }
     } else if (!whatsapp.isValid) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Le numero WhatsApp est incomplet.')),
       );
       return;
@@ -210,13 +212,17 @@ class _AddStoreState extends State<AddStore> {
       if (!mounted) return;
       Navigator.pop(context);
     } on Object catch (error) {
-      if (!mounted) return;
+      if (!mounted || !context.mounted) return;
+      if (await showUpgradeRequiredPopupFromError(
+        context: context,
+        error: error,
+      )) {
+        return;
+      }
       final message = error is ApiException
           ? error.message
           : "Impossible de creer le store pour le moment: $error";
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      messenger.showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

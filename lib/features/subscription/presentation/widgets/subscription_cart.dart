@@ -55,7 +55,7 @@ class SubscriptionCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'FC ${sub.price}',
+                sub.isFree ? 'Gratuit' : sub.formattedPrice,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppColors.textPrimary(context),

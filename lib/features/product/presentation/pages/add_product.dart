@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vendza/features/subscription/presentation/widgets/upgrade_required_popup.dart';
 import 'package:flutter/services.dart';
 import 'package:vendza/core/catalog/catalog_repository.dart';
 import 'package:vendza/core/constants/colors.dart';
@@ -170,6 +171,7 @@ class _AddProductState extends State<AddProduct> {
       return;
     }
 
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => _isSubmitting = true);
     try {
       final variationEntries = <MapEntry<String, Map<String, dynamic>>>[];
@@ -202,13 +204,17 @@ class _AddProductState extends State<AddProduct> {
       if (!mounted) return;
       Navigator.pop(context, product);
     } on Object catch (error) {
-      if (!mounted) return;
+      if (!mounted || !context.mounted) return;
+      if (await showUpgradeRequiredPopupFromError(
+        context: context,
+        error: error,
+      )) {
+        return;
+      }
       final message = error is ApiException
           ? error.message
           : "Impossible d'ajouter ce produit pour le moment: $error";
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      messenger.showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
