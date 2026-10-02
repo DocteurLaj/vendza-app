@@ -12,6 +12,8 @@ class ListStoreModel {
   final String instagramUrl;
   final String facebookUrl;
   final bool adminHidden;
+  final bool isActive;
+  final bool planLimitReached;
   final String? moderationReason;
   final DateTime? moderatedAt;
   final EntitySyncStatus syncStatus;
@@ -30,6 +32,8 @@ class ListStoreModel {
     this.instagramUrl = "",
     this.facebookUrl = "",
     this.adminHidden = false,
+    this.isActive = true,
+    this.planLimitReached = false,
     this.moderationReason,
     this.moderatedAt,
     this.syncStatus = EntitySyncStatus.online,
@@ -51,6 +55,8 @@ class ListStoreModel {
     String? instagramUrl,
     String? facebookUrl,
     bool? adminHidden,
+    bool? isActive,
+    bool? planLimitReached,
     String? moderationReason,
     DateTime? moderatedAt,
     EntitySyncStatus? syncStatus,
@@ -69,6 +75,8 @@ class ListStoreModel {
       instagramUrl: instagramUrl ?? this.instagramUrl,
       facebookUrl: facebookUrl ?? this.facebookUrl,
       adminHidden: adminHidden ?? this.adminHidden,
+      isActive: isActive ?? this.isActive,
+      planLimitReached: planLimitReached ?? this.planLimitReached,
       moderationReason: moderationReason ?? this.moderationReason,
       moderatedAt: moderatedAt ?? this.moderatedAt,
       syncStatus: syncStatus ?? this.syncStatus,

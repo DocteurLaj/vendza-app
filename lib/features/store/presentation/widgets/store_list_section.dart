@@ -4,6 +4,7 @@ import 'package:vendza/core/sync/entity_sync_status.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/features/store/presentation/widgets/store_widget.dart';
+import 'package:vendza/features/subscription/presentation/pages/subscription_page.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 
 class StoreListSection extends StatelessWidget {
@@ -46,7 +47,8 @@ class StoreListSection extends StatelessWidget {
             )
           else
             ...stores.map(
-              (store) => StoreWidget(
+              (store) => Builder(
+                builder: (ctx) => StoreWidget(
                 name: store.name,
                 description: store.description,
                 imageUrl: store.imageUrl,
@@ -63,7 +65,17 @@ class StoreListSection extends StatelessWidget {
                 attentionLabel: 'À traiter',
                 adminHidden: store.adminHidden,
                 moderationReason: store.moderationReason,
-                onTap: () => onStoreTap(store),
+                planLimitReached: store.planLimitReached,
+                // Boutiques désactivées par quota → ouvrir page upgrade
+                onTap: store.planLimitReached
+                    ? () => Navigator.push<void>(
+                          ctx,
+                          MaterialPageRoute<void>(
+                            builder: (_) => const SubscriptionPage(),
+                          ),
+                        )
+                    : () => onStoreTap(store),
+              ),
               ),
             ),
         ],

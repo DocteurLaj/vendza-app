@@ -90,6 +90,10 @@ ListStoreModel listStoreFromApi(Map<String, dynamic> json) {
     instagramUrl: json['instagramUrl'] as String? ?? '',
     facebookUrl: json['facebookUrl'] as String? ?? '',
     adminHidden: json['admin_hidden'] == true,
+    isActive: json['is_active'] != false,
+    planLimitReached: json['is_active'] == false &&
+        json['admin_hidden'] != true &&
+        json['admin_disabled'] != true,
     moderationReason: json['moderation_reason'] as String?,
     moderatedAt: _parseDateTime(json['moderated_at']),
   );

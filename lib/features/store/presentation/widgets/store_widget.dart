@@ -23,6 +23,7 @@ class StoreWidget extends StatelessWidget {
     this.attentionLabel,
     this.adminHidden = false,
     this.moderationReason,
+    this.planLimitReached = false,
   });
 
   final String name;
@@ -38,6 +39,7 @@ class StoreWidget extends StatelessWidget {
   final String? attentionLabel;
   final bool adminHidden;
   final String? moderationReason;
+  final bool planLimitReached;
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +125,14 @@ class StoreWidget extends StatelessWidget {
                       ModerationNotice(
                         title: 'Boutique bloquee',
                         reason: moderationReason,
+                        compact: true,
+                      ),
+                    if (planLimitReached)
+                      ModerationNotice(
+                        title: 'Boutique désactivée',
+                        reason:
+                            'Votre abonnement Gratuit permet 1 boutique active. '
+                            'Passez à un plan supérieur pour réactiver cette boutique.',
                         compact: true,
                       ),
                   ],
