@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:vendza/features/subscription/presentation/widgets/upgrade_required_popup.dart';
+import 'package:vendza/core/services/api_exception.dart';
+import 'package:vendza/core/session/entitlement_guards.dart' as ent;
 import 'package:vendza/features/collection/data/services/data_exemple.dart';
 import 'package:vendza/features/collection/presentation/pages/collection_produit_page.dart';
 import 'package:vendza/features/collection/presentation/widgets/add_collection_dialog.dart';
 import 'package:vendza/features/collection/presentation/widgets/collection_product_stack_preview.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
+import 'package:vendza/features/subscription/presentation/widgets/upgrade_required_popup.dart';
 import 'package:vendza/shared/widgets/bouton/list_button_section.dart';
 import 'package:vendza/shared/widgets/dialog/confirm_delete_dialog.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
@@ -44,6 +46,27 @@ class _CollectionPageState extends State<CollectionPage> {
   bool get _selectionMode => widget.canManage && _selectedIds.isNotEmpty;
 
   Future<void> _showAddDialog(BuildContext context) async {
+    // Client-side guard — immediate feedback without opening the dialog
+    if (!ent.canCreateCollection()) {
+      await showUpgradeRequiredPopup(
+        context: context,
+        error: const ApiException(
+          message: 'Les collections ne sont pas incluses dans votre abonnement. '
+              'Passez à un plan supérieur pour en créer.',
+          statusCode: 402,
+          body: {
+            'detail': {
+              'error': 'plan_limit_reached',
+              'message': 'Les collections ne sont pas incluses dans votre abonnement. '
+                  'Passez à un plan supérieur pour en créer.',
+              'current_plan': 'free',
+              'required_plan': 'starter',
+            },
+          },
+        ),
+      );
+      return;
+    }
     final messenger = ScaffoldMessenger.of(context);
     final name = await showAddCollectionDialog(context);
     if (!mounted || name == null || name.trim().isEmpty) return;

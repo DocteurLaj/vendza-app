@@ -7,6 +7,7 @@ import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/services/api_token_store.dart';
 import 'package:vendza/core/services/push_notification_service.dart';
 import 'package:vendza/core/session/current_user_store.dart';
+import 'package:vendza/core/session/subscription_store.dart';
 import 'package:vendza/features/auth/data/services/auth_api_service.dart';
 import 'package:vendza/features/auth/data/services/google_identity_service.dart';
 import 'package:vendza/features/notification/data/services/realtime_notification_service.dart';
@@ -167,6 +168,7 @@ class AuthSessionService {
       await realtimeNotificationService.stop();
       _sessionCleaner();
       clearCurrentUser();
+      clearSubscriptionSession();
       try {
         await _googleIdentityProvider.signOut();
       } on Object {
@@ -243,6 +245,8 @@ class AuthSessionService {
     }
     await pushNotificationService.syncCurrentToken();
     unawaited(realtimeNotificationService.start());
+    // Refresh subscription context silently — failure must never block login.
+    refreshActiveSubscription().ignore();
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:vendza/features/subscription/presentation/widgets/upgrade_requir
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
+import 'package:vendza/core/session/entitlement_guards.dart' as ent;
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/core/upload/image_upload_controller.dart';
 import 'package:vendza/features/auth/data/services/auth_session_service.dart';
@@ -194,6 +195,34 @@ class _AddStoreState extends State<AddStore> {
 
     setState(() => _isSubmitting = true);
     try {
+      // Client-side social links guard before the API call
+      final socialLinks = [
+        whatsapp.e164.isNotEmpty ? whatsapp.e164 : '',
+        _instagram.trim(),
+        _facebook.trim(),
+      ].where((s) => s.isNotEmpty).length;
+      if (socialLinks > ent.maxSocialLinks()) {
+        setState(() => _isSubmitting = false);
+        if (!mounted) return;
+        await showUpgradeRequiredPopup(
+          context: context,
+          error: ApiException(
+            message: 'Votre abonnement permet ${ent.maxSocialLinks()} lien(s) social(aux). '
+                'Passez à un plan supérieur pour en ajouter davantage.',
+            statusCode: 402,
+            body: {
+              'detail': {
+                'error': 'plan_limit_reached',
+                'message': 'Votre abonnement permet ${ent.maxSocialLinks()} lien(s) social(aux). '
+                    'Passez à un plan supérieur pour en ajouter davantage.',
+                'current_plan': 'free',
+                'required_plan': 'starter',
+              },
+            },
+          ),
+        );
+        return;
+      }
       await ensureStoreCreationSession(
         () => authSessionService.restoreSession(syncCatalog: false),
       );

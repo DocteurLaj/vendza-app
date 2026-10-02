@@ -6,6 +6,7 @@ import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/core/upload/image_upload_controller.dart';
+import 'package:vendza/core/session/entitlement_guards.dart' as ent;
 import 'package:vendza/features/cathegory/data/services/data_exemple.dart'
     as cathegory_data;
 import 'package:vendza/features/store/data/services/data_exemple.dart';
@@ -83,6 +84,29 @@ class _AddProductState extends State<AddProduct> {
 
   void _addVariant() {
     if (_isSubmitting) return;
+    // Client-side guard — show upgrade popup immediately without round-trip.
+    if (!ent.canAddVariant()) {
+      showUpgradeRequiredPopup(
+        context: context,
+        error: const ApiException(
+          message:
+              'Les variantes produit ne sont pas incluses dans votre abonnement. '
+              'Passez à l\'offre Actif ou Pro pour les activer.',
+          statusCode: 402,
+          body: {
+            'detail': {
+              'error': 'plan_limit_reached',
+              'message':
+                  'Les variantes produit ne sont pas incluses dans votre abonnement. '
+                  'Passez à l\'offre Actif ou Pro pour les activer.',
+              'current_plan': 'free',
+              'required_plan': 'active',
+            },
+          },
+        ),
+      );
+      return;
+    }
     setState(() {
       final variant = _VariantDraft(price: _price.trim(), currency: _currency);
       variant.image.addListener(_onUploadChanged);

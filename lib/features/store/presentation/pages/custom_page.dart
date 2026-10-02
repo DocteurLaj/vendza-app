@@ -4,6 +4,7 @@ import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
+import 'package:vendza/core/session/entitlement_guards.dart' as ent;
 import 'package:vendza/core/upload/image_upload_controller.dart';
 import 'package:vendza/features/collection/presentation/widgets/assign_products_dialog.dart';
 import 'package:vendza/features/home/data/models/store_model.dart'
@@ -15,6 +16,7 @@ import 'package:vendza/features/store/data/services/product_management_service.d
 import 'package:vendza/features/store/data/services/store_api_service.dart';
 import 'package:vendza/features/store/presentation/pages/store_detail_page.dart';
 import 'package:vendza/features/store/presentation/widgets/custom_product_picker_section.dart';
+import 'package:vendza/features/subscription/presentation/widgets/upgrade_required_popup.dart';
 import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/utils/phone_number.dart';
 import 'package:vendza/shared/utils/social_url.dart';
@@ -181,6 +183,59 @@ class _CustomPageState extends State<CustomPage> {
     ).profileImageUrl;
     setState(() => _isSubmitting = true);
     try {
+      // Client-side banner guard
+      if (_coverUpload.hasImage && !ent.canSetBanner()) {
+        if (mounted) {
+          await showUpgradeRequiredPopup(
+            context: context,
+            error: const ApiException(
+              message: 'La bannière de boutique n\'est pas incluse dans votre abonnement. '
+                  'Passez à l\'offre Débutant ou supérieur pour l\'activer.',
+              statusCode: 402,
+              body: {
+                'detail': {
+                  'error': 'plan_limit_reached',
+                  'message': 'La bannière de boutique n\'est pas incluse dans votre abonnement. '
+                      'Passez à l\'offre Débutant ou supérieur pour l\'activer.',
+                  'current_plan': 'free',
+                  'required_plan': 'starter',
+                },
+              },
+            ),
+          );
+        }
+        if (mounted) setState(() => _isSubmitting = false);
+        return;
+      }
+      // Client-side social links guard
+      final socialCount = [
+        _instagramController.text.trim(),
+        _facebookController.text.trim(),
+        (_whatsappFieldKey.currentState?.value.e164 ?? ''),
+      ].where((s) => s.isNotEmpty).length;
+      if (socialCount > ent.maxSocialLinks()) {
+        if (mounted) {
+          await showUpgradeRequiredPopup(
+            context: context,
+            error: ApiException(
+              message: 'Votre abonnement permet ${ent.maxSocialLinks()} lien(s) social(aux). '
+                  'Passez à un plan supérieur pour en ajouter davantage.',
+              statusCode: 402,
+              body: {
+                'detail': {
+                  'error': 'plan_limit_reached',
+                  'message': 'Votre abonnement permet ${ent.maxSocialLinks()} lien(s) social(aux). '
+                      'Passez à un plan supérieur pour en ajouter davantage.',
+                  'current_plan': 'free',
+                  'required_plan': 'starter',
+                },
+              },
+            ),
+          );
+        }
+        if (mounted) setState(() => _isSubmitting = false);
+        return;
+      }
       final coverImage = _coverUpload.hasImage
           ? await _coverUpload.ensureRemoteUrl()
           : '';
@@ -223,6 +278,11 @@ class _CustomPageState extends State<CustomPage> {
       );
       Navigator.of(context).pop(true);
     } on Object catch (error) {
+      if (!mounted) return;
+      if (error is ApiException &&
+          await showUpgradeRequiredPopupFromError(context: context, error: error)) {
+        return;
+      }
       if (!mounted) return;
       final message = error is ApiException
           ? error.message
