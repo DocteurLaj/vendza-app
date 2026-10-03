@@ -6,14 +6,9 @@ import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/session/subscription_store.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/subscription/data/services/subscription_api_service.dart';
-import 'package:vendza/shared/widgets/bouton/button.dart';
 import 'package:vendza/shared/widgets/dialog/show_app_popup.dart';
 
 /// Called by DeepLinkService when vendza://payment-return is received.
-/// Shows an automatic, reassuring UX:
-///   1. Spinner while verifying
-///   2. Success screen if paid
-///   3. "Still pending" with manual retry if not yet confirmed
 Future<void> handlePaymentReturn(BuildContext context, int paymentId) async {
   if (!context.mounted) return;
   await showAppPopup<void>(
@@ -25,29 +20,19 @@ Future<void> handlePaymentReturn(BuildContext context, int paymentId) async {
 
 // ── States ────────────────────────────────────────────────────────────────────
 
-sealed class _VerifyState {
-  const _VerifyState();
-}
-
-class _Verifying extends _VerifyState {
-  const _Verifying();
-}
-
+sealed class _VerifyState { const _VerifyState(); }
+class _Verifying extends _VerifyState { const _Verifying(); }
 class _Success extends _VerifyState {
   const _Success(this.planName);
   final String planName;
 }
-
-class _Pending extends _VerifyState {
-  const _Pending();
-}
-
+class _Pending extends _VerifyState { const _Pending(); }
 class _Failed extends _VerifyState {
   const _Failed(this.message);
   final String message;
 }
 
-// ── Widget ────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _PaymentReturnPopup extends StatefulWidget {
   const _PaymentReturnPopup({required this.paymentId});
@@ -61,8 +46,8 @@ class _PaymentReturnPopup extends StatefulWidget {
 class _PaymentReturnPopupState extends State<_PaymentReturnPopup> {
   _VerifyState _state = const _Verifying();
   int _attempts = 0;
-  static const int _maxPollingAttempts = 4;
-  static const Duration _pollInterval = Duration(seconds: 2);
+  static const int _maxAttempts = 4;
+  static const Duration _interval = Duration(seconds: 2);
 
   @override
   void initState() {
@@ -71,35 +56,28 @@ class _PaymentReturnPopupState extends State<_PaymentReturnPopup> {
   }
 
   Future<void> _startVerification() async {
-    setState(() => _state = const _Verifying());
+    setState(() { _state = const _Verifying(); _attempts = 0; });
     await _poll();
   }
 
   Future<void> _poll() async {
-    _attempts = 0;
-    while (_attempts < _maxPollingAttempts) {
+    while (_attempts < _maxAttempts) {
       _attempts++;
       try {
         final status =
             await subscriptionApiService.paymentStatus(widget.paymentId);
         if (status.subscriptionActive) {
-          // Refresh subscription context in the background
           refreshActiveSubscription().ignore();
           if (mounted) {
-            setState(
-              () => _state = _Success(status.plan?.title ?? 'Boutique Pro'),
-            );
+            setState(() =>
+                _state = _Success(status.plan?.title ?? 'Boutique Pro'));
           }
           return;
         }
         if (status.status == 'failed' || status.status == 'cancelled') {
           if (mounted) {
-            setState(
-              () => _state = _Failed(
-                'Votre paiement n\'a pas été confirmé par SasPay. '
-                'Réessayez ou contactez le support.',
-              ),
-            );
+            setState(() => _state = const _Failed(
+                "Votre paiement n'a pas été confirmé. Réessayez ou contactez le support."));
           }
           return;
         }
@@ -107,21 +85,17 @@ class _PaymentReturnPopupState extends State<_PaymentReturnPopup> {
         if (mounted) setState(() => _state = _Failed(e.message));
         return;
       } on Object {
-        // Network glitch — keep trying
+        // network glitch — keep trying
       }
-      // Wait before next attempt
-      if (_attempts < _maxPollingAttempts) {
-        await Future<void>.delayed(_pollInterval);
-      }
+      if (_attempts < _maxAttempts) await Future<void>.delayed(_interval);
     }
-    // All attempts exhausted — show pending state
     if (mounted) setState(() => _state = const _Pending());
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 16),
       child: switch (_state) {
         _Verifying() => _VerifyingBody(),
         _Success(:final planName) => _SuccessBody(
@@ -142,7 +116,66 @@ class _PaymentReturnPopupState extends State<_PaymentReturnPopup> {
   }
 }
 
-// ── Bodies ────────────────────────────────────────────────────────────────────
+// ── shared helpers ─────────────────────────────────────────────────────────────
+
+Widget _iconCircle(BuildContext context, IconData icon, Color color) {
+  return Center(
+    child: Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: color, size: 30),
+    ),
+  );
+}
+
+Widget _primaryButton(
+  BuildContext context, {
+  required String label,
+  required VoidCallback onPressed,
+}) {
+  final accent = AppColors.accent(context);
+  return SizedBox(
+    height: 48,
+    child: ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: accent,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 0,
+      ),
+      child: Text(
+        label,
+        style:
+            const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+      ),
+    ),
+  );
+}
+
+Widget _secondaryButton(
+  BuildContext context, {
+  required String label,
+  required VoidCallback onPressed,
+}) {
+  return TextButton(
+    onPressed: onPressed,
+    child: Text(
+      label,
+      style: TextStyle(
+        color: AppColors.textSecondary(context),
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
+}
+
+// ── Bodies ─────────────────────────────────────────────────────────────────────
 
 class _VerifyingBody extends StatelessWidget {
   @override
@@ -150,24 +183,29 @@ class _VerifyingBody extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 8),
-        CircularProgressIndicator(
-          color: AppColors.accent(context),
-          strokeWidth: 2.5,
+        Center(
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: CircularProgressIndicator(
+              color: AppColors.accent(context),
+              strokeWidth: 2.5,
+            ),
+          ),
         ),
         const SizedBox(height: 20),
         Text(
-          'Vérification du paiement…',
-          style: AppTextStyles.sectionTitle(context),
+          'Vérification en cours…',
+          style: AppTextStyles.pageTitle(context),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
         Text(
-          'Nous confirmons votre paiement avec SasPay.\nCela prend quelques secondes.',
+          'Nous confirmons votre paiement.\nCela prend quelques secondes.',
           style: AppTextStyles.body(context),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -186,37 +224,28 @@ class _SuccessBody extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Center(
-          child: Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.check_rounded,
-              color: accent,
-              size: 34,
-            ),
-          ),
-        ),
+        _iconCircle(context, Icons.check_rounded, accent),
         const SizedBox(height: 18),
         Text(
           'Abonnement activé !',
-          style: AppTextStyles.pageTitle(context),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            color: AppColors.textPrimary(context),
+            height: 1.15,
+          ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Text(
           'Votre plan $planName est maintenant actif.\nProfitez de toutes vos fonctionnalités.',
           style: AppTextStyles.body(context),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),
-        AppBouton(
-          text: 'Accéder à mes boutiques',
-          enabled: true,
+        _primaryButton(
+          context,
+          label: 'Accéder à mes boutiques',
           onPressed: onClose,
         ),
         const SizedBox(height: 4),
@@ -237,48 +266,24 @@ class _PendingBody extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Center(
-          child: Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: Colors.orange.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.hourglass_top_rounded,
-              color: Colors.orange,
-              size: 32,
-            ),
-          ),
-        ),
+        _iconCircle(context, Icons.hourglass_top_rounded, Colors.orange),
         const SizedBox(height: 18),
         Text(
           'Paiement en cours…',
           style: AppTextStyles.pageTitle(context),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Text(
           'Votre paiement est en cours de traitement chez SasPay.\n'
-          'Si vous avez bien payé, attendez quelques secondes et vérifiez.',
+          'Si vous avez bien payé, vérifiez dans quelques secondes.',
           style: AppTextStyles.body(context),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),
-        AppBouton(
-          text: 'Vérifier maintenant',
-          enabled: true,
-          onPressed: onRetry,
-        ),
-        const SizedBox(height: 8),
-        TextButton(
-          onPressed: onClose,
-          child: Text(
-            'Fermer',
-            style: TextStyle(color: AppColors.textSecondary(context)),
-          ),
-        ),
+        _primaryButton(context, label: 'Vérifier maintenant', onPressed: onRetry),
+        const SizedBox(height: 4),
+        _secondaryButton(context, label: 'Fermer', onPressed: onClose),
       ],
     );
   }
@@ -301,47 +306,23 @@ class _FailedBody extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Center(
-          child: Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: Colors.red.withValues(alpha: 0.10),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.error_outline_rounded,
-              color: Colors.red,
-              size: 32,
-            ),
-          ),
-        ),
+        _iconCircle(context, Icons.error_outline_rounded, Colors.red),
         const SizedBox(height: 18),
         Text(
           'Paiement non confirmé',
           style: AppTextStyles.pageTitle(context),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Text(
           message,
           style: AppTextStyles.body(context),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),
-        AppBouton(
-          text: 'Réessayer',
-          enabled: true,
-          onPressed: onRetry,
-        ),
-        const SizedBox(height: 8),
-        TextButton(
-          onPressed: onClose,
-          child: Text(
-            'Fermer',
-            style: TextStyle(color: AppColors.textSecondary(context)),
-          ),
-        ),
+        _primaryButton(context, label: 'Réessayer', onPressed: onRetry),
+        const SizedBox(height: 4),
+        _secondaryButton(context, label: 'Fermer', onPressed: onClose),
       ],
     );
   }
