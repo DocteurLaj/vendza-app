@@ -127,7 +127,7 @@ void main() {
       baseUrl: 'https://api.test',
       httpClient: MockClient((request) async {
         if (request.url.path == '/subscription/checkout') {
-          expect(jsonDecode(request.body), {'plan_code': 'active'});
+          expect(jsonDecode(request.body), {'plan_code': 'active', 'platform': 'web'});
           return http.Response(
             jsonEncode({
               'success': true,

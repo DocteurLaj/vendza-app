@@ -73,4 +73,26 @@ void main() {
   test('parseDeepLink returns null for unknown uri', () {
     expect(service.parseDeepLink(Uri.parse('https://example.com')), isNull);
   });
+
+  test('parseDeepLink payment return via custom scheme', () {
+    final uri = Uri.parse('vendza://payment-return?payment_id=42&platform=mobile');
+    final result = service.parseDeepLink(uri);
+    expect(result, isA<PaymentReturnDeepLink>());
+    expect((result as PaymentReturnDeepLink).paymentId, 42);
+  });
+
+  test('parseDeepLink payment return via https', () {
+    final uri = Uri.parse(
+      'https://app.vendza.online/subscription/payment-return?payment_id=7&platform=web',
+    );
+    final result = service.parseDeepLink(uri);
+    expect(result, isA<PaymentReturnDeepLink>());
+    expect((result as PaymentReturnDeepLink).paymentId, 7);
+  });
+
+  test('parseDeepLink payment return ignores missing payment_id', () {
+    final uri = Uri.parse('vendza://payment-return');
+    final result = service.parseDeepLink(uri);
+    expect(result, isNull);
+  });
 }
