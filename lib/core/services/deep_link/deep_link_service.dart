@@ -7,6 +7,7 @@ import 'package:vendza/core/services/deep_link/catalog_lookup.dart';
 import 'package:vendza/features/auth/presantation/pages/reset_password_page.dart';
 import 'package:vendza/features/product/presentation/pages/product_detail_page.dart';
 import 'package:vendza/features/store/presentation/pages/store_detail_page.dart';
+import 'package:vendza/features/subscription/presentation/pages/payment_return_handler.dart';
 import 'package:vendza/navigation/app_navigator.dart';
 
 sealed class DeepLinkTarget {
@@ -16,6 +17,8 @@ sealed class DeepLinkTarget {
   const factory DeepLinkTarget.store(String id) = StoreDeepLink;
   const factory DeepLinkTarget.resetPassword(String token) =
       ResetPasswordDeepLink;
+  const factory DeepLinkTarget.paymentReturn(int paymentId) =
+      PaymentReturnDeepLink;
 }
 
 final class ProductDeepLink extends DeepLinkTarget {
@@ -34,6 +37,12 @@ final class ResetPasswordDeepLink extends DeepLinkTarget {
   const ResetPasswordDeepLink(this.token);
 
   final String token;
+}
+
+final class PaymentReturnDeepLink extends DeepLinkTarget {
+  const PaymentReturnDeepLink(this.paymentId);
+
+  final int paymentId;
 }
 
 class DeepLinkService {
@@ -119,6 +128,11 @@ class DeepLinkService {
       if (host == 'reset-password') {
         return DeepLinkTarget.resetPassword(uri.queryParameters['token'] ?? '');
       }
+      if (host == 'payment-return') {
+        final rawId = uri.queryParameters['payment_id'];
+        final paymentId = rawId != null ? int.tryParse(rawId) : null;
+        if (paymentId != null) return DeepLinkTarget.paymentReturn(paymentId);
+      }
     }
 
     final webHost = uri.host.toLowerCase();
@@ -148,6 +162,14 @@ class DeepLinkService {
       }
       if (segments.isNotEmpty && segments.first == 'reset-password') {
         return DeepLinkTarget.resetPassword(uri.queryParameters['token'] ?? '');
+      }
+      // https://app.vendza.online/subscription/payment-return?payment_id=N
+      if (segments.length >= 2 &&
+          segments[0] == 'subscription' &&
+          segments[1] == 'payment-return') {
+        final rawId = uri.queryParameters['payment_id'];
+        final paymentId = rawId != null ? int.tryParse(rawId) : null;
+        if (paymentId != null) return DeepLinkTarget.paymentReturn(paymentId);
       }
     }
 
@@ -195,6 +217,10 @@ class DeepLinkService {
           ),
           (route) => false,
         );
+      case PaymentReturnDeepLink(:final paymentId):
+        // Show the payment verification popup on top of the current screen.
+        final context = navigator.context;
+        handlePaymentReturn(context, paymentId);
     }
   }
 

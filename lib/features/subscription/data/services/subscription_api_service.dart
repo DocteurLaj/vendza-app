@@ -26,11 +26,14 @@ class SubscriptionApiService {
     return SubscriptionContextModel.fromJson(data);
   }
 
-  Future<SubscriptionCheckoutModel> createCheckout(String planCode) async {
+  Future<SubscriptionCheckoutModel> createCheckout(
+    String planCode, {
+    String platform = 'web',
+  }) async {
     final response = await _client.post(
       ApiEndpoints.subscriptionCheckout,
       authenticated: true,
-      body: {'plan_code': planCode},
+      body: {'plan_code': planCode, 'platform': platform},
     );
     final data = response is Map<String, dynamic> && response['data'] is Map
         ? Map<String, dynamic>.from(response['data'] as Map)

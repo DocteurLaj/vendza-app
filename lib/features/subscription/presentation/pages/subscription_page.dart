@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
+import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/core/session/subscription_store.dart';
@@ -113,19 +115,28 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _paying = true);
     try {
+      // Detect platform: mobile = Android/iOS, web = everything else
+      final platform = (!kIsWeb) ? 'mobile' : 'web';
       final checkout = await subscriptionApiService.createCheckout(
         selected.code,
+        platform: platform,
       );
       final uri = Uri.parse(checkout.checkoutUrl);
       final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!opened) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Impossible d’ouvrir SasPay.')),
+          const SnackBar(content: Text("Impossible d'ouvrir SasPay.")),
         );
         return;
       }
       if (!mounted) return;
-      await _showPaymentVerificationDialog(checkout);
+      // On mobile the app receives a deep link on return \u2192 auto-popup.
+      // On web we fall back to the manual verification dialog.
+      if (kIsWeb) {
+        await _showPaymentVerificationDialog(checkout);
+      } else {
+        await _showWaitingForReturnDialog(checkout);
+      }
     } on Object catch (error) {
       if (!mounted) return;
       final message = error is ApiException
@@ -135,6 +146,59 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     } finally {
       if (mounted) setState(() => _paying = false);
     }
+  }
+
+  /// Mobile-only: shown while SasPay is open.
+  /// The app will detect the deep link return automatically and show
+  /// the PaymentReturnHandler popup. This dialog is just a light reassurance.
+  Future<void> _showWaitingForReturnDialog(
+    SubscriptionCheckoutModel checkout,
+  ) async {
+    await showAppPopup<void>(
+      context: context,
+      size: PopupSize.medium,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.accent(dialogContext),
+                  strokeWidth: 2.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Paiement en cours…',
+                style: AppTextStyles.pageTitle(dialogContext),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Terminez votre paiement sur SasPay.\n'
+                'Vous serez redirigé automatiquement dans l\'application.',
+                style: AppTextStyles.body(dialogContext),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(
+                  'Fermer',
+                  style: TextStyle(
+                    color: AppColors.textSecondary(dialogContext),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _showPaymentVerificationDialog(
