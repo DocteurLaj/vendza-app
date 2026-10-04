@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:vendza/core/catalog/catalog_repository.dart'
-    show catalogRevision;
+    show catalogLoading, catalogRevision;
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/home/data/models/store_model.dart';
@@ -275,39 +276,48 @@ class _AllStoresPageState extends State<AllStoresPage>
                         ),
                 ),
                 Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _refreshCatalog,
-                    child: visibleStores.isEmpty
-                        ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: const [
-                              SizedBox(height: 120),
-                              _EmptyStoreCatalog(),
-                            ],
-                          )
-                        : ResponsiveContent(
-                            maxWidth: 920,
-                            child: ListView.separated(
-                              controller: _scrollController,
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-                              itemCount:
-                                  visibleStores.length + (_canLoadMore ? 1 : 0),
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(height: 10),
-                              itemBuilder: (context, index) {
-                                if (index >= visibleStores.length) {
-                                  return const _LoadMoreHint();
-                                }
-
-                                final store = visibleStores[index];
-                                return StoreCatalogCard(
-                                  store: store,
-                                  onTap: () => _openStore(store),
-                                );
-                              },
-                            ),
-                          ),
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: catalogLoading,
+                    builder: (context, isLoading, _) {
+                      if (isLoading && stores.isEmpty) {
+                        return const _StoreListSkeleton();
+                      }
+                      return RefreshIndicator(
+                        onRefresh: _refreshCatalog,
+                        child: visibleStores.isEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: const [
+                                  SizedBox(height: 120),
+                                  _EmptyStoreCatalog(),
+                                ],
+                              )
+                            : ResponsiveContent(
+                                maxWidth: 920,
+                                child: ListView.separated(
+                                  controller: _scrollController,
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  padding: const EdgeInsets.fromLTRB(
+                                      16, 0, 16, 18),
+                                  itemCount: visibleStores.length +
+                                      (_canLoadMore ? 1 : 0),
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(height: 10),
+                                  itemBuilder: (context, index) {
+                                    if (index >= visibleStores.length) {
+                                      return const _LoadMoreHint();
+                                    }
+                                    final store = visibleStores[index];
+                                    return StoreCatalogCard(
+                                      store: store,
+                                      onTap: () => _openStore(store),
+                                    );
+                                  },
+                                ),
+                              ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -434,6 +444,97 @@ class _EmptyStoreCatalog extends StatelessWidget {
           title: "Aucune boutique trouvée",
           message: "Essaie avec un autre nom ou vérifie l'orthographe.",
         ),
+      ),
+    );
+  }
+}
+
+// ── Skeleton loader ───────────────────────────────────────────────────────────
+
+class _StoreListSkeleton extends StatelessWidget {
+  const _StoreListSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    final base = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0);
+    final highlight =
+        isDark ? const Color(0xFF3A3A3A) : const Color(0xFFF5F5F5);
+
+    return Shimmer.fromColors(
+      baseColor: base,
+      highlightColor: highlight,
+      child: ListView.separated(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+        itemCount: 5,
+        separatorBuilder: (context, index) => const SizedBox(height: 10),
+        itemBuilder: (context, index) => const _SkeletonStoreCard(),
+      ),
+    );
+  }
+}
+
+class _SkeletonStoreCard extends StatelessWidget {
+  const _SkeletonStoreCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 88,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          // Avatar
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Text lines
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  height: 14,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 11,
+                  width: 140,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 11,
+                  width: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
