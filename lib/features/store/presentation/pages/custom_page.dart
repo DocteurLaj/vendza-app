@@ -47,11 +47,13 @@ class _CustomPageState extends State<CustomPage> {
   late String _initialWhatsapp;
   late List<ProductModel> _featuredProducts;
   bool _isSubmitting = false;
+  late bool _isActive;
 
   @override
   void initState() {
     super.initState();
     activateStoreCustomization(widget.store.id);
+    _isActive = widget.store.isActive;
     final customization = customizationForStore(widget.store.id);
     _nameController = TextEditingController(
       text: customization.name.isNotEmpty
@@ -314,6 +316,65 @@ class _CustomPageState extends State<CustomPage> {
     );
   }
 
+  Future<void> _toggleStore() async {
+    if (_isSubmitting) return;
+    final storeId = int.tryParse(widget.store.id);
+    if (storeId == null) return;
+
+    final isCurrentlyActive = _isActive;
+    final actionLabel = isCurrentlyActive ? 'désactiver' : 'activer';
+
+    // Confirm deactivation (activating needs no confirmation)
+    if (isCurrentlyActive) {
+      final confirmed = await showDestructiveActionDialog(
+        context: context,
+        title: 'Désactiver ${widget.store.name} ?',
+        message:
+            'Cette boutique ne sera plus visible par les clients tant qu\'elle est désactivée.',
+        details: const [
+          'Les produits ne seront plus visibles publiquement.',
+          'Vous pourrez la réactiver à tout moment (selon votre abonnement).',
+          'Les commandes existantes restent disponibles.',
+        ],
+        confirmLabel: 'Désactiver',
+      );
+      if (!confirmed || !mounted) return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      final result = await StoreApiService().toggleStoreActive(storeId);
+      final newActive = result['is_active'] as bool? ?? !isCurrentlyActive;
+      setState(() => _isActive = newActive);
+      // Update the store in catalog so the list reflects the change
+      updateOwnedStoreActiveState(widget.store.id, isActive: newActive);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            newActive
+                ? 'Boutique activée — visible par les clients.'
+                : 'Boutique désactivée — masquée des clients.',
+          ),
+        ),
+      );
+    } on Object catch (error) {
+      if (!mounted) return;
+      final handled =
+          await showUpgradeRequiredPopupFromError(context: context, error: error);
+      if (!handled) {
+        final message = error is ApiException
+            ? error.message
+            : 'Impossible de $actionLabel la boutique. Réessayez.';
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
   Future<void> _deleteStore() async {
     if (_isSubmitting) return;
     if (!isOwnedStoreId(widget.store.id)) {
@@ -452,6 +513,41 @@ class _CustomPageState extends State<CustomPage> {
                         !_coverUpload.blocksSubmit &&
                         !_profileUpload.blocksSubmit,
                     isLoading: _isSubmitting,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _isSubmitting ? null : _toggleStore,
+                    icon: Icon(
+                      _isActive
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                    ),
+                    label: Text(
+                      _isActive
+                          ? 'Désactiver cette boutique'
+                          : 'Activer cette boutique',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _isActive
+                          ? Colors.orange.shade700
+                          : Colors.green.shade700,
+                      side: BorderSide(
+                        color: _isActive
+                            ? Colors.orange.shade300
+                            : Colors.green.shade300,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                    ),
                   ),
                 ),
               ),

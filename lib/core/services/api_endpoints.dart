@@ -29,6 +29,7 @@ class ApiEndpoints {
   static String storeName(int storeId) => '/store/name/$storeId';
   static String storeAddress(int storeId) => '/store/address/$storeId';
   static String storeDelete(int storeId) => '/store/delete/$storeId';
+  static String storeToggle(int storeId) => '/store/toggle/$storeId';
 
   static String productAdd(int storeId) => '/product/add/$storeId';
   static String productAllForStore(int storeId) => '/product/all/$storeId';

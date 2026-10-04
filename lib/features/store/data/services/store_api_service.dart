@@ -104,6 +104,16 @@ class StoreApiService {
     return Map<String, dynamic>.from(response as Map);
   }
 
+  /// Toggle the active state of a store.
+  /// Returns `{'is_active': bool, 'message': String, 'store_id': int}`.
+  Future<Map<String, dynamic>> toggleStoreActive(int storeId) async {
+    final response = await _client.patch(
+      ApiEndpoints.storeToggle(storeId),
+      authenticated: true,
+    );
+    return Map<String, dynamic>.from(response as Map);
+  }
+
   Future<List<Map<String, dynamic>>> browseStores({
     int page = 1,
     int pageSize = 50,

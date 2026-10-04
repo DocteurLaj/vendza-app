@@ -62,6 +62,19 @@ void removeDeletedStoreFromCatalog(String storeId) {
   catalogRevision.value++;
 }
 
+/// Update the isActive flag of a store in all catalog lists.
+void updateOwnedStoreActiveState(String storeId, {required bool isActive}) {
+  final id = storeId.trim();
+  if (id.isEmpty) return;
+  for (final list in [ownedStores, stores]) {
+    final idx = list.indexWhere((s) => s.id == id || s.localId == id);
+    if (idx >= 0) {
+      list[idx] = list[idx].copyWith(isActive: isActive);
+    }
+  }
+  catalogRevision.value++;
+}
+
 class CatalogRepository {
   CatalogRepository({
     StoreApiService? storeApiService,
