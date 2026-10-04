@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
@@ -6,6 +8,7 @@ import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/order/data/services/order_api_service.dart';
 import 'package:vendza/features/order/data/services/order_draft_store.dart';
 import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
+import 'package:vendza/features/profil/data/services/profile_api_service.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/media/context_image.dart';
@@ -23,6 +26,22 @@ class _OrderCheckoutPageState extends State<OrderCheckoutPage> {
   late final TextEditingController _addressController;
   final _noteController = TextEditingController();
   bool _submitting = false;
+
+  /// Saves [phone] as the user's default phone number silently (fire & forget).
+  /// Only runs if the number differs from the currently stored one.
+  void _savePhoneIfChanged(String phone) {
+    if (phone.isEmpty) return;
+    final current = currentUserStore.value.phoneNumber.trim();
+    if (phone == current) return;
+
+    // Update locally immediately so next checkout is pre-filled correctly
+    currentUserStore.value = currentUserStore.value.copyWith(phoneNumber: phone);
+
+    // Persist to server in background — failure is non-blocking
+    unawaited(
+      ProfileApiService().updatePhone(phone).catchError((_) => <String, dynamic>{}),
+    );
+  }
 
   @override
   void initState() {
@@ -62,6 +81,10 @@ class _OrderCheckoutPageState extends State<OrderCheckoutPage> {
         deliveryAddress: _addressController.text,
         customerNote: _noteController.text,
       );
+
+      // Silently save the phone as default if it changed
+      _savePhoneIfChanged(_phoneController.text.trim());
+
       orderDraftStore.clear();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
