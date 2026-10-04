@@ -310,6 +310,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   onDoubleTap: _showProductDetails,
                   child: ProductDetailHero(
                     imageUrl: displayedImage,
+                    images: product.images,
                     showFullImage: !_detailsExpanded,
                     compactHeight: panelTopOffset + 34,
                   ),

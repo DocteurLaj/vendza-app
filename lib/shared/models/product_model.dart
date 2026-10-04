@@ -19,6 +19,7 @@ class ProductModel {
   final String name;
   final String price;
   final String imageurl;
+  final List<String> images;
   final String status;
   final String description;
   final String category;
@@ -43,6 +44,7 @@ class ProductModel {
     required this.price,
     required this.imageurl,
     required this.status,
+    List<String>? images,
     this.description = "",
     this.category = "",
     this.catalogCategoryId = "",
@@ -59,13 +61,14 @@ class ProductModel {
     this.syncStatus = EntitySyncStatus.online,
     this.syncProgress = 1,
     this.syncError,
-  });
+  }) : images = images ?? (imageurl.isNotEmpty ? [imageurl] : const []);
 
   ProductModel copyWith({
     String? id,
     String? name,
     String? price,
     String? imageurl,
+    List<String>? images,
     String? status,
     String? description,
     String? category,
@@ -89,6 +92,7 @@ class ProductModel {
       name: name ?? this.name,
       price: price ?? this.price,
       imageurl: imageurl ?? this.imageurl,
+      images: images ?? this.images,
       status: status ?? this.status,
       description: description ?? this.description,
       category: category ?? this.category,

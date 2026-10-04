@@ -252,6 +252,7 @@ class LocalCreateQueue {
     required double numericPrice,
     int stock = 1,
     required String imagePath,
+    List<String> imagePaths = const [],
     String category = '',
     String catalogCategoryId = '',
     Map<String, dynamic>? variation,
@@ -272,6 +273,7 @@ class LocalCreateQueue {
         'numericPrice': numericPrice,
         'stock': stock,
         'imagePath': imagePath,
+        'imagePaths': imagePaths,
         'category': category,
         'catalogCategoryId': catalogCategoryId,
         'variation': variation,
@@ -752,11 +754,26 @@ class LocalCreateQueue {
     await _ensureSeller();
     _pushProgress(op, 0.12, force: true);
 
-    final imageUrl = await _uploadPath(
-      op.payload['imagePath'] as String?,
-      onProgress: (value) => _pushProgress(op, 0.12 + 0.58 * value),
-    );
+    // Upload all images — first image gets the most progress weight
+    final rawPaths = op.payload['imagePaths'];
+    final allPaths = rawPaths is List && rawPaths.isNotEmpty
+        ? rawPaths.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList()
+        : <String>[op.payload['imagePath'] as String? ?? ''];
+
+    final uploadedUrls = <String>[];
+    for (var i = 0; i < allPaths.length; i++) {
+      final progressStart = 0.12 + (0.58 * i / allPaths.length);
+      final progressEnd = 0.12 + (0.58 * (i + 1) / allPaths.length);
+      final url = await _uploadPath(
+        allPaths[i],
+        onProgress: (v) => _pushProgress(op, progressStart + (progressEnd - progressStart) * v),
+      );
+      if (url.isNotEmpty) uploadedUrls.add(url);
+    }
+
+    final imageUrl = uploadedUrls.isNotEmpty ? uploadedUrls.first : '';
     op.payload['imagePath'] = imageUrl;
+    op.payload['imagePaths'] = uploadedUrls;
     final variation = await _resolveVariations(
       op.payload['variation'] as Map<String, dynamic>?,
       onProgress: (value) => _pushProgress(op, 0.70 + 0.08 * value),
@@ -787,7 +804,7 @@ class LocalCreateQueue {
         stock: op.payload['stock'] is int
             ? op.payload['stock'] as int
             : int.tryParse('${op.payload['stock']}') ?? 1,
-        images: imageUrl.isEmpty ? null : [imageUrl],
+        images: uploadedUrls.isEmpty ? null : uploadedUrls,
         variation: variation,
         catalogCategoryId: int.tryParse(
           op.payload['catalogCategoryId'] as String? ?? '',

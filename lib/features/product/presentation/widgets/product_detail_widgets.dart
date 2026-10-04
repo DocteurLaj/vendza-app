@@ -15,26 +15,60 @@ import 'package:vendza/shared/widgets/moderation/moderation_notice.dart';
 import 'package:vendza/shared/widgets/product/product_price_text.dart';
 import 'package:vendza/shared/widgets/social/social_media_links.dart';
 
-class ProductDetailHero extends StatelessWidget {
+class ProductDetailHero extends StatefulWidget {
   const ProductDetailHero({
     super.key,
     required this.imageUrl,
+    this.images = const [],
     this.showFullImage = false,
     this.compactHeight,
   });
 
   final String imageUrl;
+  /// All product images. Falls back to [imageUrl] when empty.
+  final List<String> images;
   final bool showFullImage;
   final double? compactHeight;
 
   @override
+  State<ProductDetailHero> createState() => _ProductDetailHeroState();
+}
+
+class _ProductDetailHeroState extends State<ProductDetailHero> {
+  late final PageController _pageController;
+  int _currentPage = 0;
+
+  List<String> get _allImages {
+    final imgs = widget.images.where((u) => u.trim().isNotEmpty).toList();
+    if (imgs.isEmpty && widget.imageUrl.trim().isNotEmpty) {
+      return [widget.imageUrl];
+    }
+    return imgs.isEmpty ? [''] : imgs;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final allImages = _allImages;
+    final hasMultiple = allImages.length > 1;
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double imageHeight = showFullImage
+        final double imageHeight = widget.showFullImage
             ? constraints.maxHeight
-            : (compactHeight ?? 320).clamp(260.0, constraints.maxHeight);
-        final double dotBottom = showFullImage
+            : (widget.compactHeight ?? 320).clamp(260.0, constraints.maxHeight);
+        final double dotBottom = widget.showFullImage
             ? 104
             : (constraints.maxHeight - imageHeight + 18).clamp(18.0, 104.0);
 
@@ -44,32 +78,56 @@ class ProductDetailHero extends StatelessWidget {
             AnimatedContainer(
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOut,
-              color: showFullImage
+              color: widget.showFullImage
                   ? Colors.black
                   : AppColors.softSurface(context),
               alignment: Alignment.topCenter,
-              child: ProductDetailAssetImage(
-                path: imageUrl,
-                height: imageHeight,
-                borderRadius: 0,
-                fit: BoxFit.contain,
-              ),
+              child: hasMultiple
+                  ? PageView.builder(
+                      controller: _pageController,
+                      itemCount: allImages.length,
+                      onPageChanged: (i) => setState(() => _currentPage = i),
+                      itemBuilder: (context, i) => ProductDetailAssetImage(
+                        path: allImages[i],
+                        height: imageHeight,
+                        borderRadius: 0,
+                        fit: BoxFit.contain,
+                      ),
+                    )
+                  : ProductDetailAssetImage(
+                      path: allImages.first,
+                      height: imageHeight,
+                      borderRadius: 0,
+                      fit: BoxFit.contain,
+                    ),
             ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: dotBottom,
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ProductDetailHeroDot(isActive: true),
-                  SizedBox(width: 6),
-                  ProductDetailHeroDot(isActive: false),
-                  SizedBox(width: 6),
-                  ProductDetailHeroDot(isActive: false),
-                ],
+            if (hasMultiple)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: dotBottom,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (var i = 0; i < allImages.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 6),
+                      ProductDetailHeroDot(isActive: i == _currentPage),
+                    ],
+                  ],
+                ),
+              )
+            else
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: dotBottom,
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ProductDetailHeroDot(isActive: true),
+                  ],
+                ),
               ),
-            ),
           ],
         );
       },

@@ -417,6 +417,7 @@ class CatalogRepository {
     required double numericPrice,
     int stock = 1,
     required String imagePath,
+    List<String> imagePaths = const [],
     String category = '',
     String catalogCategoryId = '',
     Map<String, dynamic>? variation,
@@ -430,6 +431,11 @@ class CatalogRepository {
         statusCode: 403,
       );
     }
+    // Merge imagePath + imagePaths, deduplicate, keep first as primary
+    final allPaths = [
+      if (imagePath.isNotEmpty) imagePath,
+      ...imagePaths.where((p) => p.isNotEmpty && p != imagePath),
+    ];
     return _localCreates.enqueueProduct(
       storeId: trimmedStoreId,
       storeName: storeName,
@@ -438,7 +444,8 @@ class CatalogRepository {
       price: price,
       numericPrice: numericPrice,
       stock: stock,
-      imagePath: imagePath,
+      imagePath: allPaths.isNotEmpty ? allPaths.first : imagePath,
+      imagePaths: allPaths,
       category: category,
       catalogCategoryId: catalogCategoryId,
       variation: variation,

@@ -138,6 +138,7 @@ Map<String, dynamic> _productToJson(ProductModel product) {
     'name': product.name,
     'price': product.price,
     'imageurl': product.imageurl,
+    'images': product.images,
     'status': product.status,
     'description': product.description,
     'category': product.category,
@@ -158,11 +159,16 @@ Map<String, dynamic> _productToJson(ProductModel product) {
 }
 
 ProductModel _productFromJson(Map<String, dynamic> json) {
+  final rawImages = json['images'];
+  final List<String> images = rawImages is List
+      ? rawImages.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList()
+      : const [];
   return ProductModel(
     id: json['id']?.toString() ?? '',
     name: json['name']?.toString() ?? '',
     price: json['price']?.toString() ?? '0',
     imageurl: json['imageurl']?.toString() ?? '',
+    images: images,
     status: json['status']?.toString() ?? '',
     description: json['description']?.toString() ?? '',
     category: json['category']?.toString() ?? '',

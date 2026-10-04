@@ -47,16 +47,21 @@ class _AddProductState extends State<AddProduct> {
   String? _stockError;
   String? _imageError;
   bool _isSubmitting = false;
-  final _imageUpload = ImageUploadController(
-    purpose: 'product',
-    pickTitle: "Choisir l'image du produit",
-  );
+  late final List<ImageUploadController> _imageUploads;
   final List<_VariantDraft> _variants = [];
+
+  int get _maxImages => ent.maxImagesPerProduct().clamp(1, 5);
 
   @override
   void initState() {
     super.initState();
-    _imageUpload.addListener(_onUploadChanged);
+    _imageUploads = List.generate(
+      _maxImages,
+      (i) => ImageUploadController(
+        purpose: 'product',
+        pickTitle: "Choisir l'image ${i + 1} du produit",
+      )..addListener(_onUploadChanged),
+    );
     cathegory_data
         .refreshCategories()
         .then((_) {
@@ -69,9 +74,11 @@ class _AddProductState extends State<AddProduct> {
 
   @override
   void dispose() {
-    _imageUpload
-      ..removeListener(_onUploadChanged)
-      ..dispose();
+    for (final ctrl in _imageUploads) {
+      ctrl
+        ..removeListener(_onUploadChanged)
+        ..dispose();
+    }
     for (final variant in _variants) {
       variant.dispose();
     }
@@ -139,7 +146,7 @@ class _AddProductState extends State<AddProduct> {
       _stockError = trimmedStock.isEmpty
           ? "Le stock du produit est obligatoire."
           : null;
-      _imageError = _imageUpload.hasImage
+      _imageError = _imageUploads.first.hasImage
           ? null
           : "Ajoutez une image pour créer ce produit.";
       for (final variant in _variants) {
@@ -218,7 +225,11 @@ class _AddProductState extends State<AddProduct> {
         price: '$trimmedPrice $_currency',
         numericPrice: parsedPrice,
         stock: parsedStock,
-        imagePath: _imageUpload.enqueuePath,
+        imagePath: _imageUploads.first.enqueuePath,
+        imagePaths: _imageUploads
+            .map((c) => c.enqueuePath)
+            .where((p) => p.isNotEmpty)
+            .toList(),
         category: _category,
         catalogCategoryId: _catalogCategoryId,
         variation: variationEntries.isEmpty
@@ -318,12 +329,31 @@ class _AddProductState extends State<AddProduct> {
                 ],
               ),
               FormSection(
-                title: "Image",
-                child: UploadImageSlot(
-                  controller: _imageUpload,
-                  emptyTitle: "Ajouter une image",
-                  enabled: !_isSubmitting,
-                ),
+                title: _maxImages > 1
+                    ? "Images (${_imageUploads.where((c) => c.hasImage).length}/$_maxImages)"
+                    : "Image",
+                child: _maxImages == 1
+                    ? UploadImageSlot(
+                        controller: _imageUploads.first,
+                        emptyTitle: "Ajouter une image",
+                        enabled: !_isSubmitting,
+                      )
+                    : Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          for (var i = 0; i < _maxImages; i++)
+                            SizedBox(
+                              width: 90,
+                              height: 90,
+                              child: UploadImageSlot(
+                                controller: _imageUploads[i],
+                                emptyTitle: i == 0 ? "Photo 1 *" : "Photo ${i + 1}",
+                                enabled: !_isSubmitting,
+                              ),
+                            ),
+                        ],
+                      ),
               ),
               _FieldErrorText(message: _imageError),
               FormSection(
@@ -415,7 +445,7 @@ class _AddProductState extends State<AddProduct> {
                     text: "Ajouter",
                     loadingText: "Ajout...",
                     onPressed: _saveProduct,
-                    enabled: !_isSubmitting && _imageUpload.hasImage,
+                    enabled: !_isSubmitting && _imageUploads.first.hasImage,
                     isLoading: _isSubmitting,
                   ),
                 ),

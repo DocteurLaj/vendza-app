@@ -14,6 +14,14 @@ String _firstProductImage(dynamic images) {
   return _resolveImageUrl(images.first);
 }
 
+List<String> _allProductImages(dynamic images) {
+  if (images is! List || images.isEmpty) return const [];
+  return images
+      .map((e) => _resolveImageUrl(e))
+      .where((url) => url.isNotEmpty)
+      .toList();
+}
+
 List<ProductVariantModel> _mapVariants(dynamic variation) {
   if (variation is! Map) return const [];
 
@@ -62,6 +70,7 @@ ProductModel productFromApi(
     name: json['title'] as String? ?? '',
     price: json['price']?.toString() ?? '0',
     imageurl: _firstProductImage(json['images']),
+    images: _allProductImages(json['images']),
     status: '',
     description: json['description'] as String? ?? '',
     category: json['category'] as String? ?? '',
