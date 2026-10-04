@@ -159,15 +159,19 @@ class ProductStoreWidget extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              product.name,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                                height: 1.2,
-                                color: AppColors.textPrimary(context),
+                            // Fixed height for 2 lines so all cards stay aligned
+                            SizedBox(
+                              height: 14 * 1.2 * 2,
+                              child: Text(
+                                product.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  height: 1.2,
+                                  color: AppColors.textPrimary(context),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 7),
