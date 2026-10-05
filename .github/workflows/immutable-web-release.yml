@@ -108,7 +108,22 @@ jobs:
               --arg applicationId "$DOKPLOY_APPLICATION_ID" \
               --arg dockerImage "$IMAGE_REF" \
               '{applicationId: $applicationId, dockerImage: $dockerImage, username: null, password: null, registryUrl: "https://ghcr.io"}')")
-          printf '%s\n' "$response" | jq '{success,applicationId}'
+          printf '%s\n' "$response" | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
+
+      - name: Verify Dokploy image reference
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          DOKPLOY_APPLICATION_ID: ${{ inputs.dokploy_application_id }}
+          IMAGE_REF: ${{ steps.release.outputs.image }}@${{ steps.build.outputs.digest }}
+        shell: bash
+        run: |
+          response=$(curl --fail --silent --show-error \
+            --request GET \
+            "${DOKPLOY_URL%/}/api/application.one?applicationId=${DOKPLOY_APPLICATION_ID}" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}")
+          printf '%s\n' "$response" | jq -e --arg image "$IMAGE_REF" \
+            '(.dockerImage == $image) or (.application.dockerImage == $image)' >/dev/null
 
       - name: Deploy Dokploy application
         env:
@@ -129,7 +144,7 @@ jobs:
               --arg title "$title" \
               --arg description "Deploying immutable image $IMAGE_REF" \
               '{applicationId: $applicationId, title: $title, description: $description}')")
-          printf '%s\n' "$response" | jq '{success,applicationId}'
+          printf '%s\n' "$response" | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
 
       - name: Publish release evidence
         env:
