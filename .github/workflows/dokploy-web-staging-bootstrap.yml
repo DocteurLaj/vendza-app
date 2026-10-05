@@ -35,7 +35,7 @@ jobs:
 
           build_payload=$(jq -nc \
             --arg id "$application_id" \
-            '{applicationId:$id,buildType:"dockerfile",dockerfile:"Dockerfile",dockerContextPath:".",dockerBuildStage:null}')
+            '{applicationId:$id,buildType:"dockerfile",dockerfile:"Dockerfile",dockerContextPath:".",dockerBuildStage:null,herokuVersion:null,railpackVersion:null}')
           build_status=$(curl --silent --show-error \
             --output /tmp/build-type.json \
             --write-out '%{http_code}' \
