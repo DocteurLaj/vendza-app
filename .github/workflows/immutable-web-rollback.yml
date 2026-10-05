@@ -60,7 +60,7 @@ jobs:
             --data "$(jq -cn \
               --arg applicationId "$DOKPLOY_APPLICATION_ID" \
               --arg dockerImage "$IMAGE_REF" \
-              '{applicationId: $applicationId, dockerImage: $dockerImage, username: null, password: null, registryUrl: "https://ghcr.io"}')")"
+              '{applicationId: $applicationId, dockerImage: $dockerImage, username: null, password: null, registryUrl: "https://ghcr.io"}')")
           if [[ -n "$response" ]]; then
             printf '%s\n' "$response" | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
           fi
