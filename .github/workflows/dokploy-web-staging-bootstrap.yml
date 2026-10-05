@@ -1,0 +1,71 @@
+name: Bootstrap Dokploy web staging
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Create and configure Dokploy staging application
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          ENVIRONMENT_ID: EZoAZXQqYxX4qa6fYMGMD
+          GITHUB_ID: q-GBtnIXppPPTHdsmZccD
+        shell: bash
+        run: |
+          set -euo pipefail
+          api() {
+            curl --fail --silent --show-error \
+              --request POST \
+              "${DOKPLOY_URL%/}/api/$1" \
+              --header "accept: application/json" \
+              --header "content-type: application/json" \
+              --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+              --data "$2"
+          }
+
+          existing=$(curl --fail --silent --show-error \
+            --request GET \
+            "${DOKPLOY_URL%/}/api/application.all" \
+            --header "accept: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}")
+
+          existing_id=$(printf '%s' "$existing" | jq -r '.[]? | select(.appName == "vendza-webapp-github-staging") | .applicationId' | head -1)
+          if [[ -n "${existing_id:-}" && "$existing_id" != "null" ]]; then
+            application_id="$existing_id"
+            echo "Existing staging application found: ${application_id}"
+          else
+            created=$(api application.create "$(jq -nc \
+              --arg env "$ENVIRONMENT_ID" \
+              '{name:"Vendza Web Staging",appName:"vendza-webapp-github-staging",description:"Staging web built by Dokploy from GitHub; no production traffic.",environmentId:$env}')")
+            application_id=$(printf '%s' "$created" | jq -r '.applicationId')
+            test -n "$application_id"
+            test "$application_id" != "null"
+            echo "Created staging application: ${application_id}"
+          fi
+
+          api application.saveGithubProvider "$(jq -nc \
+            --arg id "$application_id" \
+            --arg github "$GITHUB_ID" \
+            '{applicationId:$id,repository:"vendza-app",owner:"DocteurLaj",branch:"main",buildPath:"/",githubId:$github,triggerType:"push"}')" >/tmp/github-provider.json
+
+          api application.saveBuildType "$(jq -nc \
+            --arg id "$application_id" \
+            '{applicationId:$id,buildType:"dockerfile",dockerfile:"Dockerfile",dockerContextPath:".",dockerBuildStage:null}')" >/tmp/build-type.json
+
+          final=$(curl --fail --silent --show-error \
+            --request GET \
+            "${DOKPLOY_URL%/}/api/application.one?applicationId=${application_id}" \
+            --header "accept: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}")
+
+          printf '%s' "$final" | jq '{applicationId,name,appName,sourceType,repository,owner,branch,buildPath,buildType,dockerfile,dockerContextPath,autoDeploy,applicationStatus}'
+          test "$(printf '%s' "$final" | jq -r '.sourceType')" = "github"
+          test "$(printf '%s' "$final" | jq -r '.repository')" = "vendza-app"
+          test "$(printf '%s' "$final" | jq -r '.buildType')" = "dockerfile"
