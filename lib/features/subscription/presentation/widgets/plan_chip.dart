@@ -3,23 +3,49 @@ import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/session/subscription_store.dart';
 import 'package:vendza/features/subscription/presentation/pages/subscription_page.dart';
 
-/// A compact, inline plan indicator — reads from in-memory store (no API call).
+/// A compact, inline plan indicator.
 ///
-/// Shows: [icon] Plan Actif · or [icon] Gratuit ·
+/// Reads from [activeSubscriptionStore] (no extra API call when already loaded).
+/// If the store is empty on first build, triggers a silent refresh once.
 /// Tapping opens the subscription page.
-/// Silently hidden if no subscription context is loaded yet.
-class PlanChip extends StatelessWidget {
+class PlanChip extends StatefulWidget {
   const PlanChip({super.key, this.showUpgradeHint = false});
 
   /// If true, adds a subtle "Améliorer" hint when on the free plan.
   final bool showUpgradeHint;
 
   @override
+  State<PlanChip> createState() => _PlanChipState();
+}
+
+class _PlanChipState extends State<PlanChip> {
+  bool _tried = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // If store already has data, nothing to do.
+    // Otherwise trigger a silent refresh once so the chip can display.
+    if (activeSubscriptionStore.value == null) {
+      _silentRefresh();
+    }
+  }
+
+  void _silentRefresh() {
+    if (_tried) return;
+    _tried = true;
+    refreshActiveSubscription().ignore();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
       valueListenable: activeSubscriptionStore,
       builder: (context, ctx, _) {
-        if (ctx == null) return const SizedBox.shrink();
+        // Still loading — show a minimal placeholder
+        if (ctx == null) {
+          return const SizedBox(height: 18);
+        }
 
         final plan = ctx.plan;
         final isFree = plan.isFree;
@@ -53,7 +79,7 @@ class PlanChip extends StatelessWidget {
                   height: 1.2,
                 ),
               ),
-              if (showUpgradeHint && isFree) ...[
+              if (widget.showUpgradeHint && isFree) ...[
                 const SizedBox(width: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(

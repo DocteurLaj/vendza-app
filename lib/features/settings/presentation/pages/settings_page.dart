@@ -239,8 +239,26 @@ class _VersionTile extends StatelessWidget {
 
 // ── Subscription tile ──────────────────────────────────────────────────────
 
-class _SubscriptionSettingsTile extends StatelessWidget {
+class _SubscriptionSettingsTile extends StatefulWidget {
   const _SubscriptionSettingsTile();
+
+  @override
+  State<_SubscriptionSettingsTile> createState() =>
+      _SubscriptionSettingsTileState();
+}
+
+class _SubscriptionSettingsTileState
+    extends State<_SubscriptionSettingsTile> {
+  bool _tried = false; // ignore: unused_field
+
+  @override
+  void initState() {
+    super.initState();
+    if (activeSubscriptionStore.value == null) {
+      _tried = true;
+      refreshActiveSubscription().ignore();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
