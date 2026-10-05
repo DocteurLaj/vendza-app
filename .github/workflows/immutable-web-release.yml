@@ -144,7 +144,9 @@ jobs:
               --arg title "$title" \
               --arg description "Deploying immutable image $IMAGE_REF" \
               '{applicationId: $applicationId, title: $title, description: $description}')")
-          printf '%s\n' "$response" | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
+          if [[ -n "$response" ]]; then
+            printf '%s\n' "$response" | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
+          fi
 
       - name: Publish release evidence
         env:
