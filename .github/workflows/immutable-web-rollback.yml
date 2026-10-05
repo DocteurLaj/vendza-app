@@ -89,7 +89,7 @@ jobs:
               --arg applicationId "$DOKPLOY_APPLICATION_ID" \
               --arg title "Immutable web rollback ${{ inputs.release_target }}" \
               --arg description "Restoring immutable image $IMAGE_REF" \
-              '{applicationId: $applicationId, title: $title, description: $description}')")"
+              '{applicationId: $applicationId, title: $title, description: $description}')")
           if [[ -n "$response" ]]; then
             printf '%s\n' "$response" | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
           fi
