@@ -324,10 +324,11 @@ jobs:
             exit 0
           fi
 
+          COMMIT_MSG=$(git log -1 --pretty=format:'%s [%h]')
           curl --fail --silent --show-error \
             --request POST \
             "${DOKPLOY_URL%/}/api/application.deploy" \
             --header "accept: application/json" \
             --header "Content-Type: application/json" \
             --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
-            --data "{\"applicationId\":\"${DOKPLOY_APPLICATION_ID}\"}"
+            --data "{\"applicationId\":\"${DOKPLOY_APPLICATION_ID}\",\"titleLog\":\"CI/CD: ${COMMIT_MSG}\"}"
