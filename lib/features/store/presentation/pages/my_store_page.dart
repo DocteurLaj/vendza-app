@@ -13,6 +13,7 @@ import 'package:vendza/features/store/presentation/pages/add_store_page.dart';
 import 'package:vendza/features/store/presentation/pages/my_store_product_page.dart';
 import 'package:vendza/features/store/presentation/pages/store_detail_page.dart';
 import 'package:vendza/features/store/presentation/widgets/store_list_section.dart';
+import 'package:vendza/features/subscription/presentation/widgets/plan_chip.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
 import 'package:vendza/shared/widgets/badge/attention_badge.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
@@ -118,7 +119,13 @@ class _MyStorePageState extends State<MyStorePage> {
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          const ResponsiveContent(
+            maxWidth: 720,
+            padding: EdgeInsets.symmetric(horizontal: 22),
+            child: PlanChip(showUpgradeHint: true),
+          ),
+          const SizedBox(height: 10),
           Expanded(
             child: ValueListenableBuilder<int>(
               valueListenable: catalogRevision,

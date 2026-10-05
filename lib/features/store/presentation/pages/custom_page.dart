@@ -16,6 +16,7 @@ import 'package:vendza/features/store/data/services/product_management_service.d
 import 'package:vendza/features/store/data/services/store_api_service.dart';
 import 'package:vendza/features/store/presentation/pages/store_detail_page.dart';
 import 'package:vendza/features/store/presentation/widgets/custom_product_picker_section.dart';
+import 'package:vendza/features/subscription/presentation/widgets/plan_chip.dart';
 import 'package:vendza/features/subscription/presentation/widgets/upgrade_required_popup.dart';
 import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/utils/phone_number.dart';
@@ -452,7 +453,12 @@ class _CustomPageState extends State<CustomPage> {
           child: Column(
             children: [
               const _CustomPageIntro(),
-              const SizedBox(height: 12),
+              const SizedBox(height: 6),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: PlanChip(showUpgradeHint: true),
+              ),
+              const SizedBox(height: 10),
               CustomMediaSection(
                 coverController: _coverUpload,
                 profileController: _profileUpload,

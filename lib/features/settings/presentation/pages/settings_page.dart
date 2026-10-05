@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
+import 'package:vendza/core/session/subscription_store.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/settings/presentation/pages/settings_detail_pages.dart';
+import 'package:vendza/features/subscription/presentation/pages/subscription_page.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
@@ -27,6 +29,8 @@ class SettingsPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const _SubscriptionSettingsTile(),
+                  const SizedBox(height: 18),
                   const _SettingsSectionTitle(title: "Preferences"),
                   const SizedBox(height: 8),
                   _SettingsTile(
@@ -229,6 +233,97 @@ class _VersionTile extends StatelessWidget {
           Text("v1.0.0", style: AppTextStyles.label(context)),
         ],
       ),
+    );
+  }
+}
+
+// ── Subscription tile ──────────────────────────────────────────────────────
+
+class _SubscriptionSettingsTile extends StatelessWidget {
+  const _SubscriptionSettingsTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: activeSubscriptionStore,
+      builder: (context, ctx, _) {
+        final plan = ctx?.plan;
+        final accent = AppColors.accent(context);
+        final isFree = plan == null || plan.isFree;
+
+        return AppInteractive(
+          onTap: () => Navigator.push<void>(
+            context,
+            MaterialPageRoute(builder: (_) => const SubscriptionPage()),
+          ),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            decoration: BoxDecoration(
+              color: isFree
+                  ? AppColors.card(context)
+                  : accent.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isFree
+                    ? AppColors.border(context)
+                    : accent.withValues(alpha: 0.22),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    isFree
+                        ? Icons.workspace_premium_outlined
+                        : Icons.workspace_premium_rounded,
+                    color: accent,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mon abonnement',
+                        style: AppTextStyles.body(context).copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        plan == null
+                            ? 'Chargement…'
+                            : isFree
+                                ? 'Plan Gratuit · Passer à un plan supérieur'
+                                : '${plan.title} · ${plan.formattedPrice}/mois',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textSecondary(context),
+                  size: 18,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
