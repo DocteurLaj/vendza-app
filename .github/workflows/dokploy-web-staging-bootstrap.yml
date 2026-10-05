@@ -30,22 +30,41 @@ jobs:
               --data "$2"
           }
 
-          created=$(api application.create "$(jq -nc \
-            --arg env "$ENVIRONMENT_ID" \
-            '{name:"Vendza Web Staging",appName:"vendza-webapp-github-staging",description:"Staging web built by Dokploy from GitHub; no production traffic.",environmentId:$env}')")
-          application_id=$(printf '%s' "$created" | jq -r '.applicationId')
-          test -n "$application_id"
-          test "$application_id" != "null"
-          echo "Created staging application: ${application_id}"
+          application_id="d2mk5ASilX-6WhgDV5kK4"
+          echo "Using staging application: ${application_id}"
 
-          api application.saveGithubProvider "$(jq -nc \
+          provider_payload=$(jq -nc \
             --arg id "$application_id" \
             --arg github "$GITHUB_ID" \
-            '{applicationId:$id,repository:"vendza-app",owner:"DocteurLaj",branch:"main",buildPath:"/",githubId:$github,triggerType:"push"}')" >/tmp/github-provider.json
+            '{applicationId:$id,repository:"vendza-app",owner:"DocteurLaj",branch:"main",buildPath:"/",githubId:$github,triggerType:"push"}')
+          provider_status=$(curl --silent --show-error \
+            --output /tmp/github-provider.json \
+            --write-out '%{http_code}' \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/application.saveGithubProvider" \
+            --header "accept: application/json" \
+            --header "content-type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$provider_payload")
+          echo "saveGithubProvider status: ${provider_status}"
+          cat /tmp/github-provider.json
+          test "$provider_status" = 200
 
-          api application.saveBuildType "$(jq -nc \
+          build_payload=$(jq -nc \
             --arg id "$application_id" \
-            '{applicationId:$id,buildType:"dockerfile",dockerfile:"Dockerfile",dockerContextPath:".",dockerBuildStage:null}')" >/tmp/build-type.json
+            '{applicationId:$id,buildType:"dockerfile",dockerfile:"Dockerfile",dockerContextPath:".",dockerBuildStage:null}')
+          build_status=$(curl --silent --show-error \
+            --output /tmp/build-type.json \
+            --write-out '%{http_code}' \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/application.saveBuildType" \
+            --header "accept: application/json" \
+            --header "content-type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$build_payload")
+          echo "saveBuildType status: ${build_status}"
+          cat /tmp/build-type.json
+          test "$build_status" = 200
 
           final=$(curl --fail --silent --show-error \
             --request GET \
