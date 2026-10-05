@@ -1,0 +1,139 @@
+name: Immutable Web Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dokploy_application_id:
+        description: "Dokploy application ID (staging first)"
+        required: true
+        type: string
+      release_target:
+        description: "Deployment target"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+      source_ref:
+        description: "Git ref to build"
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: immutable-web-${{ inputs.release_target }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and deploy immutable web image
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.release_target }}
+    timeout-minutes: 50
+    steps:
+      - name: Validate deployment target
+        shell: bash
+        run: |
+          if [[ "${{ inputs.release_target }}" == "production" ]]; then
+            echo "Production releases require the protected GitHub environment approval."
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve release identity
+        id: release
+        shell: bash
+        run: |
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and publish immutable image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ steps.release.outputs.image }}:${{ steps.release.outputs.commit_sha }}
+          build-args: |
+            FLUTTER_VERSION=${{ vars.FLUTTER_VERSION || '3.47.2' }}
+            VENDZA_API_BASE_URL=${{ vars.VENDZA_API_BASE_URL || 'https://vendza-vendzaapi-lenoer-604821-72-60-90-32.sslip.io/api/v1' }}
+            VENDZA_MEDIA_BASE_URL=${{ vars.VENDZA_MEDIA_BASE_URL || 'https://vendza-vendzaminiostorage-tx8h0h-c106eb-72-60-90-32.sslip.io/vendza-images' }}
+            GOOGLE_WEB_CLIENT_ID=${{ vars.GOOGLE_WEB_CLIENT_ID || '' }}
+            VENDZA_FIREBASE_API_KEY=${{ vars.VENDZA_FIREBASE_API_KEY || '' }}
+            VENDZA_FIREBASE_APP_ID=${{ vars.VENDZA_FIREBASE_APP_ID || '' }}
+            VENDZA_FIREBASE_AUTH_DOMAIN=${{ vars.VENDZA_FIREBASE_AUTH_DOMAIN || '' }}
+            VENDZA_FIREBASE_MESSAGING_SENDER_ID=${{ vars.VENDZA_FIREBASE_MESSAGING_SENDER_ID || '' }}
+            VENDZA_FIREBASE_PROJECT_ID=${{ vars.VENDZA_FIREBASE_PROJECT_ID || '' }}
+            VENDZA_FIREBASE_STORAGE_BUCKET=${{ vars.VENDZA_FIREBASE_STORAGE_BUCKET || '' }}
+            VENDZA_FIREBASE_VAPID_KEY=${{ vars.VENDZA_FIREBASE_VAPID_KEY || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Configure Dokploy with immutable digest
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          DOKPLOY_APPLICATION_ID: ${{ inputs.dokploy_application_id }}
+          IMAGE_REF: ${{ steps.release.outputs.image }}@${{ steps.build.outputs.digest }}
+        shell: bash
+        run: |
+          test -n "$DOKPLOY_URL"
+          test -n "$DOKPLOY_API_TOKEN"
+          test -n "$DOKPLOY_APPLICATION_ID"
+          test -n "${{ steps.build.outputs.digest }}"
+
+          response=$(curl --fail --silent --show-error \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/application.saveDockerProvider" \
+            --header "Content-Type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$(jq -cn \
+              --arg applicationId "$DOKPLOY_APPLICATION_ID" \
+              --arg dockerImage "$IMAGE_REF" \
+              '{applicationId: $applicationId, dockerImage: $dockerImage, username: null, password: null, registryUrl: "https://ghcr.io"}')")
+          printf '%s\n' "$response" | jq '{success,applicationId}'
+
+      - name: Deploy Dokploy application
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          DOKPLOY_APPLICATION_ID: ${{ inputs.dokploy_application_id }}
+          IMAGE_REF: ${{ steps.release.outputs.image }}@${{ steps.build.outputs.digest }}
+        shell: bash
+        run: |
+          title="Immutable web ${{ inputs.release_target }} ${{ steps.release.outputs.commit_sha }}"
+          response=$(curl --fail --silent --show-error \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/application.deploy" \
+            --header "Content-Type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$(jq -cn \
+              --arg applicationId "$DOKPLOY_APPLICATION_ID" \
+              --arg title "$title" \
+              --arg description "Deploying immutable image $IMAGE_REF" \
+              '{applicationId: $applicationId, title: $title, description: $description}')")
+          printf '%s\n' "$response" | jq '{success,applicationId}'
+
+      - name: Publish release evidence
+        env:
+          IMAGE_REF: ${{ steps.release.outputs.image }}@${{ steps.build.outputs.digest }}
+        run: |
+          printf 'commit=%s\nimage=%s\ntarget=%s\n' \
+            "${{ steps.release.outputs.commit_sha }}" "$IMAGE_REF" "${{ inputs.release_target }}" >> "$GITHUB_STEP_SUMMARY"
