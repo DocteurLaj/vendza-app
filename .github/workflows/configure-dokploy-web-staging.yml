@@ -54,4 +54,17 @@ jobs:
             --header "content-type: application/json" \
             --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
             --data "$payload")
-          printf '%s' "$response" | jq '{applicationId,buildType,dockerfile,dockerContextPath,autoDeploy,applicationStatus}'
+          echo "Build arguments saved by Dokploy."
+
+          deploy_payload=$(jq -nc \
+            --arg id "$application_id" \
+            '{applicationId:$id,titleLog:"Staging Dockerfile validation"}')
+          deploy_response=$(curl --fail --silent --show-error \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/application.deploy" \
+            --header "accept: application/json" \
+            --header "content-type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$deploy_payload")
+          echo "Staging deployment accepted by Dokploy."
+          printf '%s' "$deploy_response" | jq 'if type == "object" then {deploymentId,status,title} else . end'
