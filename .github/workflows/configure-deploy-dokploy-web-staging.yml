@@ -1,0 +1,68 @@
+name: Configure and deploy Dokploy web staging
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Configure Dokploy staging and deploy
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
+          VENDZA_API_BASE_URL: ${{ vars.VENDZA_API_BASE_URL || 'https://vendza-vendzaapi-lenoer-604821-72-60-90-32.sslip.io/api/v1' }}
+          VENDZA_MEDIA_BASE_URL: ${{ vars.VENDZA_MEDIA_BASE_URL || 'https://vendza-vendzaminiostorage-tx8h0h-c106eb-72-60-90-32.sslip.io' }}
+          VENDZA_FIREBASE_API_KEY: ${{ vars.VENDZA_FIREBASE_API_KEY }}
+          VENDZA_FIREBASE_APP_ID: ${{ vars.VENDZA_FIREBASE_APP_ID }}
+          VENDZA_FIREBASE_AUTH_DOMAIN: ${{ vars.VENDZA_FIREBASE_AUTH_DOMAIN }}
+          VENDZA_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VENDZA_FIREBASE_MESSAGING_SENDER_ID }}
+          VENDZA_FIREBASE_PROJECT_ID: ${{ vars.VENDZA_FIREBASE_PROJECT_ID }}
+          VENDZA_FIREBASE_STORAGE_BUCKET: ${{ vars.VENDZA_FIREBASE_STORAGE_BUCKET }}
+          VENDZA_FIREBASE_VAPID_KEY: ${{ vars.VENDZA_FIREBASE_VAPID_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          application_id="d2mk5ASilX-6WhgDV5kK4"
+          build_args=$(printf '%s\n' \
+            "FLUTTER_VERSION=3.47.2" \
+            "VENDZA_API_BASE_URL=${VENDZA_API_BASE_URL}" \
+            "VENDZA_MEDIA_BASE_URL=${VENDZA_MEDIA_BASE_URL}" \
+            "GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID}" \
+            "VENDZA_FIREBASE_API_KEY=${VENDZA_FIREBASE_API_KEY}" \
+            "VENDZA_FIREBASE_APP_ID=${VENDZA_FIREBASE_APP_ID}" \
+            "VENDZA_FIREBASE_AUTH_DOMAIN=${VENDZA_FIREBASE_AUTH_DOMAIN}" \
+            "VENDZA_FIREBASE_MESSAGING_SENDER_ID=${VENDZA_FIREBASE_MESSAGING_SENDER_ID}" \
+            "VENDZA_FIREBASE_PROJECT_ID=${VENDZA_FIREBASE_PROJECT_ID}" \
+            "VENDZA_FIREBASE_STORAGE_BUCKET=${VENDZA_FIREBASE_STORAGE_BUCKET}" \
+            "VENDZA_FIREBASE_VAPID_KEY=${VENDZA_FIREBASE_VAPID_KEY}")
+          env_value="GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID}"
+          payload=$(jq -nc \
+            --arg id "$application_id" \
+            --arg env "$env_value" \
+            --arg buildArgs "$build_args" \
+            '{applicationId:$id,env:$env,buildArgs:$buildArgs,buildSecrets:"",createEnvFile:false}')
+          curl --fail --silent --show-error \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/application.saveEnvironment" \
+            --header "accept: application/json" \
+            --header "content-type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$payload" >/dev/null
+          deploy_payload=$(jq -nc \
+            --arg id "$application_id" \
+            '{applicationId:$id,titleLog:"Staging web GitHub Dockerfile deployment"}')
+          curl --fail --silent --show-error \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/application.deploy" \
+            --header "accept: application/json" \
+            --header "content-type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$deploy_payload" >/tmp/deploy-response.json
+          echo "Dokploy deployment request accepted."
+          cat /tmp/deploy-response.json | jq 'if type == "object" then {deploymentId,status,title} else . end'
