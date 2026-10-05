@@ -1,0 +1,100 @@
+name: Immutable Web Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      dokploy_application_id:
+        description: "Dokploy application ID"
+        required: true
+        type: string
+      release_target:
+        description: "Rollback target"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+      image_ref:
+        description: "Exact OCI image reference including sha256 digest"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: immutable-web-${{ inputs.release_target }}
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    name: Roll back Dokploy to immutable digest
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.release_target }}
+    timeout-minutes: 15
+    steps:
+      - name: Validate immutable reference
+        env:
+          IMAGE_REF: ${{ inputs.image_ref }}
+        shell: bash
+        run: |
+          case "$IMAGE_REF" in
+            *@sha256:[a-f0-9]*) ;;
+            *) echo "image_ref must include an OCI sha256 digest" >&2; exit 1 ;;
+          esac
+
+      - name: Configure Dokploy rollback image
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          DOKPLOY_APPLICATION_ID: ${{ inputs.dokploy_application_id }}
+          IMAGE_REF: ${{ inputs.image_ref }}
+        shell: bash
+        run: |
+          response=$(curl --fail --silent --show-error \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/application.saveDockerProvider" \
+            --header "Content-Type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$(jq -cn \
+              --arg applicationId "$DOKPLOY_APPLICATION_ID" \
+              --arg dockerImage "$IMAGE_REF" \
+              '{applicationId: $applicationId, dockerImage: $dockerImage, username: null, password: null, registryUrl: "https://ghcr.io"}')")"
+          if [[ -n "$response" ]]; then
+            printf '%s\n' "$response" | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
+          fi
+
+          current=$(curl --fail --silent --show-error \
+            --request GET \
+            "${DOKPLOY_URL%/}/api/application.one?applicationId=${DOKPLOY_APPLICATION_ID}" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}")
+          printf '%s\n' "$current" | jq -e --arg image "$IMAGE_REF" \
+            '(.dockerImage == $image) or (.application.dockerImage == $image)' >/dev/null
+
+      - name: Deploy rollback
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          DOKPLOY_APPLICATION_ID: ${{ inputs.dokploy_application_id }}
+          IMAGE_REF: ${{ inputs.image_ref }}
+        shell: bash
+        run: |
+          response=$(curl --fail --silent --show-error \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/application.deploy" \
+            --header "Content-Type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$(jq -cn \
+              --arg applicationId "$DOKPLOY_APPLICATION_ID" \
+              --arg title "Immutable web rollback ${{ inputs.release_target }}" \
+              --arg description "Restoring immutable image $IMAGE_REF" \
+              '{applicationId: $applicationId, title: $title, description: $description}')")"
+          if [[ -n "$response" ]]; then
+            printf '%s\n' "$response" | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
+          fi
+
+      - name: Publish rollback evidence
+        run: |
+          printf 'target=%s\nimage=%s\n' \
+            "${{ inputs.release_target }}" "${{ inputs.image_ref }}" >> "$GITHUB_STEP_SUMMARY"

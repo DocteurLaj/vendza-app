@@ -47,7 +47,9 @@ Avant production :
 5. vérifier que Swarm sert exactement le digest A ;
 6. vérifier `/healthz`, HTTPS et authentification après le rollback.
 
-Une commande manuelle `docker service update --force` ne constitue pas un rollback accepté. Si elle est nécessaire, le test est considéré comme échoué.
+Une reconstruction du même commit peut produire un digest différent. Pour cette raison, le rollback ne reconstruit jamais le code : il réutilise le digest OCI original conservé dans le dossier de release.
+
+Le workflow `.github/workflows/immutable-web-rollback.yml` configure et déploie directement la référence `image@sha256:digest` fournie. Il vérifie que Dokploy a enregistré cette référence avant de lancer le déploiement.
 
 ## Migration production
 
