@@ -76,9 +76,12 @@ jobs:
             --request GET \
             "${DOKPLOY_URL%/}/api/application.one?applicationId=${DOKPLOY_APPLICATION_ID}" \
             --header "x-api-key: ${DOKPLOY_API_TOKEN}" > /tmp/updated-application.json
-          jq -e --arg expected "$GOOGLE_WEB_CLIENT_ID" \
-            '((.env // .application.env // "") | split("\n") | any(. == ("GOOGLE_WEB_CLIENT_ID=" + $expected)))' \
-            /tmp/updated-application.json >/dev/null
+          env_lines=$(jq -r --arg expected "$GOOGLE_WEB_CLIENT_ID" '
+            (.env // "") | split("\n") |
+            map(select(startswith("GOOGLE_WEB_CLIENT_ID="))) |
+            map({present: true, expected: (. == ("GOOGLE_WEB_CLIENT_ID=" + $expected)), length: length})
+          ' /tmp/updated-application.json)
+          printf '%s\n' "$env_lines" | jq -e 'length == 1 and .[0].present and .[0].expected' >/dev/null
 
           printf 'target=%s\nupdated=GOOGLE_WEB_CLIENT_ID\n' \
             "${{ inputs.release_target }}" >> "$GITHUB_STEP_SUMMARY"
