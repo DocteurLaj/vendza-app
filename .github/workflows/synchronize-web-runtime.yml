@@ -81,6 +81,7 @@ jobs:
             map(select(startswith("GOOGLE_WEB_CLIENT_ID="))) |
             map({present: true, expected: (. == ("GOOGLE_WEB_CLIENT_ID=" + $expected)), length: length})
           ' /tmp/updated-application.json)
+          printf 'runtime_check=%s\n' "$env_lines"
           printf '%s\n' "$env_lines" | jq -e 'length == 1 and .[0].present and .[0].expected' >/dev/null
 
           printf 'target=%s\nupdated=GOOGLE_WEB_CLIENT_ID\n' \
