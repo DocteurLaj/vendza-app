@@ -1,0 +1,84 @@
+name: Synchronize Web Runtime Configuration
+
+on:
+  workflow_dispatch:
+    inputs:
+      dokploy_application_id:
+        description: "Dokploy web application ID"
+        required: true
+        type: string
+      release_target:
+        description: "Configuration target"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: production
+      google_web_client_id:
+        description: "Current Google Web OAuth client ID"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  synchronize:
+    name: Preserve and update web runtime environment
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.release_target }}
+    timeout-minutes: 15
+    steps:
+      - name: Read and preserve Dokploy environment
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          DOKPLOY_APPLICATION_ID: ${{ inputs.dokploy_application_id }}
+          GOOGLE_WEB_CLIENT_ID: ${{ inputs.google_web_client_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --request GET \
+            "${DOKPLOY_URL%/}/api/application.one?applicationId=${DOKPLOY_APPLICATION_ID}" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" > /tmp/application.json
+
+          jq -e '(.env? // .application.env? // null) != null' /tmp/application.json >/dev/null
+          jq -e --arg expected "$GOOGLE_WEB_CLIENT_ID" \
+            '($expected | startswith("992593495811-"))' >/dev/null
+
+          jq --arg client "$GOOGLE_WEB_CLIENT_ID" '
+            . as $root |
+            ($root.env // $root.application.env // "") as $env |
+            ($env | split("\n") | map(select(length > 0 and (startswith("GOOGLE_WEB_CLIENT_ID=") | not)))) as $lines |
+            ($lines + ["GOOGLE_WEB_CLIENT_ID=" + $client] | join("\n")) as $updated |
+            {
+              env: $updated,
+              buildArgs: ($root.buildArgs // $root.application.buildArgs // null),
+              buildSecrets: ($root.buildSecrets // $root.application.buildSecrets // null),
+              createEnvFile: ($root.createEnvFile // $root.application.createEnvFile // false)
+            }
+          ' /tmp/application.json > /tmp/environment.json
+
+          response=$(curl --fail --silent --show-error \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/application.saveEnvironment" \
+            --header "Content-Type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$(jq --arg applicationId "$DOKPLOY_APPLICATION_ID" \
+              '. + {applicationId: $applicationId}' /tmp/environment.json)")
+          if [[ -n "$response" ]]; then
+            printf '%s\n' "$response" | jq -e 'if type == "boolean" then . else (.success == true or .applicationId != null) end' >/dev/null
+          fi
+
+          curl --fail --silent --show-error \
+            --request GET \
+            "${DOKPLOY_URL%/}/api/application.one?applicationId=${DOKPLOY_APPLICATION_ID}" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" > /tmp/updated-application.json
+          jq -e --arg expected "$GOOGLE_WEB_CLIENT_ID" \
+            '((.env // .application.env // "") | split("\n") | any(. == ("GOOGLE_WEB_CLIENT_ID=" + $expected)))' \
+            /tmp/updated-application.json >/dev/null
+
+          printf 'target=%s\nupdated=GOOGLE_WEB_CLIENT_ID\n' \
+            "${{ inputs.release_target }}" >> "$GITHUB_STEP_SUMMARY"
