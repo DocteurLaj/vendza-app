@@ -11,6 +11,8 @@ import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart'
 import 'package:vendza/features/profil/data/services/profile_api_service.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
+import 'package:vendza/shared/utils/phone_number.dart';
+import 'package:vendza/shared/widgets/input/phone_number_field.dart';
 import 'package:vendza/shared/widgets/media/context_image.dart';
 
 class OrderCheckoutPage extends StatefulWidget {
@@ -22,9 +24,9 @@ class OrderCheckoutPage extends StatefulWidget {
 
 class _OrderCheckoutPageState extends State<OrderCheckoutPage> {
   final _api = OrderApiService();
-  late final TextEditingController _phoneController;
   late final TextEditingController _addressController;
   final _noteController = TextEditingController();
+  late String _phone;
   bool _submitting = false;
 
   /// Saves [phone] as the user's default phone number silently (fire & forget).
@@ -35,11 +37,15 @@ class _OrderCheckoutPageState extends State<OrderCheckoutPage> {
     if (phone == current) return;
 
     // Update locally immediately so next checkout is pre-filled correctly
-    currentUserStore.value = currentUserStore.value.copyWith(phoneNumber: phone);
+    currentUserStore.value = currentUserStore.value.copyWith(
+      phoneNumber: phone,
+    );
 
     // Persist to server in background — failure is non-blocking
     unawaited(
-      ProfileApiService().updatePhone(phone).catchError((_) => <String, dynamic>{}),
+      ProfileApiService()
+          .updatePhone(phone)
+          .catchError((_) => <String, dynamic>{}),
     );
   }
 
@@ -47,13 +53,12 @@ class _OrderCheckoutPageState extends State<OrderCheckoutPage> {
   void initState() {
     super.initState();
     final user = currentUserStore.value;
-    _phoneController = TextEditingController(text: user.phoneNumber.trim());
+    _phone = user.phoneNumber.trim();
     _addressController = TextEditingController(text: user.address.trim());
   }
 
   @override
   void dispose() {
-    _phoneController.dispose();
     _addressController.dispose();
     _noteController.dispose();
     super.dispose();
@@ -61,7 +66,7 @@ class _OrderCheckoutPageState extends State<OrderCheckoutPage> {
 
   Future<void> _submit(OrderDraft draft) async {
     final error = orderDraftStore.validateCheckout(
-      contactPhone: _phoneController.text,
+      contactPhone: _phone,
       deliveryAddress: _addressController.text,
     );
     if (error != null) {
@@ -77,13 +82,13 @@ class _OrderCheckoutPageState extends State<OrderCheckoutPage> {
             .map((item) => item.toRequest())
             .toList(growable: false),
         idempotencyKey: OrderApiService.newIdempotencyKey(),
-        contactPhone: _phoneController.text,
+        contactPhone: _phone,
         deliveryAddress: _addressController.text,
         customerNote: _noteController.text,
       );
 
       // Silently save the phone as default if it changed
-      _savePhoneIfChanged(_phoneController.text.trim());
+      _savePhoneIfChanged(_phone.trim());
 
       orderDraftStore.clear();
       if (!mounted) return;
@@ -161,7 +166,8 @@ class _OrderCheckoutPageState extends State<OrderCheckoutPage> {
                     ),
                     const SizedBox(height: 8),
                     _CheckoutFields(
-                      phoneController: _phoneController,
+                      initialPhone: currentUserStore.value.phoneNumber,
+                      onPhoneChanged: (phone) => _phone = phone.e164,
                       addressController: _addressController,
                       noteController: _noteController,
                     ),
@@ -324,12 +330,14 @@ class _DraftItemTile extends StatelessWidget {
 
 class _CheckoutFields extends StatelessWidget {
   const _CheckoutFields({
-    required this.phoneController,
+    required this.initialPhone,
+    required this.onPhoneChanged,
     required this.addressController,
     required this.noteController,
   });
 
-  final TextEditingController phoneController;
+  final String initialPhone;
+  final ValueChanged<ParsedPhoneNumber> onPhoneChanged;
   final TextEditingController addressController;
   final TextEditingController noteController;
 
@@ -347,13 +355,10 @@ class _CheckoutFields extends StatelessWidget {
         children: [
           Text('Contact et livraison', style: AppTextStyles.cardTitle(context)),
           const SizedBox(height: 12),
-          TextField(
-            controller: phoneController,
-            keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              labelText: 'Téléphone de contact *',
-              hintText: '+243...',
-            ),
+          PhoneNumberField(
+            initialValue: initialPhone,
+            label: 'Téléphone de contact *',
+            onChanged: onPhoneChanged,
           ),
           const SizedBox(height: 12),
           TextField(
