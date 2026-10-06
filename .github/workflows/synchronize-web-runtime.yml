@@ -44,7 +44,7 @@ jobs:
             "${DOKPLOY_URL%/}/api/application.one?applicationId=${DOKPLOY_APPLICATION_ID}" \
             --header "x-api-key: ${DOKPLOY_API_TOKEN}" > /tmp/application.json
 
-          jq -e '(.env? // .application.env? // null) != null' /tmp/application.json >/dev/null
+          jq -c '{keys: keys, application_keys: ((.application // {}) | keys), env_type: (.env | type), application_env_type: ((.application // {}) .env | type)}' /tmp/application.json
           jq -e --arg expected "$GOOGLE_WEB_CLIENT_ID" \
             '($expected | startswith("992593495811-"))' >/dev/null
 
