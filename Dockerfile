@@ -64,7 +64,8 @@ RUN test -n "${VENDZA_API_BASE_URL}" \
       --dart-define=VENDZA_FIREBASE_STORAGE_BUCKET="${VENDZA_FIREBASE_STORAGE_BUCKET}" \
       --dart-define=VENDZA_FIREBASE_VAPID_KEY="${VENDZA_FIREBASE_VAPID_KEY}" \
     && ! grep -R "838466400797" build/web \
-    && grep -R "${GOOGLE_WEB_CLIENT_ID}" build/web/main.dart.js
+    && grep -R "${GOOGLE_WEB_CLIENT_ID}" build/web \
+    && printf '%s' "${GOOGLE_WEB_CLIENT_ID}" > build/web/.vendza-google-client-id
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 
