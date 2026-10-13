@@ -32,11 +32,14 @@ class SubscriptionFeaturesModel {
   List<String> toFeatureLines() {
     final lines = <String>[
       '${intValue('max_stores', 1)} boutique${intValue('max_stores', 1) > 1 ? 's' : ''}',
-      '${intValue('max_active_products')} produits actifs',
+      '${intValue('max_active_products', intValue('max_products', 10))} produits actifs',
       '${intValue('max_images_per_product')} image${intValue('max_images_per_product') > 1 ? 's' : ''} par produit',
     ];
 
-    final collections = intValue('max_store_collections');
+    final collections = intValue(
+      'max_store_collections',
+      intValue('max_collections'),
+    );
     if (collections > 0) lines.add('$collections collections boutique');
 
     final featuredProducts = intValue('max_featured_products');

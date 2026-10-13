@@ -23,6 +23,8 @@ class SplashScreenState extends State<SplashScreen>
   late final AnimationController _controller;
   late final Animation<double> _scale;
   late final Animation<double> _opacity;
+  Timer? _startupTimer;
+  bool _startupStarted = false;
 
   @override
   void initState() {
@@ -72,11 +74,19 @@ class SplashScreenState extends State<SplashScreen>
 
     _controller
       ..addStatusListener((status) {
-        if (status == AnimationStatus.completed && mounted) {
-          unawaited(_finishStartup());
+        if (status == AnimationStatus.completed) {
+          _startStartup();
         }
       })
       ..forward();
+    // Navigation must not depend solely on a browser animation callback.
+    _startupTimer = Timer(const Duration(milliseconds: 1200), _startStartup);
+  }
+
+  void _startStartup() {
+    if (_startupStarted || !mounted) return;
+    _startupStarted = true;
+    unawaited(_finishStartup());
   }
 
   Future<void> _finishStartup() async {
@@ -90,6 +100,13 @@ class SplashScreenState extends State<SplashScreen>
       sessionRestored = await authSessionService
           .restoreSession(syncCatalog: false)
           .timeout(const Duration(seconds: 4), onTimeout: () => false);
+      // A valid persisted token is enough to enter the authenticated shell while
+      // optional startup synchronization completes in the background.
+      if (!sessionRestored &&
+          (apiTokenStore.hasAccessToken ||
+              (apiTokenStore.refreshToken?.isNotEmpty ?? false))) {
+        sessionRestored = true;
+      }
     } on Object {
       sessionRestored = false;
     }
@@ -125,6 +142,7 @@ class SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    _startupTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

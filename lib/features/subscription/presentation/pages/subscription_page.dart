@@ -40,8 +40,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
 
   void _selectPlan(int index) => setState(() => selectedIndex = index);
 
-  String? get _activePlanCode =>
-      activeSubscriptionStore.value?.plan.code;
+  String? get _activePlanCode => activeSubscriptionStore.value?.plan.code;
 
   @override
   void initState() {
@@ -50,7 +49,10 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
   }
 
   Future<void> _loadPlans() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final plans = await refreshSubscriptionPlans();
       // Default selection: first paid plan
@@ -61,7 +63,11 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         selectedIndex = initialIndex >= 0 ? initialIndex : 0;
         _loading = false;
       });
-      try { await refreshActiveSubscription(); } on Object { /* non-blocking */ }
+      try {
+        await refreshActiveSubscription();
+      } on Object {
+        /* non-blocking */
+      }
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
@@ -177,7 +183,9 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                 onPressed: () => Navigator.pop(dialogContext),
                 child: Text(
                   'Fermer',
-                  style: TextStyle(color: AppColors.textSecondary(dialogContext)),
+                  style: TextStyle(
+                    color: AppColors.textSecondary(dialogContext),
+                  ),
                 ),
               ),
             ],
@@ -234,9 +242,25 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                       );
                       return;
                     }
+                    final transactionStatus = status.transactionStatus
+                        ?.toUpperCase();
+                    if (transactionStatus == 'FAILED' ||
+                        transactionStatus == 'CANCELLED' ||
+                        transactionStatus == 'EXPIRED') {
+                      navigator.pop();
+                      final message = switch (transactionStatus) {
+                        'FAILED' => 'Paiement échoué.',
+                        'CANCELLED' => 'Paiement annulé.',
+                        _ => 'Paiement expiré.',
+                      };
+                      messenger.showSnackBar(SnackBar(content: Text(message)));
+                      return;
+                    }
                     messenger.showSnackBar(
                       const SnackBar(
-                        content: Text('Paiement encore en attente chez SasPay.'),
+                        content: Text(
+                          'Paiement encore en attente chez SasPay.',
+                        ),
                       ),
                     );
                   } on Object catch (error) {
@@ -291,7 +315,11 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                 style: AppTextStyles.body(context),
               ),
               const SizedBox(height: 16),
-              AppBouton(text: 'Réessayer', onPressed: _loadPlans, enabled: true),
+              AppBouton(
+                text: 'Réessayer',
+                onPressed: _loadPlans,
+                enabled: true,
+              ),
             ],
           ),
         ),
@@ -471,9 +499,7 @@ class _PageHeader extends StatelessWidget {
             decoration: BoxDecoration(
               color: accent.withValues(alpha: isDark ? 0.12 : 0.06),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: accent.withValues(alpha: 0.20),
-              ),
+              border: Border.all(color: accent.withValues(alpha: 0.20)),
             ),
             child: Row(
               children: [

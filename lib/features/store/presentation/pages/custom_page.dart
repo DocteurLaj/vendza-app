@@ -48,7 +48,8 @@ class _CustomPageState extends State<CustomPage> {
   late String _initialWhatsapp;
   late List<ProductModel> _featuredProducts;
   bool _isSubmitting = false;
-  late bool _isActive;
+  bool _isActive = false;
+  Set<String> get _allowedSocialNetworks => ent.allowedSocialNetworks().toSet();
 
   @override
   void initState() {
@@ -139,11 +140,17 @@ class _CustomPageState extends State<CustomPage> {
       description: _descriptionController.text.trim(),
       coverImageUrl: _coverUpload.remoteUrl ?? _coverUpload.previewUrl,
       profileImageUrl: _profileUpload.remoteUrl ?? _profileUpload.previewUrl,
-      whatsappUrl: whatsapp.e164.isEmpty
-          ? ''
-          : whatsappUrlFromPhone(whatsapp.e164),
-      instagramUrl: _instagramController.text.trim(),
-      facebookUrl: _facebookController.text.trim(),
+      whatsappUrl:
+          _allowedSocialNetworks.contains('whatsapp') &&
+              whatsapp.e164.isNotEmpty
+          ? whatsappUrlFromPhone(whatsapp.e164)
+          : '',
+      instagramUrl: _allowedSocialNetworks.contains('instagram')
+          ? _instagramController.text.trim()
+          : '',
+      facebookUrl: _allowedSocialNetworks.contains('facebook')
+          ? _facebookController.text.trim()
+          : '',
       featuredProducts: _featuredProducts,
     );
   }
@@ -171,8 +178,12 @@ class _CustomPageState extends State<CustomPage> {
       return;
     }
 
-    final instagramError = validateInstagramUrl(_instagramController.text);
-    final facebookError = validateFacebookUrl(_facebookController.text);
+    final instagramError = _allowedSocialNetworks.contains('instagram')
+        ? validateInstagramUrl(_instagramController.text)
+        : null;
+    final facebookError = _allowedSocialNetworks.contains('facebook')
+        ? validateFacebookUrl(_facebookController.text)
+        : null;
     if (instagramError != null || facebookError != null) {
       ScaffoldMessenger.of(
         context,
@@ -192,16 +203,16 @@ class _CustomPageState extends State<CustomPage> {
           await showUpgradeRequiredPopup(
             context: context,
             error: const ApiException(
-              message: 'La bannière de boutique n\'est pas incluse dans votre abonnement. '
-                  'Passez à l\'offre Débutant ou supérieur pour l\'activer.',
+              message:
+                  'La bannière de boutique n\'est pas incluse dans votre abonnement. '
+                  'Passez à une offre qui inclut cette fonctionnalité.',
               statusCode: 402,
               body: {
                 'detail': {
                   'error': 'plan_limit_reached',
-                  'message': 'La bannière de boutique n\'est pas incluse dans votre abonnement. '
-                      'Passez à l\'offre Débutant ou supérieur pour l\'activer.',
-                  'current_plan': 'free',
-                  'required_plan': 'starter',
+                  'message':
+                      'La bannière de boutique n\'est pas incluse dans votre abonnement. '
+                      'Passez à une offre qui inclut cette fonctionnalité.',
                 },
               },
             ),
@@ -221,16 +232,16 @@ class _CustomPageState extends State<CustomPage> {
           await showUpgradeRequiredPopup(
             context: context,
             error: ApiException(
-              message: 'Votre abonnement permet ${ent.maxSocialLinks()} lien(s) social(aux). '
+              message:
+                  'Votre abonnement permet ${ent.maxSocialLinks()} lien(s) social(aux). '
                   'Passez à un plan supérieur pour en ajouter davantage.',
               statusCode: 402,
               body: {
                 'detail': {
                   'error': 'plan_limit_reached',
-                  'message': 'Votre abonnement permet ${ent.maxSocialLinks()} lien(s) social(aux). '
+                  'message':
+                      'Votre abonnement permet ${ent.maxSocialLinks()} lien(s) social(aux). '
                       'Passez à un plan supérieur pour en ajouter davantage.',
-                  'current_plan': 'free',
-                  'required_plan': 'starter',
                 },
               },
             ),
@@ -283,7 +294,10 @@ class _CustomPageState extends State<CustomPage> {
     } on Object catch (error) {
       if (!mounted) return;
       if (error is ApiException &&
-          await showUpgradeRequiredPopupFromError(context: context, error: error)) {
+          await showUpgradeRequiredPopupFromError(
+            context: context,
+            error: error,
+          )) {
         return;
       }
       if (!mounted) return;
@@ -361,15 +375,18 @@ class _CustomPageState extends State<CustomPage> {
       );
     } on Object catch (error) {
       if (!mounted) return;
-      final handled =
-          await showUpgradeRequiredPopupFromError(context: context, error: error);
+      final handled = await showUpgradeRequiredPopupFromError(
+        context: context,
+        error: error,
+      );
       if (!handled) {
         final message = error is ApiException
             ? error.message
             : 'Impossible de $actionLabel la boutique. Réessayez.';
         if (!mounted) return;
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -477,6 +494,7 @@ class _CustomPageState extends State<CustomPage> {
                 ),
                 instagramController: _instagramController,
                 facebookController: _facebookController,
+                allowedNetworks: _allowedSocialNetworks,
               ),
               CustomProductPickerSection(
                 products: _featuredProducts,

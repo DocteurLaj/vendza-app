@@ -98,16 +98,14 @@ class _AddProductState extends State<AddProduct> {
         error: const ApiException(
           message:
               'Les variantes produit ne sont pas incluses dans votre abonnement. '
-              'Passez à l\'offre Actif ou Pro pour les activer.',
+              'Passez à une offre qui inclut cette fonctionnalité.',
           statusCode: 402,
           body: {
             'detail': {
               'error': 'plan_limit_reached',
               'message':
                   'Les variantes produit ne sont pas incluses dans votre abonnement. '
-                  'Passez à l\'offre Actif ou Pro pour les activer.',
-              'current_plan': 'free',
-              'required_plan': 'active',
+                  'Passez à une offre qui inclut cette fonctionnalité.',
             },
           },
         ),
@@ -348,7 +346,9 @@ class _AddProductState extends State<AddProduct> {
                               height: 90,
                               child: UploadImageSlot(
                                 controller: _imageUploads[i],
-                                emptyTitle: i == 0 ? "Photo 1 *" : "Photo ${i + 1}",
+                                emptyTitle: i == 0
+                                    ? "Photo 1 *"
+                                    : "Photo ${i + 1}",
                                 enabled: !_isSubmitting,
                               ),
                             ),

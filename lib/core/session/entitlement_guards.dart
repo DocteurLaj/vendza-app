@@ -22,7 +22,10 @@ bool canAddVariant() => _features().boolValue('has_variants');
 
 int maxImagesPerProduct() => _features().intValue('max_images_per_product', 1);
 
-int maxProducts() => _features().intValue('max_products', 10);
+int maxProducts() => _features().intValue(
+  'max_products',
+  _features().intValue('max_active_products', 10),
+);
 
 // ── store ──────────────────────────────────────────────────────────────────────
 
@@ -30,10 +33,28 @@ bool canSetBanner() => _features().boolValue('has_banner');
 
 int maxSocialLinks() => _features().intValue('max_social_links', 1);
 
+List<String> allowedSocialNetworks() {
+  final raw = _features().values['allowed_social_networks'];
+  if (raw is List) {
+    final configured = raw
+        .map((value) => value.toString().trim().toLowerCase())
+        .where((value) => {'whatsapp', 'instagram', 'facebook'}.contains(value))
+        .toSet()
+        .toList();
+    if (configured.isNotEmpty) return configured;
+  }
+  return maxSocialLinks() <= 1
+      ? const ['whatsapp']
+      : const ['whatsapp', 'instagram', 'facebook'];
+}
+
 int maxStores() => _features().intValue('max_stores', 1);
 
 // ── collections ────────────────────────────────────────────────────────────────
 
-int maxCollections() => _features().intValue('max_collections', 0);
+int maxCollections() => _features().intValue(
+  'max_collections',
+  _features().intValue('max_store_collections', 0),
+);
 
 bool canCreateCollection() => maxCollections() > 0;

@@ -117,6 +117,8 @@ class _AddStoreState extends State<AddStore> {
   );
   final _whatsappFieldKey = GlobalKey<PhoneNumberFieldState>();
 
+  Set<String> get _allowedSocialNetworks => ent.allowedSocialNetworks().toSet();
+
   @override
   void initState() {
     super.initState();
@@ -140,8 +142,12 @@ class _AddStoreState extends State<AddStore> {
 
     final trimmedName = _name.trim();
     final trimmedDescription = _description.trim();
-    final instagramError = validateInstagramUrl(_instagram);
-    final facebookError = validateFacebookUrl(_facebook);
+    final instagramError = _allowedSocialNetworks.contains('instagram')
+        ? validateInstagramUrl(_instagram)
+        : null;
+    final facebookError = _allowedSocialNetworks.contains('facebook')
+        ? validateFacebookUrl(_facebook)
+        : null;
 
     setState(() {
       _nameError = trimmedName.isEmpty
@@ -172,25 +178,27 @@ class _AddStoreState extends State<AddStore> {
     final messenger = ScaffoldMessenger.of(context);
     final whatsapp =
         _whatsappFieldKey.currentState?.value ?? parsePhoneNumber(_whatsapp);
-    if (!whatsapp.isValid && whatsapp.national.isEmpty) {
-      final skipWhatsapp = await _confirmMissingWhatsapp();
-      if (skipWhatsapp != true) {
-        if (!mounted) return;
-        final fieldContext = _whatsappFieldKey.currentContext;
-        if (fieldContext != null && fieldContext.mounted) {
-          await Scrollable.ensureVisible(
-            fieldContext,
-            duration: const Duration(milliseconds: 280),
-            alignment: 0.2,
-          );
+    if (_allowedSocialNetworks.contains('whatsapp')) {
+      if (!whatsapp.isValid && whatsapp.national.isEmpty) {
+        final skipWhatsapp = await _confirmMissingWhatsapp();
+        if (skipWhatsapp != true) {
+          if (!mounted) return;
+          final fieldContext = _whatsappFieldKey.currentContext;
+          if (fieldContext != null && fieldContext.mounted) {
+            await Scrollable.ensureVisible(
+              fieldContext,
+              duration: const Duration(milliseconds: 280),
+              alignment: 0.2,
+            );
+          }
+          return;
         }
+      } else if (!whatsapp.isValid) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Le numero WhatsApp est incomplet.')),
+        );
         return;
       }
-    } else if (!whatsapp.isValid) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Le numero WhatsApp est incomplet.')),
-      );
-      return;
     }
 
     setState(() => _isSubmitting = true);
@@ -207,16 +215,16 @@ class _AddStoreState extends State<AddStore> {
         await showUpgradeRequiredPopup(
           context: context,
           error: ApiException(
-            message: 'Votre abonnement permet ${ent.maxSocialLinks()} lien(s) social(aux). '
+            message:
+                'Votre abonnement permet ${ent.maxSocialLinks()} lien(s) social(aux). '
                 'Passez à un plan supérieur pour en ajouter davantage.',
             statusCode: 402,
             body: {
               'detail': {
                 'error': 'plan_limit_reached',
-                'message': 'Votre abonnement permet ${ent.maxSocialLinks()} lien(s) social(aux). '
+                'message':
+                    'Votre abonnement permet ${ent.maxSocialLinks()} lien(s) social(aux). '
                     'Passez à un plan supérieur pour en ajouter davantage.',
-                'current_plan': 'free',
-                'required_plan': 'starter',
               },
             },
           ),
@@ -359,22 +367,25 @@ class _AddStoreState extends State<AddStore> {
                 title: "Moyens de contact",
                 children: [
                   const _OptionalContactNotice(),
-                  PhoneNumberField(
-                    key: _whatsappFieldKey,
-                    label: "WhatsApp",
-                    enabled: !_isSubmitting,
-                    onChanged: (value) => _whatsapp = value.e164,
-                  ),
-                  FormFieldWidget(
-                    label: "Instagram",
-                    hint: "Ex: https://instagram.com/tonstore",
-                    onChanged: (value) => _instagram = value,
-                  ),
-                  FormFieldWidget(
-                    label: "Facebook",
-                    hint: "Ex: https://facebook.com/tonstore",
-                    onChanged: (value) => _facebook = value,
-                  ),
+                  if (_allowedSocialNetworks.contains('whatsapp'))
+                    PhoneNumberField(
+                      key: _whatsappFieldKey,
+                      label: "WhatsApp",
+                      enabled: !_isSubmitting,
+                      onChanged: (value) => _whatsapp = value.e164,
+                    ),
+                  if (_allowedSocialNetworks.contains('instagram'))
+                    FormFieldWidget(
+                      label: "Instagram",
+                      hint: "Ex: https://instagram.com/tonstore",
+                      onChanged: (value) => _instagram = value,
+                    ),
+                  if (_allowedSocialNetworks.contains('facebook'))
+                    FormFieldWidget(
+                      label: "Facebook",
+                      hint: "Ex: https://facebook.com/tonstore",
+                      onChanged: (value) => _facebook = value,
+                    ),
                 ],
               ),
               Padding(

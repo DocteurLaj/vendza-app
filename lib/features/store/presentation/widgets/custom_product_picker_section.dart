@@ -142,11 +142,13 @@ class CustomSocialLinksSection extends StatelessWidget {
     required this.whatsappField,
     required this.instagramController,
     required this.facebookController,
+    required this.allowedNetworks,
   });
 
   final Widget whatsappField;
   final TextEditingController instagramController;
   final TextEditingController facebookController;
+  final Set<String> allowedNetworks;
 
   @override
   Widget build(BuildContext context) {
@@ -155,21 +157,28 @@ class CustomSocialLinksSection extends StatelessWidget {
       subtitle: "Ajoute seulement les liens que tu veux afficher.",
       child: Column(
         children: [
-          whatsappField,
-          const SizedBox(height: 12),
-          _CustomTextField(
-            controller: instagramController,
-            label: "Instagram",
-            hintText: "Ex: https://instagram.com/tonstore",
-            prefixIcon: const FaIcon(FontAwesomeIcons.instagram, size: 19),
-          ),
-          const SizedBox(height: 12),
-          _CustomTextField(
-            controller: facebookController,
-            label: "Facebook",
-            hintText: "Ex: https://facebook.com/tonstore",
-            prefixIcon: const FaIcon(FontAwesomeIcons.facebook, size: 19),
-          ),
+          if (allowedNetworks.contains('whatsapp')) whatsappField,
+          if (allowedNetworks.contains('whatsapp') &&
+              (allowedNetworks.contains('instagram') ||
+                  allowedNetworks.contains('facebook')))
+            const SizedBox(height: 12),
+          if (allowedNetworks.contains('instagram'))
+            _CustomTextField(
+              controller: instagramController,
+              label: "Instagram",
+              hintText: "Ex: https://instagram.com/tonstore",
+              prefixIcon: const FaIcon(FontAwesomeIcons.instagram, size: 19),
+            ),
+          if (allowedNetworks.contains('instagram') &&
+              allowedNetworks.contains('facebook'))
+            const SizedBox(height: 12),
+          if (allowedNetworks.contains('facebook'))
+            _CustomTextField(
+              controller: facebookController,
+              label: "Facebook",
+              hintText: "Ex: https://facebook.com/tonstore",
+              prefixIcon: const FaIcon(FontAwesomeIcons.facebook, size: 19),
+            ),
         ],
       ),
     );

@@ -243,7 +243,10 @@ class AuthSessionService {
       await _catalogSynchronizer(userId ?? 0);
       syncStoreCustomizationFromCatalog();
     }
-    await pushNotificationService.syncCurrentToken();
+    // Push notifications are optional and must never block login or session restore.
+    unawaited(
+      pushNotificationService.syncCurrentToken().catchError((Object _) {}),
+    );
     unawaited(realtimeNotificationService.start());
     // Refresh subscription context silently — failure must never block login.
     refreshActiveSubscription().ignore();

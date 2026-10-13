@@ -51,16 +51,16 @@ class _CollectionPageState extends State<CollectionPage> {
       await showUpgradeRequiredPopup(
         context: context,
         error: const ApiException(
-          message: 'Les collections ne sont pas incluses dans votre abonnement. '
+          message:
+              'Les collections ne sont pas incluses dans votre abonnement. '
               'Passez à un plan supérieur pour en créer.',
           statusCode: 402,
           body: {
             'detail': {
               'error': 'plan_limit_reached',
-              'message': 'Les collections ne sont pas incluses dans votre abonnement. '
+              'message':
+                  'Les collections ne sont pas incluses dans votre abonnement. '
                   'Passez à un plan supérieur pour en créer.',
-              'current_plan': 'free',
-              'required_plan': 'starter',
             },
           },
         ),
