@@ -27,6 +27,16 @@ jobs:
             -o deploy.json
           curl --fail-with-body -sS "${base}/api/application.one?applicationId=${APPLICATION_ID}" \
             -H "x-api-key: ${DOKPLOY_API_TOKEN}" -o state.json
+          python3 - <<'PY'
+          import json
+          state=json.load(open('state.json'))
+          existing=state.get('env') or ''
+          lines=[line for line in existing.splitlines() if not line.startswith('GOOGLE_WEB_CLIENT_ID=')]
+          lines.append('GOOGLE_WEB_CLIENT_ID=992593495811-ogh34thu3rg606tjgnd7jdf8ir7n32ok.apps.googleusercontent.com')
+          json.dump({'applicationId':'CHl42zYU8qsZw3QyKn9dP','env':'\n'.join(lines)+'\n','createEnvFile':bool(state.get('createEnvFile', True))}, open('environment.json','w'))
+          PY
+          curl --fail-with-body -sS -X POST "${base}/api/application.saveEnvironment" "${headers[@]}" \
+            --data-binary @environment.json -o environment-save.json
           github_id="$(python3 -c 'import json; print(json.load(open("state.json"))["githubId"])')"
           curl --fail-with-body -sS -X POST "${base}/api/application.saveGithubProvider" "${headers[@]}" \
             --data "{\"applicationId\":\"${APPLICATION_ID}\",\"repository\":\"vendza-api\",\"owner\":\"DocteurLaj\",\"buildPath\":\"/\",\"githubId\":\"${github_id}\",\"branch\":\"main\",\"triggerType\":\"push\",\"watchPaths\":[]}" \
