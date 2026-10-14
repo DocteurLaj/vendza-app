@@ -55,14 +55,21 @@ jobs:
           print(json.dumps({"projects_type": type(projects).__name__, "project_count": len(projects) if isinstance(projects, list) else None}, ensure_ascii=False))
           if isinstance(projects, dict):
               projects = projects.get("projects", [])
+          import urllib.request
+          import os
+
+          items = []
           for project in projects if isinstance(projects, list) else []:
-              print(json.dumps({
-                  "projectId": project.get("projectId"),
-                  "name": project.get("name"),
-                  "application_count": len(project.get("applications", [])),
-                  "compose_count": len(project.get("compose", [])),
-              }, ensure_ascii=False))
-          items = [app for project in projects for app in project.get("applications", [])] if isinstance(projects, list) else []
+              request = urllib.request.Request(
+                  f"{os.environ['DOKPLOY_URL'].rstrip('/')}/api/project.one?projectId={project.get('projectId')}",
+                  headers={"x-api-key": os.environ['DOKPLOY_API_TOKEN']},
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  detail = json.load(response)
+              for key in ("applications", "compose"):
+                  values = detail.get(key, []) if isinstance(detail, dict) else []
+                  if isinstance(values, list):
+                      items.extend(values)
           print(json.dumps({"application_count": len(items)}, ensure_ascii=False))
           if not isinstance(items, list):
               raise SystemExit("Unexpected Dokploy application response shape")
@@ -103,14 +110,21 @@ jobs:
           print(json.dumps({"projects_type": type(projects).__name__, "project_count": len(projects) if isinstance(projects, list) else None}, ensure_ascii=False))
           if isinstance(projects, dict):
               projects = projects.get("projects", [])
+          import urllib.request
+          import os
+
+          items = []
           for project in projects if isinstance(projects, list) else []:
-              print(json.dumps({
-                  "projectId": project.get("projectId"),
-                  "name": project.get("name"),
-                  "application_count": len(project.get("applications", [])),
-                  "compose_count": len(project.get("compose", [])),
-              }, ensure_ascii=False))
-          items = [app for project in projects for app in project.get("applications", [])] if isinstance(projects, list) else []
+              request = urllib.request.Request(
+                  f"{os.environ['DOKPLOY_URL'].rstrip('/')}/api/project.one?projectId={project.get('projectId')}",
+                  headers={"x-api-key": os.environ['DOKPLOY_API_TOKEN']},
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  detail = json.load(response)
+              for key in ("applications", "compose"):
+                  values = detail.get(key, []) if isinstance(detail, dict) else []
+                  if isinstance(values, list):
+                      items.extend(values)
           print(json.dumps({"application_count": len(items)}, ensure_ascii=False))
           targets = []
           for app in items:
