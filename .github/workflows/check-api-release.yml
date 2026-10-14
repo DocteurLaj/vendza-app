@@ -13,9 +13,14 @@ jobs:
           set -euo pipefail
           curl --fail-with-body -sS "${DOKPLOY_URL%/}/api/application.one?applicationId=CHl42zYU8qsZw3QyKn9dP" \
             -H "x-api-key: ${DOKPLOY_API_TOKEN}" -o state.json
+          curl --fail-with-body -sS "${DOKPLOY_URL%/}/api/application.readLogs?applicationId=CHl42zYU8qsZw3QyKn9dP&tail=300" \
+            -H "x-api-key: ${DOKPLOY_API_TOKEN}" -o logs.json
           python3 - <<'PY'
-          import json
+          import json, re
           s=json.load(open('state.json'))
           d=s.get('deployments', [])[-3:]
-          print(json.dumps({'status':s.get('applicationStatus'),'latest':d},ensure_ascii=False))
+          logs=json.load(open('logs.json'))
+          text=logs if isinstance(logs,str) else json.dumps(logs,ensure_ascii=False)
+          interesting=[line for line in text.splitlines() if re.search(r'error|failed|health|migration|exception|traceback|running', line, re.I)]
+          print(json.dumps({'status':s.get('applicationStatus'),'latest':d,'diagnostic_tail':interesting[-40:]},ensure_ascii=False))
           PY
