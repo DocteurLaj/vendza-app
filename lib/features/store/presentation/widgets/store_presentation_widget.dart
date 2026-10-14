@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
+import 'package:vendza/features/collection/data/services/collection_store.dart';
+import 'package:vendza/features/collection/presentation/pages/collection_page.dart';
 import 'package:vendza/features/home/data/models/store_model.dart';
 import 'package:vendza/features/store/data/models/store_customization_model.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
@@ -9,6 +11,7 @@ import 'package:vendza/features/store/data/services/product_management_service.d
 import 'package:vendza/features/product/presentation/pages/product_detail_page.dart';
 import 'package:vendza/features/store/presentation/pages/store_product_page.dart';
 import 'package:vendza/shared/models/product_model.dart';
+import 'package:vendza/shared/models/section_model.dart';
 import 'package:vendza/shared/models/social_item.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
@@ -27,8 +30,7 @@ class StorePresentationWidget extends StatelessWidget {
       builder: (context, _, _) {
         final storeCustomizationData = customizationForStore(store.id);
         final shouldUseCustomization =
-            storeCustomizationData.name.isNotEmpty ||
-            isOwnedStoreId(store.id);
+            storeCustomizationData.name.isNotEmpty || isOwnedStoreId(store.id);
         final displayName =
             shouldUseCustomization && storeCustomizationData.name.isNotEmpty
             ? storeCustomizationData.name
@@ -144,6 +146,8 @@ class StorePresentationWidget extends StatelessWidget {
               ),
             ),
             StoreFeaturedProductsPreview(products: featuredProducts),
+            const SizedBox(height: 20),
+            StoreCollectionsPreview(storeId: store.id),
             const SizedBox(height: 20),
           ],
         );
@@ -261,6 +265,160 @@ class StoreProductPreviewTitle extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class StoreCollectionsPreview extends StatefulWidget {
+  const StoreCollectionsPreview({super.key, required this.storeId});
+
+  final String storeId;
+
+  @override
+  State<StoreCollectionsPreview> createState() =>
+      _StoreCollectionsPreviewState();
+}
+
+class _StoreCollectionsPreviewState extends State<StoreCollectionsPreview> {
+  late Future<List<SectionModel>> _collectionsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _collectionsFuture = _loadCollections();
+  }
+
+  Future<List<SectionModel>> _loadCollections() async {
+    final id = int.tryParse(widget.storeId);
+    if (id == null) return const <SectionModel>[];
+    return CollectionApiService().listCollections(id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<SectionModel>>(
+      future: _collectionsFuture,
+      builder: (context, snapshot) {
+        final collections = snapshot.data ?? const <SectionModel>[];
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            collections.isEmpty) {
+          return const SizedBox(height: 86);
+        }
+        if (collections.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Collections',
+                      style: AppTextStyles.sectionTitle(context),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => _openCollections(context),
+                    child: const Text('Tout voir'),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 92,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: collections.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final collection = collections[index];
+                  return TweenAnimationBuilder<double>(
+                    key: ValueKey(collection.id),
+                    tween: Tween(begin: 0, end: 1),
+                    duration: Duration(milliseconds: 260 + index * 70),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, child) => Opacity(
+                      opacity: value,
+                      child: Transform.translate(
+                        offset: Offset(0, 12 * (1 - value)),
+                        child: child,
+                      ),
+                    ),
+                    child: _StoreCollectionCard(
+                      collection: collection,
+                      onTap: () => _openCollections(context),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _openCollections(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CollectionPage(storeId: widget.storeId),
+      ),
+    );
+  }
+}
+
+class _StoreCollectionCard extends StatelessWidget {
+  const _StoreCollectionCard({required this.collection, required this.onTap});
+
+  final SectionModel collection;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 164,
+      child: Material(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent(context).withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.collections_outlined,
+                    color: AppColors.iconAccent(context),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    collection.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.cardTitle(
+                      context,
+                    ).copyWith(fontSize: 12, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
