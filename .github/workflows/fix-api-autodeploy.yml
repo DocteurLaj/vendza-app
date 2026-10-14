@@ -33,7 +33,8 @@ jobs:
           existing=state.get('env') or ''
           lines=[line for line in existing.splitlines() if not line.startswith('GOOGLE_WEB_CLIENT_ID=')]
           lines.append('GOOGLE_WEB_CLIENT_ID=992593495811-ogh34thu3rg606tjgnd7jdf8ir7n32ok.apps.googleusercontent.com')
-          json.dump({'applicationId':'CHl42zYU8qsZw3QyKn9dP','env':'\n'.join(lines)+'\n','createEnvFile':bool(state.get('createEnvFile', True))}, open('environment.json','w'))
+          print(json.dumps({'env_length':len(existing),'has_google_old':any(line.startswith('GOOGLE_WEB_CLIENT_ID=') for line in existing.splitlines()),'createEnvFile':state.get('createEnvFile')}))
+          json.dump({'applicationId':'CHl42zYU8qsZw3QyKn9dP','env':'\n'.join(lines)+'\n','createEnvFile':True}, open('environment.json','w'))
           PY
           curl --fail-with-body -sS -X POST "${base}/api/application.saveEnvironment" "${headers[@]}" \
             --data-binary @environment.json -o environment-save.json
