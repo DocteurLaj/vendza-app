@@ -167,8 +167,8 @@ jobs:
                       for child in value: walk(child)
               walk(app)
               text = " ".join(values).lower()
-              if app.get("name") == "vendza-api" and app.get("composeId"):
-                  targets.append(("compose", app.get("composeId")))
+              if app.get("name") == "vendza-api" and (app.get("composeId") or app.get("id")):
+                  targets.append(("compose", app.get("composeId") or app.get("id")))
           targets = sorted(set(targets))
           if not targets:
               raise SystemExit("No production Vendza applications matched")
