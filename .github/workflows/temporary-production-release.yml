@@ -105,12 +105,12 @@ jobs:
               )
               with urllib.request.urlopen(request, timeout=30) as response:
                   current = json.load(response)
+              safe = {key: value for key, value in current.items() if any(token in key.lower() for token in ("repo", "branch", "source", "compose", "build", "status")) and not isinstance(value, (dict, list))}
               print(json.dumps({
                   "id": application_id,
                   "name": app.get("name"),
-                  "status": current.get("applicationStatus"),
-                  "dockerImage": current.get("dockerImage"),
-                  "source": current.get("customGitUrl") or current.get("githubRepository"),
+                  "keys": sorted(current.keys()),
+                  "safe": safe,
               }, ensure_ascii=False))
           PY
 
@@ -154,18 +154,17 @@ jobs:
                           if any(k in values[0] for k in ("applicationId", "composeId", "appName", "name")):
                               items.extend(values)
           print(json.dumps({"application_count": len(items)}, ensure_ascii=False))
-          targets = [("compose", "CHl42zYU8qsZw3QyKn9dP")]
+          targets = [("application", "CHl42zYU8qsZw3QyKn9dP")]
           if not targets:
               raise SystemExit("No production Vendza applications matched")
           print("Deploying matched Dokploy targets:", ", ".join(f"{kind}:{target}" for kind, target in targets))
           for kind, target_id in targets:
               body = json.dumps({
-                  "composeId": target_id,
-                  "title": f"Production Vendza API {__import__('os').environ['API_REF']}",
-                  "description": f"Production Vendza API release {__import__('os').environ['API_REF']}",
+                  "applicationId": target_id,
+                  "titleLog": f"Production Vendza API {__import__('os').environ['API_REF']}",
               }).encode()
               request = urllib.request.Request(
-                  f"{__import__('os').environ['DOKPLOY_URL'].rstrip('/')}/api/compose.deploy",
+                  f"{__import__('os').environ['DOKPLOY_URL'].rstrip('/')}/api/application.deploy",
                   data=body,
                   headers={"x-api-key": __import__('os').environ['DOKPLOY_API_TOKEN'], "Content-Type": "application/json"},
                   method="POST",
