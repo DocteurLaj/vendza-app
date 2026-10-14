@@ -166,7 +166,8 @@ jobs:
           for kind, target_id in targets:
               body = json.dumps({
                   "applicationId": target_id,
-                  "titleLog": f"Production Vendza API {__import__('os').environ['API_REF']}",
+                  "title": f"Production Vendza API {__import__('os').environ['API_REF']}",
+                  "description": f"Deploying Vendza API commit {__import__('os').environ['API_REF']}",
               }).encode()
               request = urllib.request.Request(
                   f"{__import__('os').environ['DOKPLOY_URL'].rstrip('/')}/api/application.deploy",
