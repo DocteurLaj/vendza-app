@@ -1,0 +1,128 @@
+name: Temporary Production Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "inspect or deploy"
+        required: true
+        type: choice
+        options: [inspect, deploy]
+        default: inspect
+      api_ref:
+        description: "Vendza API commit/ref to deploy"
+        required: false
+        default: main
+        type: string
+      web_ref:
+        description: "Vendza Web commit/ref to deploy"
+        required: false
+        default: main
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  dokploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Inspect and optionally deploy matching applications
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          MODE: ${{ inputs.mode }}
+          API_REF: ${{ inputs.api_ref }}
+          WEB_REF: ${{ inputs.web_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$DOKPLOY_URL"
+          test -n "$DOKPLOY_API_TOKEN"
+          curl --fail --silent --show-error \
+            "${DOKPLOY_URL%/}/api/application.all" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" > applications.json
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("applications.json").read_text())
+          items = payload if isinstance(payload, list) else payload.get("applications", payload.get("data", []))
+          if isinstance(items, dict):
+              items = items.get("applications", [])
+          if not isinstance(items, list):
+              raise SystemExit("Unexpected Dokploy application response shape")
+
+          def strings(value):
+              if isinstance(value, str):
+                  yield value
+              elif isinstance(value, dict):
+                  for child in value.values():
+                      yield from strings(child)
+              elif isinstance(value, list):
+                  for child in value:
+                      yield from strings(child)
+
+          for app in items:
+              if not isinstance(app, dict):
+                  continue
+              text = " ".join(strings(app))
+              if "vendza" in text.lower() or "app.vendza.online" in text:
+                  ident = app.get("applicationId", app.get("id", ""))
+                  print(json.dumps({
+                      "id": ident,
+                      "name": app.get("name"),
+                      "appName": app.get("appName"),
+                      "domains": [s for s in strings(app) if "vendza" in s.lower() or "sslip.io" in s.lower()],
+                  }, ensure_ascii=False))
+          PY
+
+          if [[ "$MODE" == "inspect" ]]; then
+            exit 0
+          fi
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import urllib.request
+
+          payload = json.loads(Path("applications.json").read_text())
+          items = payload if isinstance(payload, list) else payload.get("applications", payload.get("data", []))
+          if isinstance(items, dict):
+              items = items.get("applications", [])
+          targets = []
+          for app in items:
+              if not isinstance(app, dict):
+                  continue
+              values = []
+              def walk(value):
+                  if isinstance(value, str): values.append(value)
+                  elif isinstance(value, dict):
+                      for child in value.values(): walk(child)
+                  elif isinstance(value, list):
+                      for child in value: walk(child)
+              walk(app)
+              text = " ".join(values).lower()
+              if "app.vendza.online" in text or "vendza-vendzaapi" in text:
+                  targets.append(app.get("applicationId", app.get("id")))
+          targets = sorted({x for x in targets if x})
+          if not targets:
+              raise SystemExit("No production Vendza applications matched")
+          print("Deploying matched application IDs:", ", ".join(targets))
+          for application_id in targets:
+              body = json.dumps({
+                  "applicationId": application_id,
+                  "titleLog": f"Production Vendza release API {API_REF} / web {WEB_REF}",
+              }).encode()
+              request = urllib.request.Request(
+                  f"{__import__('os').environ['DOKPLOY_URL'].rstrip('/')}/api/application.deploy",
+                  data=body,
+                  headers={"x-api-key": __import__('os').environ['DOKPLOY_API_TOKEN'], "Content-Type": "application/json"},
+                  method="POST",
+              )
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  print(application_id, response.status)
+          PY
