@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
 import 'package:vendza/features/order/presentation/pages/store_orders_page.dart';
+import 'package:vendza/features/store/presentation/pages/my_store_product_page.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
 import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/notification/presantation/helpers/notification_presentation.dart';
@@ -54,6 +55,25 @@ class _NotificationPageState extends State<NotificationPage> {
       Navigator.of(
         context,
       ).push(MaterialPageRoute(builder: (_) => const BuyerOrdersPage()));
+      return;
+    }
+
+    if ((notification.name == 'product_low_stock' ||
+            notification.name == 'product_out_of_stock') &&
+        storeId != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MyStoreProductPage(
+            store: ListStoreModel(
+              id: '$storeId',
+              name: notification.storeName ?? 'Store',
+              description: '',
+              imageUrl: notification.storeImage ?? notification.imageUrl,
+              rating: 0,
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -368,7 +388,30 @@ class _ChatMessageBubble extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent(context).withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      notification.categoryLabel,
+                      style: TextStyle(
+                        color: AppColors.accent(context),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
               Text(
                 notification.description,
                 style: TextStyle(
@@ -378,6 +421,27 @@ class _ChatMessageBubble extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              if (notification.actionLabel != null) ...[
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.icon(
+                    onPressed: () => onOpen(notification),
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                    label: Text(notification.actionLabel!),
+                    style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 6),
               Row(
                 mainAxisSize: MainAxisSize.min,
