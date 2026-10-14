@@ -13,6 +13,11 @@ jobs:
           set -euo pipefail
           curl --fail-with-body -sS "${DOKPLOY_URL%/}/api/application.one?applicationId=CHl42zYU8qsZw3QyKn9dP" \
             -H "x-api-key: ${DOKPLOY_API_TOKEN}" -o state.json
+          curl --fail-with-body -sS -X POST "${DOKPLOY_URL%/}/api/application.start" \
+            -H "x-api-key: ${DOKPLOY_API_TOKEN}" -H "Content-Type: application/json" \
+            --data '{"applicationId":"CHl42zYU8qsZw3QyKn9dP"}' -o start.json
+          curl --fail-with-body -sS "${DOKPLOY_URL%/}/api/application.one?applicationId=CHl42zYU8qsZw3QyKn9dP" \
+            -H "x-api-key: ${DOKPLOY_API_TOKEN}" -o state.json
           curl --fail-with-body -sS "${DOKPLOY_URL%/}/api/application.readLogs?applicationId=CHl42zYU8qsZw3QyKn9dP&tail=300" \
             -H "x-api-key: ${DOKPLOY_API_TOKEN}" -o logs.json
           python3 - <<'PY'
