@@ -66,10 +66,12 @@ jobs:
               )
               with urllib.request.urlopen(request, timeout=30) as response:
                   detail = json.load(response)
-              for key in ("applications", "compose"):
-                  values = detail.get(key, []) if isinstance(detail, dict) else []
-                  if isinstance(values, list):
-                      items.extend(values)
+              print(json.dumps({"project_detail_keys": sorted(detail.keys()) if isinstance(detail, dict) else None}, ensure_ascii=False))
+              for key in detail if isinstance(detail, dict) else []:
+                  values = detail.get(key, [])
+                  if isinstance(values, list) and values and isinstance(values[0], dict):
+                      if any(k in values[0] for k in ("applicationId", "composeId", "appName", "name")):
+                          items.extend(values)
           print(json.dumps({"application_count": len(items)}, ensure_ascii=False))
           if not isinstance(items, list):
               raise SystemExit("Unexpected Dokploy application response shape")
@@ -121,10 +123,12 @@ jobs:
               )
               with urllib.request.urlopen(request, timeout=30) as response:
                   detail = json.load(response)
-              for key in ("applications", "compose"):
-                  values = detail.get(key, []) if isinstance(detail, dict) else []
-                  if isinstance(values, list):
-                      items.extend(values)
+              print(json.dumps({"project_detail_keys": sorted(detail.keys()) if isinstance(detail, dict) else None}, ensure_ascii=False))
+              for key in detail if isinstance(detail, dict) else []:
+                  values = detail.get(key, [])
+                  if isinstance(values, list) and values and isinstance(values[0], dict):
+                      if any(k in values[0] for k in ("applicationId", "composeId", "appName", "name")):
+                          items.extend(values)
           print(json.dumps({"application_count": len(items)}, ensure_ascii=False))
           targets = []
           for app in items:
