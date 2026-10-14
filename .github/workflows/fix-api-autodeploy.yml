@@ -12,10 +12,25 @@ jobs:
           DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
           DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
           APPLICATION_ID: CHl42zYU8qsZw3QyKn9dP
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           base="${DOKPLOY_URL%/}"
           headers=(-H "x-api-key: ${DOKPLOY_API_TOKEN}" -H "Content-Type: application/json")
+          hook_url="${base}/api/deploy/github"
+          hooks="$(curl --fail-with-body -sS \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/DocteurLaj/vendza-api/hooks)"
+          if ! printf '%s' "${hooks}" | python3 -c 'import json,sys; u=sys.argv[1]; print(any(h.get("config",{}).get("url")==u for h in json.load(sys.stdin)))' "${hook_url}"; then
+            curl --fail-with-body -sS -X POST \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "Content-Type: application/json" \
+              https://api.github.com/repos/DocteurLaj/vendza-api/hooks \
+              --data "{\"name\":\"web\",\"active\":true,\"events\":[\"push\"],\"config\":{\"url\":\"${hook_url}\",\"content_type\":\"json\",\"insecure_ssl\":\"0\"}}" \
+              -o hook.json
+          fi
           curl --fail-with-body -sS -X POST "${base}/api/application.update" "${headers[@]}" \
             --data "{\"applicationId\":\"${APPLICATION_ID}\",\"autoDeploy\":true,\"triggerType\":\"push\"}" \
             -o update.json
