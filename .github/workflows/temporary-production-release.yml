@@ -106,11 +106,16 @@ jobs:
               with urllib.request.urlopen(request, timeout=30) as response:
                   current = json.load(response)
               safe = {key: value for key, value in current.items() if any(token in key.lower() for token in ("repo", "branch", "source", "compose", "build", "status")) and not isinstance(value, (dict, list))}
+              deployment_summary = []
+              for deployment in current.get("deployments", [])[-5:] if isinstance(current.get("deployments"), list) else []:
+                  if isinstance(deployment, dict):
+                      deployment_summary.append({key: deployment.get(key) for key in ("deploymentId", "id", "status", "applicationStatus", "createdAt", "title", "description") if deployment.get(key) is not None})
               print(json.dumps({
                   "id": application_id,
                   "name": app.get("name"),
                   "keys": sorted(current.keys()),
                   "safe": safe,
+                  "deployments": deployment_summary,
               }, ensure_ascii=False))
           PY
 
