@@ -97,6 +97,8 @@ jobs:
               if not isinstance(app, dict):
                   continue
               application_id = app.get("applicationId", app.get("id", ""))
+              if not application_id:
+                  continue
               request = urllib.request.Request(
                   f"{os.environ['DOKPLOY_URL'].rstrip('/')}/api/application.one?applicationId={application_id}",
                   headers={"x-api-key": os.environ['DOKPLOY_API_TOKEN']},
