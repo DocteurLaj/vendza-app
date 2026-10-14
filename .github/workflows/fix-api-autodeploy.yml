@@ -1,0 +1,40 @@
+name: One-time Fix API Auto Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable Dokploy auto deploy and trigger release
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          APPLICATION_ID: CHl42zYU8qsZw3QyKn9dP
+        run: |
+          set -euo pipefail
+          base="${DOKPLOY_URL%/}"
+          headers=(-H "x-api-key: ${DOKPLOY_API_TOKEN}" -H "Content-Type: application/json")
+          curl --fail-with-body -sS -X POST "${base}/api/application.update" "${headers[@]}" \
+            --data "{\"applicationId\":\"${APPLICATION_ID}\",\"autoDeploy\":true,\"triggerType\":\"push\"}" \
+            -o update.json
+          curl --fail-with-body -sS -X POST "${base}/api/application.deploy" "${headers[@]}" \
+            --data "{\"applicationId\":\"${APPLICATION_ID}\",\"title\":\"Deploy Vendza API from main\",\"description\":\"Synchronize production with vendza-api main\"}" \
+            -o deploy.json
+          curl --fail-with-body -sS "${base}/api/application.one?applicationId=${APPLICATION_ID}" \
+            -H "x-api-key: ${DOKPLOY_API_TOKEN}" -o state.json
+          python3 - <<'PY'
+          import json
+          state=json.load(open('state.json'))
+          print(json.dumps({
+              'name': state.get('name'),
+              'autoDeploy': state.get('autoDeploy'),
+              'triggerType': state.get('triggerType'),
+              'branch': state.get('branch'),
+              'repository': state.get('repository'),
+              'applicationStatus': state.get('applicationStatus'),
+              'deployment_count': len(state.get('deployments', [])),
+              'latest_deployment': state.get('deployments', [])[-1] if state.get('deployments') else None,
+          }, ensure_ascii=False))
+          PY
