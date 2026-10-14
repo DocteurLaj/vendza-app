@@ -157,7 +157,7 @@ jobs:
                       for child in value: walk(child)
               walk(app)
               text = " ".join(values).lower()
-              if "app.vendza.online" in text or "vendza-vendzaapi" in text:
+              if app.get("name") == "vendza-api":
                   targets.append(app.get("applicationId", app.get("id")))
           targets = sorted({x for x in targets if x})
           if not targets:
