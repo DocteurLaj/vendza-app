@@ -42,7 +42,7 @@ jobs:
           test -n "$DOKPLOY_URL"
           test -n "$DOKPLOY_API_TOKEN"
           curl --fail --silent --show-error \
-            "${DOKPLOY_URL%/}/api/application.all" \
+            "${DOKPLOY_URL%/}/api/project.all" \
             --header "x-api-key: ${DOKPLOY_API_TOKEN}" > applications.json
 
           python3 - <<'PY'
@@ -50,9 +50,10 @@ jobs:
           from pathlib import Path
 
           payload = json.loads(Path("applications.json").read_text())
-          items = payload if isinstance(payload, list) else payload.get("applications", payload.get("data", []))
-          if isinstance(items, dict):
-              items = items.get("applications", [])
+          projects = payload if isinstance(payload, list) else payload.get("projects", payload.get("data", []))
+          if isinstance(projects, dict):
+              projects = projects.get("projects", [])
+          items = [app for project in projects for app in project.get("applications", [])] if isinstance(projects, list) else []
           if not isinstance(items, list):
               raise SystemExit("Unexpected Dokploy application response shape")
 
@@ -90,9 +91,10 @@ jobs:
           import urllib.request
 
           payload = json.loads(Path("applications.json").read_text())
-          items = payload if isinstance(payload, list) else payload.get("applications", payload.get("data", []))
-          if isinstance(items, dict):
-              items = items.get("applications", [])
+          projects = payload if isinstance(payload, list) else payload.get("projects", payload.get("data", []))
+          if isinstance(projects, dict):
+              projects = projects.get("projects", [])
+          items = [app for project in projects for app in project.get("applications", [])] if isinstance(projects, list) else []
           targets = []
           for app in items:
               if not isinstance(app, dict):
