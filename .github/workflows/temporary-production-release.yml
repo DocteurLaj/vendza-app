@@ -96,11 +96,19 @@ jobs:
           for app in items:
               if not isinstance(app, dict):
                   continue
+              application_id = app.get("applicationId", app.get("id", ""))
+              request = urllib.request.Request(
+                  f"{os.environ['DOKPLOY_URL'].rstrip('/')}/api/application.one?applicationId={application_id}",
+                  headers={"x-api-key": os.environ['DOKPLOY_API_TOKEN']},
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  current = json.load(response)
               print(json.dumps({
-                  "id": app.get("applicationId", app.get("id", "")),
+                  "id": application_id,
                   "name": app.get("name"),
-                  "appName": app.get("appName"),
-                  "dockerImage": app.get("dockerImage"),
+                  "status": current.get("applicationStatus"),
+                  "dockerImage": current.get("dockerImage"),
+                  "source": current.get("customGitUrl") or current.get("githubRepository"),
               }, ensure_ascii=False))
           PY
 
