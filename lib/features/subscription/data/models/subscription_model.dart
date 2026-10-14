@@ -73,12 +73,12 @@ class SubscriptionFeaturesModel {
       lines.add('Assistance configuration');
     }
 
-    final boost = stringValue('visibility_boost', 'none');
-    if (boost == 'light') {
-      lines.add('Boost visibilité léger');
+    final featuredPriority = intValue('featured_priority');
+    if (featuredPriority == 1) {
+      lines.add('Mise en avant légère');
     }
-    if (boost == 'strong') {
-      lines.add('Boost visibilité renforcé');
+    if (featuredPriority >= 2) {
+      lines.add('Mise en avant renforcée');
     }
 
     return lines;

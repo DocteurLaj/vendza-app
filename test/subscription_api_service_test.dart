@@ -34,7 +34,7 @@ void main() {
                   'max_social_links': 1,
                   'has_banner': false,
                   'has_variants': false,
-                  'visibility_boost': 'none',
+                  'featured_priority': 0,
                 },
                 'is_active': true,
               },
@@ -56,7 +56,7 @@ void main() {
                   'has_banner': true,
                   'has_variants': true,
                   'has_basic_stats': true,
-                  'visibility_boost': 'light',
+                  'featured_priority': 1,
                 },
                 'is_active': true,
               },
@@ -76,7 +76,7 @@ void main() {
     expect(plans.last.features, contains('100 produits actifs'));
     expect(plans.last.features, contains('Bannière de boutique'));
     expect(plans.last.features, contains('Variantes produit'));
-    expect(plans.last.features, contains('Boost visibilité léger'));
+    expect(plans.last.features, contains('Mise en avant légère'));
   });
 
   test('parses current subscription context', () async {
@@ -127,7 +127,10 @@ void main() {
       baseUrl: 'https://api.test',
       httpClient: MockClient((request) async {
         if (request.url.path == '/subscription/checkout') {
-          expect(jsonDecode(request.body), {'plan_code': 'active', 'platform': 'web'});
+          expect(jsonDecode(request.body), {
+            'plan_code': 'active',
+            'platform': 'web',
+          });
           return http.Response(
             jsonEncode({
               'success': true,
