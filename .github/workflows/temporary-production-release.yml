@@ -167,23 +167,24 @@ jobs:
                       for child in value: walk(child)
               walk(app)
               text = " ".join(values).lower()
-              if app.get("name") == "vendza-api":
-                  targets.append(app.get("applicationId", app.get("id")))
-          targets = sorted({x for x in targets if x})
+              if app.get("name") == "vendza-api" and app.get("composeId"):
+                  targets.append(("compose", app.get("composeId")))
+          targets = sorted(set(targets))
           if not targets:
               raise SystemExit("No production Vendza applications matched")
-          print("Deploying matched application IDs:", ", ".join(targets))
-          for application_id in targets:
+          print("Deploying matched Dokploy targets:", ", ".join(f"{kind}:{target}" for kind, target in targets))
+          for kind, target_id in targets:
               body = json.dumps({
-                  "applicationId": application_id,
-                  "titleLog": f"Production Vendza release API {__import__('os').environ['API_REF']} / web {__import__('os').environ['WEB_REF']}",
+                  "composeId": target_id,
+                  "title": f"Production Vendza API {__import__('os').environ['API_REF']}",
+                  "description": f"Production Vendza API release {__import__('os').environ['API_REF']}",
               }).encode()
               request = urllib.request.Request(
-                  f"{__import__('os').environ['DOKPLOY_URL'].rstrip('/')}/api/application.deploy",
+                  f"{__import__('os').environ['DOKPLOY_URL'].rstrip('/')}/api/compose.deploy",
                   data=body,
                   headers={"x-api-key": __import__('os').environ['DOKPLOY_API_TOKEN'], "Content-Type": "application/json"},
                   method="POST",
               )
               with urllib.request.urlopen(request, timeout=60) as response:
-                  print(application_id, response.status)
+                  print(target_id, response.status)
           PY
