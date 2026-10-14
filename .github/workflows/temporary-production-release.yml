@@ -70,15 +70,12 @@ jobs:
           for app in items:
               if not isinstance(app, dict):
                   continue
-              text = " ".join(strings(app))
-              if "vendza" in text.lower() or "app.vendza.online" in text:
-                  ident = app.get("applicationId", app.get("id", ""))
-                  print(json.dumps({
-                      "id": ident,
-                      "name": app.get("name"),
-                      "appName": app.get("appName"),
-                      "domains": [s for s in strings(app) if "vendza" in s.lower() or "sslip.io" in s.lower()],
-                  }, ensure_ascii=False))
+              print(json.dumps({
+                  "id": app.get("applicationId", app.get("id", "")),
+                  "name": app.get("name"),
+                  "appName": app.get("appName"),
+                  "dockerImage": app.get("dockerImage"),
+              }, ensure_ascii=False))
           PY
 
           if [[ "$MODE" == "inspect" ]]; then
