@@ -55,6 +55,13 @@ jobs:
           print(json.dumps({"projects_type": type(projects).__name__, "project_count": len(projects) if isinstance(projects, list) else None}, ensure_ascii=False))
           if isinstance(projects, dict):
               projects = projects.get("projects", [])
+          for project in projects if isinstance(projects, list) else []:
+              print(json.dumps({
+                  "projectId": project.get("projectId"),
+                  "name": project.get("name"),
+                  "application_count": len(project.get("applications", [])),
+                  "compose_count": len(project.get("compose", [])),
+              }, ensure_ascii=False))
           items = [app for project in projects for app in project.get("applications", [])] if isinstance(projects, list) else []
           print(json.dumps({"application_count": len(items)}, ensure_ascii=False))
           if not isinstance(items, list):
@@ -96,6 +103,13 @@ jobs:
           print(json.dumps({"projects_type": type(projects).__name__, "project_count": len(projects) if isinstance(projects, list) else None}, ensure_ascii=False))
           if isinstance(projects, dict):
               projects = projects.get("projects", [])
+          for project in projects if isinstance(projects, list) else []:
+              print(json.dumps({
+                  "projectId": project.get("projectId"),
+                  "name": project.get("name"),
+                  "application_count": len(project.get("applications", [])),
+                  "compose_count": len(project.get("compose", [])),
+              }, ensure_ascii=False))
           items = [app for project in projects for app in project.get("applications", [])] if isinstance(projects, list) else []
           print(json.dumps({"application_count": len(items)}, ensure_ascii=False))
           targets = []
