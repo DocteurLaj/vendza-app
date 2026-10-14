@@ -45,7 +45,9 @@ jobs:
               'triggerType': state.get('triggerType'),
               'branch': state.get('branch'),
               'repository': state.get('repository'),
-              'applicationStatus': state.get('applicationStatus'),
+              'hasGitProviderAccess': state.get('hasGitProviderAccess'),
+              'unauthorizedProvider': state.get('unauthorizedProvider'),
+              'githubId_present': bool(state.get('githubId')),
               'deployment_count': len(state.get('deployments', [])),
               'latest_deployment': state.get('deployments', [])[-1] if state.get('deployments') else None,
           }, ensure_ascii=False))
