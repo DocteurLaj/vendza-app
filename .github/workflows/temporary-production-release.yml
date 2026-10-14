@@ -50,10 +50,13 @@ jobs:
           from pathlib import Path
 
           payload = json.loads(Path("applications.json").read_text())
+          print(json.dumps({"payload_type": type(payload).__name__, "top_keys": sorted(payload.keys()) if isinstance(payload, dict) else None}, ensure_ascii=False))
           projects = payload if isinstance(payload, list) else payload.get("projects", payload.get("data", []))
+          print(json.dumps({"projects_type": type(projects).__name__, "project_count": len(projects) if isinstance(projects, list) else None}, ensure_ascii=False))
           if isinstance(projects, dict):
               projects = projects.get("projects", [])
           items = [app for project in projects for app in project.get("applications", [])] if isinstance(projects, list) else []
+          print(json.dumps({"application_count": len(items)}, ensure_ascii=False))
           if not isinstance(items, list):
               raise SystemExit("Unexpected Dokploy application response shape")
 
@@ -88,10 +91,13 @@ jobs:
           import urllib.request
 
           payload = json.loads(Path("applications.json").read_text())
+          print(json.dumps({"payload_type": type(payload).__name__, "top_keys": sorted(payload.keys()) if isinstance(payload, dict) else None}, ensure_ascii=False))
           projects = payload if isinstance(payload, list) else payload.get("projects", payload.get("data", []))
+          print(json.dumps({"projects_type": type(projects).__name__, "project_count": len(projects) if isinstance(projects, list) else None}, ensure_ascii=False))
           if isinstance(projects, dict):
               projects = projects.get("projects", [])
           items = [app for project in projects for app in project.get("applications", [])] if isinstance(projects, list) else []
+          print(json.dumps({"application_count": len(items)}, ensure_ascii=False))
           targets = []
           for app in items:
               if not isinstance(app, dict):
