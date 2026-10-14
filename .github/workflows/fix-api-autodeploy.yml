@@ -6,9 +6,6 @@ on:
 jobs:
   fix:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      administration: write
     steps:
       - name: Enable Dokploy auto deploy and trigger release
         env:
