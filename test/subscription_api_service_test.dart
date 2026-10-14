@@ -28,9 +28,9 @@ void main() {
                 'description': 'Pour commencer',
                 'features': {
                   'max_stores': 1,
-                  'max_active_products': 10,
+                  'max_products': 10,
                   'max_images_per_product': 1,
-                  'max_store_collections': 0,
+                  'max_collections': 0,
                   'max_social_links': 1,
                   'has_banner': false,
                   'has_variants': false,
@@ -48,9 +48,9 @@ void main() {
                 'description': 'Pour vendre régulièrement',
                 'features': {
                   'max_stores': 1,
-                  'max_active_products': 100,
+                  'max_products': 100,
                   'max_images_per_product': 3,
-                  'max_store_collections': 10,
+                  'max_collections': 10,
                   'max_featured_products': 5,
                   'max_social_links': 3,
                   'has_banner': true,
@@ -88,16 +88,16 @@ void main() {
         'price_monthly': '15000',
         'currency': 'FCFA',
         'duration_days': 30,
-        'features': {'max_active_products': 300},
+        'features': {'max_products': 300},
       },
       'subscription': {'status': 'active'},
-      'features': {'max_active_products': 300},
+      'features': {'max_products': 300},
       'usage': {'active_products': 12, 'stores': 1},
     });
 
     expect(context.plan.title, 'Boutique Pro');
     expect(context.status, 'active');
-    expect(context.features.intValue('max_active_products'), 300);
+    expect(context.features.intValue('max_products'), 300);
     expect(context.usage.value('active_products'), 12);
   });
 
@@ -162,7 +162,7 @@ void main() {
                   'price_monthly': '5000',
                   'currency': 'FCFA',
                   'duration_days': 30,
-                  'features': {'max_active_products': 100},
+                  'features': {'max_products': 100},
                 },
               },
             }),
