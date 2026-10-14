@@ -137,7 +137,7 @@ jobs:
           test -n "$DOKPLOY_APPLICATION_ID"
           test -n "${{ steps.image.outputs.digest }}"
 
-          curl --fail --silent --show-error \
+          response=$(curl --fail --silent --show-error \
             --request POST \
             "${DOKPLOY_URL%/}/api/application.saveDockerProvider" \
             --header "Content-Type: application/json" \
@@ -145,8 +145,10 @@ jobs:
             --data "$(jq -cn \
               --arg applicationId "$DOKPLOY_APPLICATION_ID" \
               --arg dockerImage "$IMAGE_REF" \
-              '{applicationId: $applicationId, dockerImage: $dockerImage, username: null, password: null, registryUrl: "https://ghcr.io"}')" \
-            | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
+              '{applicationId: $applicationId, dockerImage: $dockerImage, username: null, password: null, registryUrl: "https://ghcr.io"}')")
+          if [[ -n "$response" ]]; then
+            printf '%s\n' "$response" | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
+          fi
 
           state=$(curl --fail --silent --show-error \
             "${DOKPLOY_URL%/}/api/application.one?applicationId=${DOKPLOY_APPLICATION_ID}" \
@@ -154,7 +156,7 @@ jobs:
           printf '%s\n' "$state" | jq -e --arg image "$IMAGE_REF" \
             '(.dockerImage == $image) or (.application.dockerImage == $image)' >/dev/null
 
-          curl --fail --silent --show-error \
+          response=$(curl --fail --silent --show-error \
             --request POST \
             "${DOKPLOY_URL%/}/api/application.deploy" \
             --header "Content-Type: application/json" \
@@ -163,8 +165,10 @@ jobs:
               --arg applicationId "$DOKPLOY_APPLICATION_ID" \
               --arg title "CI/CD Web $GITHUB_SHA" \
               --arg description "Deploy immutable image $IMAGE_REF" \
-              '{applicationId: $applicationId, title: $title, description: $description}')" \
-            | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
+              '{applicationId: $applicationId, title: $title, description: $description}')")
+          if [[ -n "$response" ]]; then
+            printf '%s\n' "$response" | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
+          fi
 
           printf 'commit=%s\nimage=%s\n' "$GITHUB_SHA" "$IMAGE_REF" >> "$GITHUB_STEP_SUMMARY"
 
