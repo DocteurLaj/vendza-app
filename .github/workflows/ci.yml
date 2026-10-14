@@ -75,6 +75,99 @@ jobs:
           --scan build/web/main.dart.js
           --require-expected
 
+  web-deploy:
+    name: Build and deploy Web to Dokploy
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve lowercase image name
+        id: image_name
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and publish immutable Web image
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.image_name.outputs.name }}:${{ github.sha }}
+          build-args: |
+            FLUTTER_VERSION=${{ env.FLUTTER_VERSION }}
+            VENDZA_API_BASE_URL=${{ env.VENDZA_API_BASE_URL }}
+            VENDZA_MEDIA_BASE_URL=${{ env.VENDZA_MEDIA_BASE_URL }}
+            GOOGLE_WEB_CLIENT_ID=${{ env.GOOGLE_WEB_CLIENT_ID }}
+            VENDZA_FIREBASE_API_KEY=${{ env.VENDZA_FIREBASE_API_KEY }}
+            VENDZA_FIREBASE_APP_ID=${{ env.VENDZA_FIREBASE_APP_ID }}
+            VENDZA_FIREBASE_AUTH_DOMAIN=${{ env.VENDZA_FIREBASE_AUTH_DOMAIN }}
+            VENDZA_FIREBASE_MESSAGING_SENDER_ID=${{ env.VENDZA_FIREBASE_MESSAGING_SENDER_ID }}
+            VENDZA_FIREBASE_PROJECT_ID=${{ env.VENDZA_FIREBASE_PROJECT_ID }}
+            VENDZA_FIREBASE_STORAGE_BUCKET=${{ env.VENDZA_FIREBASE_STORAGE_BUCKET }}
+            VENDZA_FIREBASE_VAPID_KEY=${{ env.VENDZA_FIREBASE_VAPID_KEY }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Configure Dokploy with the image digest
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+          DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+          IMAGE_REF: ${{ steps.image_name.outputs.name }}@${{ steps.image.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$DOKPLOY_URL"
+          test -n "$DOKPLOY_API_TOKEN"
+          test -n "$DOKPLOY_APPLICATION_ID"
+          test -n "${{ steps.image.outputs.digest }}"
+
+          curl --fail --silent --show-error \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/application.saveDockerProvider" \
+            --header "Content-Type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$(jq -cn \
+              --arg applicationId "$DOKPLOY_APPLICATION_ID" \
+              --arg dockerImage "$IMAGE_REF" \
+              '{applicationId: $applicationId, dockerImage: $dockerImage, username: null, password: null, registryUrl: "https://ghcr.io"}')" \
+            | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
+
+          state=$(curl --fail --silent --show-error \
+            "${DOKPLOY_URL%/}/api/application.one?applicationId=${DOKPLOY_APPLICATION_ID}" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}")
+          printf '%s\n' "$state" | jq -e --arg image "$IMAGE_REF" \
+            '(.dockerImage == $image) or (.application.dockerImage == $image)' >/dev/null
+
+          curl --fail --silent --show-error \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/application.deploy" \
+            --header "Content-Type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$(jq -cn \
+              --arg applicationId "$DOKPLOY_APPLICATION_ID" \
+              --arg title "CI/CD Web $GITHUB_SHA" \
+              --arg description "Deploy immutable image $IMAGE_REF" \
+              '{applicationId: $applicationId, title: $title, description: $description}')" \
+            | jq -e 'if type == "boolean" then . else .success == true end' >/dev/null
+
+          printf 'commit=%s\nimage=%s\n' "$GITHUB_SHA" "$IMAGE_REF" >> "$GITHUB_STEP_SUMMARY"
+
   android:
     name: Android APK and AAB
     if: github.event_name != 'pull_request'

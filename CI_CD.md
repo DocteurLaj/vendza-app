@@ -8,8 +8,8 @@ meme commit :
 - APK et AAB Android signes, disponibles dans les artifacts GitHub pendant
   30 jours ;
 - validation iOS non signee, disponible sous forme d'archive ;
-- image Web Nginx publiee dans
-  `ghcr.io/docteurlaj/vendza-app:latest`, puis deploiement Dokploy.
+- image Web Nginx publiee avec le SHA du commit et son digest OCI immuable,
+  puis deploiement Dokploy automatique.
 
 ## Variables GitHub
 
@@ -61,10 +61,11 @@ keystore : les futures mises a jour Android doivent employer la meme cle.
 
 ## Dokploy
 
-Configurer l'application Dokploy avec l'image :
+Le workflow `ci.yml` configure automatiquement Dokploy après les tests avec
+une référence immuable :
 
 ```text
-ghcr.io/docteurlaj/vendza-app:latest
+ghcr.io/docteurlaj/vendza-app@sha256:<digest>
 ```
 
 Le package GHCR est prive par defaut. Dokploy doit donc recevoir un identifiant
@@ -77,8 +78,9 @@ Ajouter ensuite ces secrets GitHub Actions :
 - `DOKPLOY_API_TOKEN` : token cree dans le profil Dokploy ;
 - `DOKPLOY_APPLICATION_ID` : identifiant de l'application Web Dokploy.
 
-Sans ces trois secrets, GitHub publie quand meme l'image Web mais ne demande
-pas encore son deploiement.
+Ces trois secrets sont obligatoires. Si l'un d'eux manque, le job de
+déploiement échoue explicitement : aucune release ne doit être considérée
+comme livrée lorsque seule l'image GHCR a été publiée.
 
 ## iOS
 
