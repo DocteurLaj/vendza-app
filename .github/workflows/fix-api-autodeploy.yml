@@ -6,6 +6,9 @@ on:
 jobs:
   fix:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      administration: write
     steps:
       - name: Enable Dokploy auto deploy and trigger release
         env:
@@ -24,6 +27,8 @@ jobs:
             -o deploy.json
           curl --fail-with-body -sS "${base}/api/application.one?applicationId=${APPLICATION_ID}" \
             -H "x-api-key: ${DOKPLOY_API_TOKEN}" -o state.json
+          curl --fail-with-body -sS "${base}/api/application.readLogs?applicationId=${APPLICATION_ID}&tail=1000" \
+            -H "x-api-key: ${DOKPLOY_API_TOKEN}" -o logs.json
           python3 - <<'PY'
           import json
           state=json.load(open('state.json'))
@@ -37,4 +42,7 @@ jobs:
               'deployment_count': len(state.get('deployments', [])),
               'latest_deployment': state.get('deployments', [])[-1] if state.get('deployments') else None,
           }, ensure_ascii=False))
+          logs=json.load(open('logs.json'))
+          text=json.dumps(logs, ensure_ascii=False).lower()
+          print(json.dumps({'logs_type': type(logs).__name__, 'log_keys': sorted(logs.keys()) if isinstance(logs, dict) else None, 'contains_webhook': 'webhook' in text}))
           PY
