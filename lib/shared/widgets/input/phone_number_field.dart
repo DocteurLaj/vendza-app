@@ -12,12 +12,14 @@ class PhoneNumberField extends StatefulWidget {
     this.label = 'Téléphone',
     this.enabled = true,
     this.onChanged,
+    this.errorText,
   });
 
   final String initialValue;
   final String label;
   final bool enabled;
   final ValueChanged<ParsedPhoneNumber>? onChanged;
+  final String? errorText;
 
   @override
   State<PhoneNumberField> createState() => PhoneNumberFieldState();
@@ -81,7 +83,10 @@ class PhoneNumberFieldState extends State<PhoneNumberField> {
             ),
             ...kPhoneCountries.map((country) {
               return ListTile(
-                leading: Text(country.flag, style: const TextStyle(fontSize: 22)),
+                leading: Text(
+                  country.flag,
+                  style: const TextStyle(fontSize: 22),
+                ),
                 title: Text(country.name),
                 trailing: Text('+${country.dialCode}'),
                 selected: country.iso == _country.iso,
@@ -157,6 +162,7 @@ class PhoneNumberFieldState extends State<PhoneNumberField> {
                 decoration: AppInputDecoration.field(
                   context,
                   hintText: '0' * _country.nationalLength,
+                  errorText: widget.errorText,
                 ),
               ),
             ),

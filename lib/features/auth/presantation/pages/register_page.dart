@@ -31,6 +31,12 @@ class _RegisterPageState extends State<RegisterPage> {
   bool isChecked = false;
   bool _isLoading = false;
   bool _isGoogleLoading = false;
+  String? _nameError;
+  String? _emailError;
+  String? _phoneError;
+  String? _passwordError;
+  String? _confirmPasswordError;
+  String? _termsError;
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneFieldKey = GlobalKey<PhoneNumberFieldState>();
@@ -55,28 +61,38 @@ class _RegisterPageState extends State<RegisterPage> {
     final password = _passwordController.text.trim();
     final confirm = _confirmPasswordController.text.trim();
 
-    if (fullName.isEmpty) {
-      _showError('Le nom complet est requis');
-      return;
-    }
-    if (!isValidEmail(email)) {
-      _showError('Veuillez entrer une adresse email valide');
-      return;
-    }
-    if (!phone.isValid) {
-      _showError(
-        phone.national.isEmpty
-            ? 'Le numéro de téléphone est requis'
-            : 'Le numéro de téléphone est incomplet',
-      );
-      return;
-    }
-    if (password.length < 8) {
-      _showError('Le mot de passe doit contenir au moins 8 caract\u00e8res');
-      return;
-    }
-    if (password != confirm) {
-      _showError('Les mots de passe ne correspondent pas');
+    final nameError = fullName.isEmpty ? 'Le nom complet est requis' : null;
+    final emailError = !isValidEmail(email)
+        ? 'Veuillez entrer une adresse email valide'
+        : null;
+    final phoneError = !phone.isValid
+        ? (phone.national.isEmpty
+              ? 'Le numéro de téléphone est requis'
+              : 'Le numéro de téléphone est incomplet')
+        : null;
+    final passwordError = password.length < 8
+        ? 'Le mot de passe doit contenir au moins 8 caractères'
+        : null;
+    final confirmError = password != confirm
+        ? 'Les mots de passe ne correspondent pas'
+        : null;
+    final termsError = !isChecked
+        ? 'Veuillez accepter les conditions pour continuer'
+        : null;
+    if (nameError != null ||
+        emailError != null ||
+        phoneError != null ||
+        passwordError != null ||
+        confirmError != null ||
+        termsError != null) {
+      setState(() {
+        _nameError = nameError;
+        _emailError = emailError;
+        _phoneError = phoneError;
+        _passwordError = passwordError;
+        _confirmPasswordError = confirmError;
+        _termsError = termsError;
+      });
       return;
     }
 
@@ -133,6 +149,8 @@ class _RegisterPageState extends State<RegisterPage> {
             controller: _nameController,
             hintText: 'Nom complet',
             obscureText: false,
+            errorText: _nameError,
+            onChanged: (_) => setState(() => _nameError = null),
             iconPrefix: Icons.person_outline,
             textInputAction: TextInputAction.next,
           ),
@@ -141,6 +159,8 @@ class _RegisterPageState extends State<RegisterPage> {
             controller: _emailController,
             hintText: 'Adresse email',
             obscureText: false,
+            errorText: _emailError,
+            onChanged: (_) => setState(() => _emailError = null),
             iconPrefix: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
@@ -150,12 +170,16 @@ class _RegisterPageState extends State<RegisterPage> {
             key: _phoneFieldKey,
             label: 'Numéro de téléphone',
             enabled: !_isLoading && !_isGoogleLoading,
+            errorText: _phoneError,
+            onChanged: (_) => setState(() => _phoneError = null),
           ),
           SizedBox(height: _fieldGap(context)),
           MyTextField(
             controller: _passwordController,
             hintText: 'Mot de passe',
             obscureText: true,
+            errorText: _passwordError,
+            onChanged: (_) => setState(() => _passwordError = null),
             iconPrefix: Icons.lock_outline,
             textInputAction: TextInputAction.next,
           ),
@@ -164,6 +188,8 @@ class _RegisterPageState extends State<RegisterPage> {
             controller: _confirmPasswordController,
             hintText: 'Confirmer le mot de passe',
             obscureText: true,
+            errorText: _confirmPasswordError,
+            onChanged: (_) => setState(() => _confirmPasswordError = null),
             iconPrefix: Icons.lock_outline,
             textInputAction: TextInputAction.done,
           ),
@@ -173,8 +199,10 @@ class _RegisterPageState extends State<RegisterPage> {
             onChanged: (value) {
               setState(() {
                 isChecked = value ?? false;
+                _termsError = null;
               });
             },
+            errorText: _termsError,
           ),
           const SizedBox(height: 22),
           AppBouton(
@@ -184,7 +212,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 ? AppColors.accent(context)
                 : const Color(0xFFB8C2C4),
             onPressed: _register,
-            enabled: isChecked && !_isLoading && !_isGoogleLoading,
+            enabled: !_isLoading && !_isGoogleLoading,
             isLoading: _isLoading,
           ),
           if (GoogleAuthConfig.isConfigured) ...[
@@ -244,70 +272,95 @@ Future<void> _openLegalPage(String url) async {
 }
 
 class _TermsCheckbox extends StatelessWidget {
-  const _TermsCheckbox({required this.value, required this.onChanged});
+  const _TermsCheckbox({
+    required this.value,
+    required this.onChanged,
+    this.errorText,
+  });
 
   final bool value;
   final ValueChanged<bool?> onChanged;
+  final String? errorText;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.softSurface(context),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border(context)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: Checkbox(
-              value: value,
-              onChanged: onChanged,
-              activeColor: AppColors.accent(context),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(5),
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.softSurface(context),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: errorText == null
+                  ? AppColors.border(context)
+                  : Theme.of(context).colorScheme.error,
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text.rich(
-              TextSpan(
-                style: TextStyle(
-                  color: AppColors.accent(context),
-                  fontSize: 12.5,
-                  height: 1.25,
-                  fontWeight: FontWeight.w700,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: Checkbox(
+                  value: value,
+                  onChanged: onChanged,
+                  activeColor: AppColors.accent(context),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(5),
+                  ),
                 ),
-                children: [
-                  const TextSpan(text: 'J\u2019accepte les '),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text.rich(
                   TextSpan(
-                    text: 'conditions d\u2019utilisation',
-                    style: const TextStyle(
-                      decoration: TextDecoration.underline,
+                    style: TextStyle(
+                      color: AppColors.accent(context),
+                      fontSize: 12.5,
+                      height: 1.25,
+                      fontWeight: FontWeight.w700,
                     ),
-                    recognizer: TapGestureRecognizer()
-                      ..onTap = () => _openLegalPage(SiteLinks.terms),
+                    children: [
+                      const TextSpan(text: 'J\u2019accepte les '),
+                      TextSpan(
+                        text: 'conditions d\u2019utilisation',
+                        style: const TextStyle(
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () => _openLegalPage(SiteLinks.terms),
+                      ),
+                      const TextSpan(text: ' et la '),
+                      TextSpan(
+                        text: 'politique de confidentialité',
+                        style: const TextStyle(
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () => _openLegalPage(SiteLinks.privacy),
+                      ),
+                    ],
                   ),
-                  const TextSpan(text: ' et la '),
-                  TextSpan(
-                    text: 'politique de confidentialité',
-                    style: const TextStyle(
-                      decoration: TextDecoration.underline,
-                    ),
-                    recognizer: TapGestureRecognizer()
-                      ..onTap = () => _openLegalPage(SiteLinks.privacy),
-                  ),
-                ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 6),
+            child: Text(
+              errorText!,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontSize: 12,
               ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }

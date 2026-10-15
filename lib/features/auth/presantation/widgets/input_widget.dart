@@ -12,6 +12,8 @@ class MyTextField extends StatefulWidget {
     this.onPressed,
     this.keyboardType,
     this.textInputAction,
+    this.errorText,
+    this.onChanged,
     this.onDarkBackground = true,
   });
 
@@ -23,6 +25,8 @@ class MyTextField extends StatefulWidget {
   final IconData? iconSufix;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
+  final String? errorText;
+  final ValueChanged<String>? onChanged;
   final bool onDarkBackground;
 
   @override
@@ -58,6 +62,7 @@ class _MyTextFieldState extends State<MyTextField> {
       obscureText: _isObscured,
       keyboardType: widget.keyboardType,
       textInputAction: widget.textInputAction,
+      onChanged: widget.onChanged,
       cursorColor: AppColors.accent(context),
       style: TextStyle(
         color: AppColors.textPrimary(context),
@@ -81,6 +86,7 @@ class _MyTextFieldState extends State<MyTextField> {
               )
             : null,
         hintText: widget.hintText,
+        errorText: widget.errorText,
         hintStyle: TextStyle(
           color: hintColor,
           fontSize: 13.5,
