@@ -50,6 +50,10 @@ List<String> allowedSocialNetworks() {
 
 int maxStores() => _features().intValue('max_stores', 1);
 
+bool canCreateStore({required int currentCount}) => currentCount < maxStores();
+
+bool canAddProduct({required int currentCount}) => currentCount < maxProducts();
+
 // ── collections ────────────────────────────────────────────────────────────────
 
 int maxCollections() => _features().intValue(
@@ -57,4 +61,5 @@ int maxCollections() => _features().intValue(
   _features().intValue('max_store_collections', 0),
 );
 
-bool canCreateCollection() => maxCollections() > 0;
+bool canCreateCollection({required int currentCount}) =>
+    currentCount < maxCollections();

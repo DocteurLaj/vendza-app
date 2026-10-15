@@ -47,21 +47,16 @@ class _CollectionPageState extends State<CollectionPage> {
 
   Future<void> _showAddDialog(BuildContext context) async {
     // Client-side guard — immediate feedback without opening the dialog
-    if (!ent.canCreateCollection()) {
+    if (!ent.canCreateCollection(currentCount: collections.length)) {
       await showUpgradeRequiredPopup(
         context: context,
-        error: const ApiException(
+        error: ApiException(
           message:
-              'Les collections ne sont pas incluses dans votre abonnement. '
-              'Passez à un plan supérieur pour en créer.',
+              'Votre abonnement permet ${ent.maxCollections()} collection(s) par boutique. '
+              'Passez à un plan supérieur pour en créer davantage.',
           statusCode: 402,
-          body: {
-            'detail': {
-              'error': 'plan_limit_reached',
-              'message':
-                  'Les collections ne sont pas incluses dans votre abonnement. '
-                  'Passez à un plan supérieur pour en créer.',
-            },
+          body: const {
+            'detail': {'error': 'plan_limit_reached'},
           },
         ),
       );

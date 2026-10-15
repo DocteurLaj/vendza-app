@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:vendza/core/services/api_exception.dart';
+import 'package:vendza/core/session/entitlement_guards.dart' as ent;
 import 'package:vendza/core/utils/search/catalog_search.dart';
 import 'package:vendza/features/home/data/models/store_model.dart' as detail;
 import 'package:vendza/features/notification/data/models/notification_model.dart';
@@ -14,6 +16,7 @@ import 'package:vendza/features/store/presentation/pages/my_store_product_page.d
 import 'package:vendza/features/store/presentation/pages/store_detail_page.dart';
 import 'package:vendza/features/store/presentation/widgets/store_list_section.dart';
 import 'package:vendza/features/subscription/presentation/widgets/plan_chip.dart';
+import 'package:vendza/features/subscription/presentation/widgets/upgrade_required_popup.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
 import 'package:vendza/shared/widgets/badge/attention_badge.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
@@ -97,6 +100,32 @@ class _MyStorePageState extends State<MyStorePage> {
       if (count > 0) result[store.id] = count;
     }
     return result;
+  }
+
+  Future<void> _openAddStore() async {
+    final activeStoreCount = ownedStores
+        .where((store) => store.isActive)
+        .length;
+    if (!ent.canCreateStore(currentCount: activeStoreCount)) {
+      await showUpgradeRequiredPopup(
+        context: context,
+        error: ApiException(
+          message:
+              'Votre abonnement permet ${ent.maxStores()} boutique(s). '
+              'Passez à un plan supérieur pour en créer davantage.',
+          statusCode: 402,
+          body: const {
+            'detail': {'error': 'plan_limit_reached'},
+          },
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddStore()),
+    );
   }
 
   @override
@@ -263,14 +292,7 @@ class _MyStorePageState extends State<MyStorePage> {
                               Center(
                                 child: AppBouton(
                                   text: "Creer un store",
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const AddStore(),
-                                      ),
-                                    );
-                                  },
+                                  onPressed: _openAddStore,
                                   enabled: true,
                                 ),
                               ),

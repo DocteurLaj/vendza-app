@@ -5,6 +5,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
+import 'package:vendza/core/services/api_exception.dart';
+import 'package:vendza/core/session/entitlement_guards.dart' as ent;
 import 'package:vendza/core/sync/entity_sync_status.dart';
 import 'package:vendza/features/cathegory/data/services/data_exemple.dart'
     as cathegory_data;
@@ -24,6 +26,7 @@ import 'package:vendza/features/store/domain/owner_store_grouping.dart';
 import 'package:vendza/features/order/presentation/pages/store_orders_page.dart';
 import 'package:vendza/features/store/presentation/pages/custom_page.dart';
 import 'package:vendza/features/store/presentation/widgets/stacked_action_preview.dart';
+import 'package:vendza/features/subscription/presentation/widgets/upgrade_required_popup.dart';
 import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/shared/widgets/bouton/action_button.dart';
 import 'package:vendza/shared/widgets/dialog/confirm_delete_dialog.dart';
@@ -121,6 +124,21 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
   }
 
   Future<void> _openAddProduct() async {
+    if (!ent.canAddProduct(currentCount: _onlineProducts.length)) {
+      await showUpgradeRequiredPopup(
+        context: context,
+        error: ApiException(
+          message:
+              'Votre abonnement permet ${ent.maxProducts()} produit(s) actif(s) par boutique. '
+              'Passez à un plan supérieur pour en ajouter davantage.',
+          statusCode: 402,
+          body: const {
+            'detail': {'error': 'plan_limit_reached'},
+          },
+        ),
+      );
+      return;
+    }
     await Navigator.push(
       context,
       MaterialPageRoute(
