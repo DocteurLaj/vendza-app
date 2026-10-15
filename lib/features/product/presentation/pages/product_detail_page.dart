@@ -313,6 +313,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     images: product.images,
                     showFullImage: !_detailsExpanded,
                     compactHeight: panelTopOffset + 34,
+                    indicatorBottom: constraints.maxHeight - panelTop + 14,
                   ),
                 ),
               ),

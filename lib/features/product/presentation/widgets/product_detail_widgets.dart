@@ -22,13 +22,16 @@ class ProductDetailHero extends StatefulWidget {
     this.images = const [],
     this.showFullImage = false,
     this.compactHeight,
+    this.indicatorBottom,
   });
 
   final String imageUrl;
+
   /// All product images. Falls back to [imageUrl] when empty.
   final List<String> images;
   final bool showFullImage;
   final double? compactHeight;
+  final double? indicatorBottom;
 
   @override
   State<ProductDetailHero> createState() => _ProductDetailHeroState();
@@ -68,9 +71,14 @@ class _ProductDetailHeroState extends State<ProductDetailHero> {
         final double imageHeight = widget.showFullImage
             ? constraints.maxHeight
             : (widget.compactHeight ?? 320).clamp(260.0, constraints.maxHeight);
-        final double dotBottom = widget.showFullImage
-            ? 104
-            : (constraints.maxHeight - imageHeight + 18).clamp(18.0, 104.0);
+        final double dotBottom =
+            widget.indicatorBottom ??
+            (widget.showFullImage
+                ? 124
+                : (constraints.maxHeight - imageHeight + 18).clamp(
+                    18.0,
+                    124.0,
+                  ));
 
         return Stack(
           fit: StackFit.expand,
@@ -106,28 +114,51 @@ class _ProductDetailHeroState extends State<ProductDetailHero> {
                 left: 0,
                 right: 0,
                 bottom: dotBottom,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (var i = 0; i < allImages.length; i++) ...[
-                      if (i > 0) const SizedBox(width: 6),
-                      ProductDetailHeroDot(isActive: i == _currentPage),
-                    ],
-                  ],
+                child: Center(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.62),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.22),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.swipe_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 7),
+                          Text(
+                            '${_currentPage + 1} / ${allImages.length}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          const SizedBox(width: 9),
+                          for (var i = 0; i < allImages.length; i++) ...[
+                            if (i > 0) const SizedBox(width: 4),
+                            ProductDetailHeroDot(isActive: i == _currentPage),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               )
             else
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: dotBottom,
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ProductDetailHeroDot(isActive: true),
-                  ],
-                ),
-              ),
+              const SizedBox.shrink(),
           ],
         );
       },
