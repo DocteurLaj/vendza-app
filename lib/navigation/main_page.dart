@@ -7,6 +7,7 @@ import 'package:vendza/core/connectivity/offline_banner.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/deep_link/deep_link_service.dart';
+import 'package:vendza/core/services/presence_service.dart';
 import 'package:vendza/core/session/notifications_enabled_store.dart';
 import 'package:vendza/features/home/presantation/pages/home.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
@@ -57,6 +58,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       DeepLinkService.instance.markNavigationReady();
       _syncCatalogPolling();
+      _syncPresence();
     });
   }
 
@@ -64,6 +66,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _catalogPollTimer?.cancel();
+    presenceService.stop();
     super.dispose();
   }
 
@@ -74,6 +77,18 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       unawaited(catalogRepository.softRefreshCatalog());
     }
     _syncCatalogPolling();
+    _syncPresence();
+  }
+
+  static const _navPaths = ['home', 'store', 'chat', 'profile'];
+
+  void _syncPresence() {
+    presenceService.path = _navPaths[index];
+    if (_isForeground) {
+      presenceService.start();
+    } else {
+      presenceService.stop();
+    }
   }
 
   void _setIndex(int nextIndex) {
@@ -86,6 +101,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     }
     setState(() => index = nextIndex);
     _syncCatalogPolling();
+    presenceService.path = _navPaths[nextIndex];
   }
 
   void _syncCatalogPolling() {

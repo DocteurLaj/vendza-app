@@ -86,6 +86,7 @@ class ApiEndpoints {
   static const notificationsMe = '/notification/me';
   static const notificationThreads = '/notification/threads';
   static const notificationStream = '/notification/stream';
+  static const presence = '/presence';
 
   static String notificationThread(String threadId) {
     return '/notification/threads/$threadId';
