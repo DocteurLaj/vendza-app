@@ -6,6 +6,10 @@ class ListStoreModel {
   final String name;
   final String description;
   final String imageUrl;
+
+  /// Store banner/cover (API `bannerUrl`). Empty when the store has none —
+  /// never falls back to the logo.
+  final String bannerUrl;
   final double rating;
   final String city;
   final String whatsappUrl;
@@ -26,6 +30,7 @@ class ListStoreModel {
     required this.name,
     required this.description,
     required this.imageUrl,
+    this.bannerUrl = '',
     required this.rating,
     this.city = "",
     this.whatsappUrl = "",
@@ -49,6 +54,7 @@ class ListStoreModel {
     String? name,
     String? description,
     String? imageUrl,
+    String? bannerUrl,
     double? rating,
     String? city,
     String? whatsappUrl,
@@ -69,6 +75,7 @@ class ListStoreModel {
       name: name ?? this.name,
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
+      bannerUrl: bannerUrl ?? this.bannerUrl,
       rating: rating ?? this.rating,
       city: city ?? this.city,
       whatsappUrl: whatsappUrl ?? this.whatsappUrl,

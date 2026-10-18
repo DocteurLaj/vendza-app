@@ -13,6 +13,7 @@ import 'package:vendza/features/home/presantation/pages/home.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
 import 'package:vendza/features/notification/data/services/notification_badge_counters.dart';
 import 'package:vendza/features/notification/data/services/notification_store.dart';
+import 'package:vendza/features/notification/data/services/realtime_notification_service.dart';
 import 'package:vendza/features/notification/presantation/pages/notification_page.dart';
 import 'package:vendza/features/profil/presantation/pages/profile_page.dart';
 import 'package:vendza/features/store/presentation/pages/my_store_page.dart';
@@ -48,6 +49,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   bool _railExtended = true;
   Timer? _catalogPollTimer;
   bool _isForeground = true;
+  bool _wasBackgrounded = false;
 
   final pages = [HomePage(), MyStorePage(), NotificationPage(), ProfilePage()];
 
@@ -73,8 +75,21 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _isForeground = state == AppLifecycleState.resumed;
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _wasBackgrounded = true;
+    }
     if (state == AppLifecycleState.resumed) {
       unawaited(catalogRepository.softRefreshCatalog());
+      // Background sockets are routinely killed by the OS/proxies: re-open
+      // the live stream (and re-sync the inbox) after a real background
+      // period; otherwise just make sure a dead stream is retried now.
+      if (_wasBackgrounded) {
+        _wasBackgrounded = false;
+        unawaited(realtimeNotificationService.restart());
+      } else {
+        unawaited(realtimeNotificationService.start());
+      }
     }
     _syncCatalogPolling();
     _syncPresence();

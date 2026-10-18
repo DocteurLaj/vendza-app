@@ -17,6 +17,8 @@ import 'package:vendza/features/home/data/models/store_model.dart' as home;
 import 'package:vendza/features/home/data/services/home_feed_api_service.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
 import 'package:vendza/features/notification/data/services/notification_api_service.dart';
+import 'package:vendza/features/order/data/services/order_draft_store.dart';
+import 'package:vendza/features/order/data/services/realtime_order_store.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/features/store/data/services/product_api_service.dart';
 import 'package:vendza/features/store/data/services/store_api_service.dart';
@@ -331,7 +333,12 @@ class CatalogRepository {
     favoriteStoreChanges.value++;
   }
 
-  Future<void> refreshNotifications(int userId) async {
+  /// Reloads the inbox. With [keepOnError] a failed request keeps the current
+  /// list (used for background refreshes, e.g. after a realtime reconnect).
+  Future<void> refreshNotifications(
+    int userId, {
+    bool keepOnError = false,
+  }) async {
     if (userId <= 0 || !_tokenStore.hasAccessToken) {
       notificationStore.value = <NotificationModel>[];
       return;
@@ -341,7 +348,7 @@ class CatalogRepository {
       notificationStore.value = items.map(notificationFromApi).toList();
     } on Object {
       // Inbox is optional: never block login/session restore on this call.
-      notificationStore.value = <NotificationModel>[];
+      if (!keepOnError) notificationStore.value = <NotificationModel>[];
     }
   }
 
@@ -350,6 +357,9 @@ class CatalogRepository {
     favoriteStores.clear();
     likedProductIdsStore.value = <String>{};
     notificationStore.value = <NotificationModel>[];
+    // Per-user order state must never leak into the next account (#108).
+    replaceLiveOrders(const []);
+    orderDraftStore.clear();
     syncStoreCustomizationFromCatalog();
     favoriteStoreChanges.value++;
     _notifyChanged();

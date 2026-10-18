@@ -14,6 +14,7 @@ import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
 import 'package:vendza/features/store/data/services/product_management_service.dart';
 import 'package:vendza/features/store/data/services/store_api_service.dart';
+import 'package:vendza/features/store/data/services/store_customization_state.dart';
 import 'package:vendza/features/store/presentation/pages/store_detail_page.dart';
 import 'package:vendza/features/store/presentation/widgets/custom_product_picker_section.dart';
 import 'package:vendza/features/subscription/presentation/widgets/plan_chip.dart';
@@ -28,10 +29,39 @@ import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
 
+/// What a customization save must send for the images (#89).
+///
+/// The banner is only sent when the seller actually picked a new cover, so
+/// free-plan sellers (no banner entitlement) can still edit name/description,
+/// and an untouched logo/placeholder is never re-sent as the banner.
+class StoreMediaSavePlan {
+  const StoreMediaSavePlan({
+    required this.coverChanged,
+    required this.profileChanged,
+  });
+
+  factory StoreMediaSavePlan.fromControllers({
+    required ImageUploadController cover,
+    required ImageUploadController profile,
+  }) {
+    return StoreMediaSavePlan(
+      coverChanged: cover.isChanged && cover.hasImage,
+      profileChanged: profile.isChanged && profile.hasImage,
+    );
+  }
+
+  final bool coverChanged;
+  final bool profileChanged;
+
+  /// The banner entitlement guard applies only to a newly picked cover.
+  bool get requiresBannerEntitlement => coverChanged;
+}
+
 class CustomPage extends StatefulWidget {
-  const CustomPage({super.key, required this.store});
+  const CustomPage({super.key, required this.store, this.storeApiService});
 
   final ListStoreModel store;
+  final StoreApiService? storeApiService;
 
   @override
   State<CustomPage> createState() => _CustomPageState();
@@ -47,8 +77,13 @@ class _CustomPageState extends State<CustomPage> {
   final _whatsappFieldKey = GlobalKey<PhoneNumberFieldState>();
   late String _initialWhatsapp;
   late List<ProductModel> _featuredProducts;
+  late String _initialCover;
+  late String _initialProfile;
   bool _isSubmitting = false;
   bool _isActive = false;
+
+  static String _usableImage(String url) =>
+      isPlaceholderStoreImage(url) ? '' : url.trim();
   Set<String> get _allowedSocialNetworks => ent.allowedSocialNetworks().toSet();
 
   @override
@@ -80,16 +115,23 @@ class _CustomPageState extends State<CustomPage> {
           ? customization.facebookUrl
           : widget.store.facebookUrl,
     );
-    _coverUpload = ImageUploadController(
-      initialUrl: customization.coverImageUrl.isNotEmpty
+    // The cover is the store banner only: never seed it from the logo (#89).
+    _initialCover = _usableImage(
+      customization.coverImageUrl.isNotEmpty
           ? customization.coverImageUrl
+          : widget.store.bannerUrl,
+    );
+    _initialProfile = _usableImage(
+      customization.profileImageUrl.isNotEmpty
+          ? customization.profileImageUrl
           : widget.store.imageUrl,
+    );
+    _coverUpload = ImageUploadController(
+      initialUrl: _initialCover,
       pickTitle: "Choisir la couverture",
     )..addListener(_onChanged);
     _profileUpload = ImageUploadController(
-      initialUrl: customization.profileImageUrl.isNotEmpty
-          ? customization.profileImageUrl
-          : widget.store.imageUrl,
+      initialUrl: _initialProfile,
       pickTitle: "Choisir la photo de profil",
     )..addListener(_onChanged);
     _featuredProducts = customization.featuredProducts.isNotEmpty
@@ -197,8 +239,12 @@ class _CustomPageState extends State<CustomPage> {
     ).profileImageUrl;
     setState(() => _isSubmitting = true);
     try {
-      // Client-side banner guard
-      if (_coverUpload.hasImage && !ent.canSetBanner()) {
+      final mediaPlan = StoreMediaSavePlan.fromControllers(
+        cover: _coverUpload,
+        profile: _profileUpload,
+      );
+      // Client-side banner guard: only when a new cover was picked.
+      if (mediaPlan.requiresBannerEntitlement && !ent.canSetBanner()) {
         if (mounted) {
           await showUpgradeRequiredPopup(
             context: context,
@@ -250,12 +296,12 @@ class _CustomPageState extends State<CustomPage> {
         if (mounted) setState(() => _isSubmitting = false);
         return;
       }
-      final coverImage = _coverUpload.hasImage
+      final coverImage = mediaPlan.coverChanged
           ? await _coverUpload.ensureRemoteUrl()
-          : '';
-      final profileImage = _profileUpload.hasImage
+          : _initialCover;
+      final profileImage = mediaPlan.profileChanged
           ? await _profileUpload.ensureRemoteUrl()
-          : '';
+          : _initialProfile;
       final draft = _buildCustomizationDraft();
       final resolvedCustomization = StoreCustomizationModel(
         name: draft.name,
@@ -268,14 +314,13 @@ class _CustomPageState extends State<CustomPage> {
         featuredProducts: draft.featuredProducts,
       );
 
-      await StoreApiService().updateStore(
+      await (widget.storeApiService ?? StoreApiService()).updateStore(
         storeId: storeId,
         name: resolvedCustomization.name,
         description: resolvedCustomization.description,
-        image: resolvedCustomization.profileImageUrl.isEmpty
-            ? resolvedCustomization.coverImageUrl
-            : resolvedCustomization.profileImageUrl,
-        bannerUrl: resolvedCustomization.coverImageUrl,
+        // Unchanged images are omitted (null = keep the server value).
+        image: mediaPlan.profileChanged ? profileImage : null,
+        bannerUrl: mediaPlan.coverChanged ? coverImage : null,
         whatsappUrl: resolvedCustomization.whatsappUrl,
         instagramUrl: resolvedCustomization.instagramUrl,
         facebookUrl: resolvedCustomization.facebookUrl,
@@ -302,7 +347,7 @@ class _CustomPageState extends State<CustomPage> {
       }
       if (!mounted) return;
       final message = error is ApiException
-          ? error.message
+          ? error.displayMessage
           : "Enregistrement impossible. Réessayez.";
       ScaffoldMessenger.of(
         context,

@@ -34,11 +34,21 @@ ListStoreModel? storeRecordById(String storeId) {
   return null;
 }
 
+/// Bundled placeholder used when a store has no logo. It is display-only and
+/// must never be sent back to the API as an image or banner URL.
+const storePlaceholderImage = 'assets/images/login_img.jpg';
+
+bool isPlaceholderStoreImage(String url) {
+  final trimmed = url.trim();
+  return trimmed.isEmpty || trimmed.startsWith('assets/');
+}
+
 StoreCustomizationModel customizationFromStore(ListStoreModel store) {
   return StoreCustomizationModel(
     name: store.name,
     description: store.description,
-    coverImageUrl: store.imageUrl,
+    // The cover is the API banner only; never seed it from the logo (#89).
+    coverImageUrl: store.bannerUrl,
     profileImageUrl: store.imageUrl,
     whatsappUrl: store.whatsappUrl,
     instagramUrl: store.instagramUrl,
@@ -109,15 +119,13 @@ void updateStoreCustomizationForStore(
     if (ownedStores[index].id != storeId) continue;
 
     final previousStore = ownedStores[index];
-    final updated = ListStoreModel(
-      id: previousStore.id,
+    final updated = previousStore.copyWith(
       name: customization.name,
       description: customization.description,
       imageUrl: customization.profileImageUrl.isEmpty
-          ? customization.coverImageUrl
+          ? previousStore.imageUrl
           : customization.profileImageUrl,
-      rating: previousStore.rating,
-      city: previousStore.city,
+      bannerUrl: customization.coverImageUrl,
       whatsappUrl: customization.whatsappUrl,
       instagramUrl: customization.instagramUrl,
       facebookUrl: customization.facebookUrl,

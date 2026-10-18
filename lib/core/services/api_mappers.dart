@@ -93,6 +93,7 @@ ListStoreModel listStoreFromApi(Map<String, dynamic> json) {
     name: json['name'] as String? ?? '',
     description: json['description'] as String? ?? '',
     imageUrl: imageUrl.isEmpty ? 'assets/images/login_img.jpg' : imageUrl,
+    bannerUrl: _resolveImageUrl(json['bannerUrl'] ?? json['banner_url']),
     rating: 0,
     city: json['address'] as String? ?? '',
     whatsappUrl: json['whatsappUrl'] as String? ?? '',

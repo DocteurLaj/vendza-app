@@ -76,6 +76,20 @@ class PushNotificationService {
     }
   }
 
+  /// Logout: disable the account's push tokens server-side (while the access
+  /// token is still valid) and drop this device's FCM token so the device
+  /// stops receiving the previous account's notifications even if the API
+  /// call failed. A fresh token is issued and registered on the next login.
+  Future<void> unregisterForLogout() async {
+    await disableCurrentUserPush();
+    try {
+      if (Firebase.apps.isEmpty) return;
+      await _firebaseMessaging.deleteToken();
+    } on Object {
+      // Push is optional; never block logout.
+    }
+  }
+
   Future<void> _syncToken(String token) async {
     if (!_tokenStore.hasAccessToken || token == _lastSyncedToken) return;
 

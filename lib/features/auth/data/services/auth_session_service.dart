@@ -5,6 +5,7 @@ import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/services/api_client.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/services/api_token_store.dart';
+import 'package:vendza/core/services/presence_service.dart';
 import 'package:vendza/core/services/push_notification_service.dart';
 import 'package:vendza/core/session/current_user_store.dart';
 import 'package:vendza/core/session/subscription_store.dart';
@@ -16,6 +17,8 @@ import 'package:vendza/features/store/data/services/store_customization_state.da
 
 typedef CatalogSynchronizer = Future<void> Function(int userId);
 typedef SessionCleaner = void Function();
+typedef PushTokenDisabler = Future<void> Function();
+typedef PresenceStopper = void Function();
 
 class AuthSessionService {
   AuthSessionService({
@@ -25,6 +28,9 @@ class AuthSessionService {
     ApiClient? client,
     CatalogSynchronizer? catalogSynchronizer,
     SessionCleaner? sessionCleaner,
+    RealtimeNotificationService? realtimeService,
+    PushTokenDisabler? pushTokenDisabler,
+    PresenceStopper? presenceStopper,
   }) : _authApiService = authApiService ?? AuthApiService(),
        _googleIdentityProvider =
            googleIdentityProvider ?? googleIdentityService,
@@ -33,8 +39,13 @@ class AuthSessionService {
        _catalogSynchronizer =
            catalogSynchronizer ??
            ((userId) => bootstrapSessionCatalog(userId: userId)),
-       _sessionCleaner = sessionCleaner ?? catalogRepository.clearUserData {
+       _sessionCleaner = sessionCleaner ?? catalogRepository.clearUserData,
+       _realtime = realtimeService ?? realtimeNotificationService,
+       _pushTokenDisabler =
+           pushTokenDisabler ?? pushNotificationService.unregisterForLogout,
+       _presenceStopper = presenceStopper ?? presenceService.stop {
     _client.setTokenRefresher(refreshAccessToken);
+    _realtime.setTokenRefresher(refreshAccessToken);
   }
 
   final AuthApiService _authApiService;
@@ -43,6 +54,9 @@ class AuthSessionService {
   final ApiClient _client;
   final CatalogSynchronizer _catalogSynchronizer;
   final SessionCleaner _sessionCleaner;
+  final RealtimeNotificationService _realtime;
+  final PushTokenDisabler _pushTokenDisabler;
+  final PresenceStopper _presenceStopper;
   Future<bool>? _restoreInFlight;
 
   Future<bool> loginWithEmail({
@@ -162,10 +176,21 @@ class AuthSessionService {
   }
 
   Future<void> logout() async {
+    // Stop every per-session background activity first so nothing keeps
+    // talking to the API (or re-registers push) on behalf of this account.
+    _presenceStopper();
+    await _realtime.stop();
+    try {
+      // Must run while the access token is still valid (#108).
+      await _pushTokenDisabler();
+    } on Object {
+      // Best effort: logout must complete even if the API is unreachable.
+    }
     try {
       await _authApiService.logout();
     } finally {
-      await realtimeNotificationService.stop();
+      await _realtime.stop();
+      _presenceStopper();
       _sessionCleaner();
       clearCurrentUser();
       clearSubscriptionSession();
@@ -183,7 +208,8 @@ class AuthSessionService {
       confirmation: 'SUPPRIMER',
       password: password,
     );
-    await realtimeNotificationService.stop();
+    _presenceStopper();
+    await _realtime.stop();
     await _tokenStore.clear();
     _sessionCleaner();
     clearCurrentUser();
@@ -196,7 +222,8 @@ class AuthSessionService {
   }
 
   Future<void> _invalidateLocalSession() async {
-    await realtimeNotificationService.stop();
+    _presenceStopper();
+    await _realtime.stop();
     await _tokenStore.clear();
     _sessionCleaner();
     clearCurrentUser();
@@ -247,7 +274,9 @@ class AuthSessionService {
     unawaited(
       pushNotificationService.syncCurrentToken().catchError((Object _) {}),
     );
-    unawaited(realtimeNotificationService.start());
+    // A fresh login (possibly another account) must not reuse a stream opened
+    // with the previous account's token.
+    unawaited(clearBeforeSync ? _realtime.restart() : _realtime.start());
     // Refresh subscription context silently — failure must never block login.
     refreshActiveSubscription().ignore();
   }

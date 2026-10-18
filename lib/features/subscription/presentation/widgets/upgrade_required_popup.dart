@@ -24,7 +24,7 @@ Future<void> showUpgradeRequiredPopup({
   final detail = error.planLimitDetail ?? const <String, dynamic>{};
   final currentPlan = _planLabel(detail['current_plan']?.toString());
   final requiredPlan = _planLabel(detail['required_plan']?.toString());
-  final message = detail['message']?.toString() ?? error.message;
+  final message = error.displayMessage;
   final featureName = _featureName(message);
 
   return showAppPopup<void>(

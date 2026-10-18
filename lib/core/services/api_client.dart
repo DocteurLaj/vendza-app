@@ -276,26 +276,7 @@ class ApiClient {
   }
 
   String _extractErrorMessage(Object? decodedBody) {
-    if (decodedBody is Map<String, dynamic>) {
-      final detail = decodedBody['detail'];
-      if (detail is String && detail.isNotEmpty) return detail;
-      if (detail is Map) {
-        final detailMessage = detail['message'];
-        if (detailMessage is String && detailMessage.isNotEmpty) {
-          return detailMessage;
-        }
-      }
-      final details = decodedBody['details'];
-      if (details is Map) {
-        final detailsMessage = details['message'];
-        if (detailsMessage is String && detailsMessage.isNotEmpty) {
-          return detailsMessage;
-        }
-      }
-      final message = decodedBody['message'];
-      if (message is String && message.isNotEmpty) return message;
-    }
-    return 'Une erreur est survenue.';
+    return ApiException.messageFromBody(decodedBody);
   }
 }
 

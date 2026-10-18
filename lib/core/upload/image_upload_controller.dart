@@ -38,6 +38,7 @@ class ImageUploadController extends ChangeNotifier {
   String? _localPath;
   String? _errorMessage;
   Future<void>? _inFlight;
+  bool _isChanged = false;
 
   ImageUploadStatus get status => _status;
   String get previewUrl => _previewUrl;
@@ -58,11 +59,21 @@ class ImageUploadController extends ChangeNotifier {
   bool get blocksSubmit => isUploading || hasFailed;
   bool get hasImage => _previewUrl.trim().isNotEmpty;
 
+  /// True once the user picked a new image (as opposed to the initial one).
+  bool get isChanged => _isChanged;
+
   Future<void> pickAndUpload(BuildContext context) async {
     if (isUploading) return;
     final selected = await pickAppImage(context, title: pickTitle);
     if (selected == null || selected.trim().isEmpty) return;
-    _localPath = selected.trim();
+    await selectLocalImage(selected);
+  }
+
+  /// Replaces the current image with a user-selected local file and uploads it.
+  Future<void> selectLocalImage(String path) async {
+    if (isUploading || path.trim().isEmpty) return;
+    _isChanged = true;
+    _localPath = path.trim();
     _previewUrl = _localPath!;
     _remoteUrl = null;
     await _uploadCurrent();
