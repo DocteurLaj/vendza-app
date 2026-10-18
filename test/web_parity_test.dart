@@ -26,6 +26,26 @@ void main() {
     expect(manifest, contains('android.permission.POST_NOTIFICATIONS'));
   });
 
+  test('Android declares the payment return deep link', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+
+    expect(
+      manifest,
+      contains('android:scheme="vendza" android:host="payment-return"'),
+    );
+  });
+
+  test('Android can open public product links', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+
+    expect(manifest, contains('android:host="app.vendza.online"'));
+    expect(manifest, contains('android:pathPrefix="/p/"'));
+  });
+
   test('Android can open public password reset links', () {
     final manifest = File(
       'android/app/src/main/AndroidManifest.xml',
