@@ -344,7 +344,7 @@ class SupportSettingsPage extends StatelessWidget {
           title: "WhatsApp",
           subtitle: SiteLinks.hasSupportWhatsApp
               ? "Contacter un agent directement"
-              : "Le numero public n'est pas encore renseigne",
+              : "Le numéro public n'est pas encore renseigné",
           trailing: SiteLinks.hasSupportWhatsApp
               ? SiteLinks.supportWhatsApp
               : null,

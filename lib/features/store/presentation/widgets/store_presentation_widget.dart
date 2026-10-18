@@ -436,7 +436,7 @@ class StoreFeaturedProductsPreview extends StatelessWidget {
         child: EmptyStateWidget(
           icon: Icons.inventory_2_outlined,
           title: "Aucun produit mis en avant",
-          message: "Choisis les produits a afficher depuis Custom.",
+          message: "Choisis les produits à afficher depuis Personnaliser.",
           compact: true,
         ),
       );

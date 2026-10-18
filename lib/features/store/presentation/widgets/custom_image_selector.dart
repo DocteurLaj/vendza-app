@@ -24,6 +24,8 @@ class CustomImageSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = height < 120;
+
     return AppInteractive(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -52,48 +54,74 @@ class CustomImageSelector extends StatelessWidget {
               ),
             ),
             Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 44,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: imageUrl.isEmpty
-                          ? AppColors.card(context)
-                          : Colors.white.withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: isCompact ? 34 : 44,
+                      height: isCompact ? 34 : 42,
+                      decoration: BoxDecoration(
                         color: imageUrl.isEmpty
-                            ? AppColors.border(context)
-                            : Colors.white.withValues(alpha: 0.20),
+                            ? AppColors.card(context)
+                            : Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(
+                          isCompact ? 10 : 12,
+                        ),
+                        border: Border.all(
+                          color: imageUrl.isEmpty
+                              ? AppColors.border(context)
+                              : Colors.white.withValues(alpha: 0.20),
+                        ),
+                      ),
+                      child: Icon(
+                        icon,
+                        size: isCompact ? 18 : 24,
+                        color: AppColors.iconAccent(context),
                       ),
                     ),
-                    child: Icon(icon, color: AppColors.iconAccent(context)),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.cardTitle(context).copyWith(
-                      color: imageUrl.isEmpty
-                          ? AppColors.cardTitle(context)
-                          : Colors.white,
+                    SizedBox(height: isCompact ? 4 : 8),
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.cardTitle(context).copyWith(
+                        fontSize: isCompact ? 11 : null,
+                        color: imageUrl.isEmpty
+                            ? AppColors.cardTitle(context)
+                            : Colors.white,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.subtitle(context).copyWith(
-                      color: imageUrl.isEmpty
-                          ? AppColors.subtitleText(context)
-                          : Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-                ],
+                    if (!isCompact) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.subtitle(context).copyWith(
+                          color: imageUrl.isEmpty
+                              ? AppColors.subtitleText(context)
+                              : Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
+            if (isCompact && imageUrl.isNotEmpty)
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Icon(
+                  Icons.edit_outlined,
+                  size: 16,
+                  color: Colors.white.withValues(alpha: 0.92),
+                ),
+              ),
           ],
         ),
       ),

@@ -153,7 +153,7 @@ class UploadApiService {
     final response = await http.Response.fromStream(streamedResponse);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
-        message: "Echec de l'upload de l'image.",
+        message: "Échec de l’importation.",
         statusCode: response.statusCode,
         body: response.body,
       );

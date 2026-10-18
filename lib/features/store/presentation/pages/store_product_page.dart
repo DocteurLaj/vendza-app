@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/breakpoints.dart';
+import 'package:vendza/features/collection/data/services/collection_store.dart';
+import 'package:vendza/shared/models/section_model.dart';
 import 'package:vendza/core/utils/search/catalog_search.dart';
 import 'package:vendza/features/cathegory/presentation/pages/cathegory_page.dart';
 import 'package:vendza/features/collection/presentation/pages/collection_page.dart';
@@ -10,11 +12,11 @@ import 'package:vendza/features/store/data/services/data_exemple.dart';
 import 'package:vendza/features/store/data/services/product_management_service.dart';
 import 'package:vendza/features/store/presentation/pages/store_all_products_page.dart';
 import 'package:vendza/features/store/presentation/widgets/store_product_toolbar.dart';
+import 'package:vendza/features/store/presentation/widgets/store_collection_flow.dart';
 import 'package:vendza/shared/models/social_item.dart';
 import 'package:vendza/shared/widgets/bouton/text_icon_button.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
-import 'package:vendza/shared/widgets/product/product_section.dart';
 import 'package:vendza/shared/widgets/show_title.dart';
 import 'package:vendza/shared/utils/catalog_refresh_feedback.dart';
 
@@ -32,11 +34,19 @@ class _StoreProductPageState extends State<StoreProductPage> {
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
   String _searchQuery = '';
+  late Future<List<SectionModel>> _collectionsFuture;
 
   @override
   void initState() {
     super.initState();
+    _collectionsFuture = _loadCollections();
     _searchFocusNode.addListener(_handleSearchFocusChanged);
+  }
+
+  Future<List<SectionModel>> _loadCollections() async {
+    final storeId = int.tryParse(widget.store.id);
+    if (storeId == null) return const <SectionModel>[];
+    return CollectionApiService().listCollections(storeId);
   }
 
   @override
@@ -91,7 +101,7 @@ class _StoreProductPageState extends State<StoreProductPage> {
             onRefresh: () => refreshCatalogWithFeedback(
               context,
               targetLabel: "Produits",
-              successMessage: "Produits actualises.",
+              successMessage: "Produits actualisés.",
             ),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -118,7 +128,7 @@ class _StoreProductPageState extends State<StoreProductPage> {
                       children: [
                         Expanded(
                           child: TextIconButton(
-                            text: "Categorie",
+                            text: "Catégorie",
                             iconData: Icons.category_outlined,
                             onPressed: () {
                               Navigator.push(
@@ -159,12 +169,16 @@ class _StoreProductPageState extends State<StoreProductPage> {
                     ),
                   ),
                   ShowTitle(
-                    text: "Tout les produits",
+                    text: "Tous les produits",
                     onActionTap: _openAllProducts,
                   ),
-                  ResponsiveContent(
-                    maxWidth: AppBreakpoints.contentMaxWidth,
-                    child: ProductSectionWidget(products: visibleProducts),
+                  FutureBuilder<List<SectionModel>>(
+                    future: _collectionsFuture,
+                    builder: (context, snapshot) => StoreCollectionFlow(
+                      products: visibleProducts,
+                      collections: snapshot.data ?? const <SectionModel>[],
+                      storeId: widget.store.id,
+                    ),
                   ),
                   const SizedBox(height: 20),
                 ],

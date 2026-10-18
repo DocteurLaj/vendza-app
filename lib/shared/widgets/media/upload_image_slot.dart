@@ -39,8 +39,8 @@ class UploadImageSlot extends StatelessWidget {
               subtitle: switch (status) {
                 ImageUploadStatus.uploading => "Importation en cours...",
                 ImageUploadStatus.failed =>
-                  controller.errorMessage ?? "Echec de l'importation.",
-                ImageUploadStatus.success => "Image prete",
+                  controller.errorMessage ?? "Échec de l’importation.",
+                ImageUploadStatus.success => "Image prête",
                 ImageUploadStatus.idle => subtitle,
               },
               imageUrl: controller.previewUrl,
@@ -75,15 +75,27 @@ class UploadImageSlot extends StatelessWidget {
               Positioned(
                 right: 10,
                 bottom: 10,
-                child: TextButton.icon(
-                  onPressed: enabled ? controller.retry : null,
-                  style: TextButton.styleFrom(
-                    backgroundColor: AppColors.card(context),
-                    foregroundColor: AppColors.accent(context),
-                  ),
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text("Reessayer"),
-                ),
+                child: height < 120
+                    ? IconButton(
+                        onPressed: enabled ? controller.retry : null,
+                        tooltip: 'Réessayer',
+                        icon: const Icon(Icons.refresh, size: 16),
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppColors.card(context),
+                          foregroundColor: AppColors.accent(context),
+                          minimumSize: const Size(30, 30),
+                          padding: EdgeInsets.zero,
+                        ),
+                      )
+                    : TextButton.icon(
+                        onPressed: enabled ? controller.retry : null,
+                        style: TextButton.styleFrom(
+                          backgroundColor: AppColors.card(context),
+                          foregroundColor: AppColors.accent(context),
+                        ),
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text("Réessayer"),
+                      ),
               ),
           ],
         );

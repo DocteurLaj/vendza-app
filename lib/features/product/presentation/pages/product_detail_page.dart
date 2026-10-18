@@ -192,7 +192,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Aucun numero WhatsApp n\'est associe a ce store.'),
+          content: Text('Aucun numéro WhatsApp n\'est associé à ce store.'),
         ),
       );
       return;

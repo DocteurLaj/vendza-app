@@ -466,7 +466,7 @@ class ProductDetailContentPanel extends StatelessWidget {
               ),
               const SizedBox(width: 4),
               Text(
-                "Afficher les details",
+                "Afficher les détails",
                 style: TextStyle(
                   color: AppColors.textSecondary(context),
                   fontSize: 12,

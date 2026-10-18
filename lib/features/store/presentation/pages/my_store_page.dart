@@ -178,7 +178,7 @@ class _MyStorePageState extends State<MyStorePage> {
                       onRefresh: () => refreshCatalogWithFeedback(
                         context,
                         targetLabel: "Mes stores",
-                        successMessage: "Mes stores sont actualises.",
+                        successMessage: "Mes boutiques sont actualisées.",
                       ),
                       child: SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
@@ -291,7 +291,7 @@ class _MyStorePageState extends State<MyStorePage> {
                               const SizedBox(height: 20),
                               Center(
                                 child: AppBouton(
-                                  text: "Creer un store",
+                                  text: "Créer une boutique",
                                   onPressed: _openAddStore,
                                   enabled: true,
                                 ),

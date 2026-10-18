@@ -195,7 +195,7 @@ class _AddStoreState extends State<AddStore> {
         }
       } else if (!whatsapp.isValid) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Le numero WhatsApp est incomplet.')),
+          const SnackBar(content: Text('Le numéro WhatsApp est incomplet.')),
         );
         return;
       }
@@ -258,7 +258,7 @@ class _AddStoreState extends State<AddStore> {
       }
       final message = error is ApiException
           ? error.message
-          : "Impossible de creer le store pour le moment: $error";
+          : "Impossible de créer le store pour le moment: $error";
       messenger.showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -277,12 +277,12 @@ class _AddStoreState extends State<AddStore> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Ajouter un numero WhatsApp ?',
+                'Ajouter un numéro WhatsApp ?',
                 style: AppTextStyles.pageTitle(context),
               ),
               const SizedBox(height: 10),
               Text(
-                'Un numero WhatsApp permet aux clients de vous contacter depuis la page du store et les details d’un produit. Vous pouvez continuer sans, mais c’est fortement recommandé.',
+                'Un numéro WhatsApp permet aux clients de vous contacter depuis la page du store et les détails d’un produit. Vous pouvez continuer sans, mais c’est fortement recommandé.',
                 style: TextStyle(
                   color: AppColors.textSecondary(context),
                   height: 1.35,
@@ -290,8 +290,8 @@ class _AddStoreState extends State<AddStore> {
               ),
               const SizedBox(height: 18),
               AppPopupActions(
-                cancelLabel: 'Continuer sans numero WhatsApp',
-                confirmLabel: 'Ajouter un numero WhatsApp',
+                cancelLabel: 'Continuer sans numéro WhatsApp',
+                confirmLabel: 'Ajouter un numéro WhatsApp',
                 onCancel: () => Navigator.pop(context, true),
                 onConfirm: () => Navigator.pop(context, false),
               ),
@@ -392,8 +392,8 @@ class _AddStoreState extends State<AddStore> {
                 padding: const EdgeInsets.all(20),
                 child: Center(
                   child: AppBouton(
-                    text: "Creer",
-                    loadingText: "Creation...",
+                    text: "Créer",
+                    loadingText: "Création...",
                     onPressed: _createStore,
                     enabled: !_isSubmitting && _imageUpload.hasImage,
                     isLoading: _isSubmitting,
@@ -422,7 +422,7 @@ class _StoreCitySelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayedCity = selectedCity.trim().isEmpty
-        ? "Selectionner une ville"
+        ? "Sélectionner une ville"
         : selectedCity.trim();
 
     return Column(

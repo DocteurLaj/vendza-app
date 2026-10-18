@@ -11,7 +11,7 @@ void main() {
     );
 
     await tester.enterText(find.byType(TextField), 'A');
-    await tester.tap(find.text('Creer'));
+    await tester.tap(find.text('Créer'));
     await tester.pumpAndSettle();
 
     expect(

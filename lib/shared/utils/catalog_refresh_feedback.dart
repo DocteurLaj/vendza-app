@@ -27,7 +27,7 @@ Future<void> refreshCatalogWithFeedback(
       SnackBar(
         content: Text(
           error != null && error.isNotEmpty
-              ? "Actualisation impossible. Verifiez la connexion."
+              ? "Actualisation impossible. Vérifiez la connexion."
               : successMessage,
         ),
         duration: const Duration(milliseconds: 1400),

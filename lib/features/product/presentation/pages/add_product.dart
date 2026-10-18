@@ -687,7 +687,7 @@ class _ProductCategorySelector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Categorie", style: AppTextStyles.label(context)),
+        Text("Catégorie", style: AppTextStyles.label(context)),
         const SizedBox(height: 8),
         ValueListenableBuilder<int>(
           valueListenable: cathegory_data.categoryRevision,
@@ -716,7 +716,7 @@ class _ProductCategorySelector extends StatelessWidget {
               ),
               decoration: AppInputDecoration.field(
                 context,
-                hintText: "Choisir la categorie du produit",
+                hintText: "Choisir la catégorie du produit",
               ),
               items: [
                 const DropdownMenuItem<String>(

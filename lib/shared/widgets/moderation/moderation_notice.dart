@@ -18,7 +18,7 @@ class ModerationNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     final cleanReason = reason?.trim();
     final reasonText = cleanReason == null || cleanReason.isEmpty
-        ? 'Motif non precise. Contactez le support pour plus de details.'
+        ? 'Motif non précisé. Contactez le support pour plus de détails.'
         : cleanReason;
     final danger = AppColors.isDark(context)
         ? const Color(0xFFFFAB91)

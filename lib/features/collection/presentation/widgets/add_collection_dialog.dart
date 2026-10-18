@@ -79,7 +79,7 @@ class _AddCollectionDialogState extends State<AddCollectionDialog> {
               onSubmitted: (_) => _createCollection(),
               decoration: InputDecoration(
                 labelText: 'Nom',
-                hintText: 'Ex: Nouveautes',
+                hintText: 'Ex: Nouveautés',
                 errorText: _errorText,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(9),
@@ -94,7 +94,7 @@ class _AddCollectionDialogState extends State<AddCollectionDialog> {
             const SizedBox(height: 18),
             AppPopupActions(
               cancelLabel: 'Annuler',
-              confirmLabel: 'Creer',
+              confirmLabel: 'Créer',
               onCancel: () => Navigator.pop(context),
               onConfirm: _createCollection,
               borderRadius: 9,

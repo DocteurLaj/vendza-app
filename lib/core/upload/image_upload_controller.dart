@@ -52,6 +52,7 @@ class ImageUploadController extends ChangeNotifier {
     if (local.isNotEmpty) return local;
     return _previewUrl.trim();
   }
+
   bool get isUploading => _status == ImageUploadStatus.uploading;
   bool get hasFailed => _status == ImageUploadStatus.failed;
   bool get blocksSubmit => isUploading || hasFailed;
@@ -82,9 +83,7 @@ class ImageUploadController extends ChangeNotifier {
     await _uploadCurrent();
     final uploaded = _remoteUrl?.trim() ?? '';
     if (uploaded.isEmpty) {
-      throw ApiException(
-        message: _errorMessage ?? "Echec de l'upload de l'image.",
-      );
+      throw ApiException(message: _errorMessage ?? "Échec de l’importation.");
     }
     return uploaded;
   }
@@ -130,7 +129,7 @@ class ImageUploadController extends ChangeNotifier {
       _errorMessage = error.message;
     } on Object {
       _status = ImageUploadStatus.failed;
-      _errorMessage = "Echec de l'upload de l'image.";
+      _errorMessage = "Échec de l’importation.";
     }
     notifyListeners();
   }

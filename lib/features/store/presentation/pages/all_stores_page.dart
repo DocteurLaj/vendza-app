@@ -154,7 +154,7 @@ class _AllStoresPageState extends State<AllStoresPage>
     return refreshCatalogWithFeedback(
       context,
       targetLabel: "Stores",
-      successMessage: "Stores actualises.",
+      successMessage: "Boutiques actualisées.",
     );
   }
 
@@ -299,8 +299,13 @@ class _AllStoresPageState extends State<AllStoresPage>
                                   physics:
                                       const AlwaysScrollableScrollPhysics(),
                                   padding: const EdgeInsets.fromLTRB(
-                                      16, 0, 16, 18),
-                                  itemCount: visibleStores.length +
+                                    16,
+                                    0,
+                                    16,
+                                    18,
+                                  ),
+                                  itemCount:
+                                      visibleStores.length +
                                       (_canLoadMore ? 1 : 0),
                                   separatorBuilder: (context, index) =>
                                       const SizedBox(height: 10),
@@ -458,8 +463,9 @@ class _StoreListSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = AppColors.isDark(context);
     final base = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0);
-    final highlight =
-        isDark ? const Color(0xFF3A3A3A) : const Color(0xFFF5F5F5);
+    final highlight = isDark
+        ? const Color(0xFF3A3A3A)
+        : const Color(0xFFF5F5F5);
 
     return Shimmer.fromColors(
       baseColor: base,

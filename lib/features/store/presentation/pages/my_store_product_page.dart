@@ -291,7 +291,7 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
                           onRefresh: () => refreshCatalogWithFeedback(
                             context,
                             targetLabel: "Produits",
-                            successMessage: "Produits actualises.",
+                            successMessage: "Produits actualisés.",
                           ),
                           child: _catalogList(_onlineProducts),
                         ),
@@ -299,7 +299,7 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
                           onRefresh: () => refreshCatalogWithFeedback(
                             context,
                             targetLabel: "Produits",
-                            successMessage: "Produits actualises.",
+                            successMessage: "Produits actualisés.",
                           ),
                           child: _catalogList(_offlineProducts),
                         ),

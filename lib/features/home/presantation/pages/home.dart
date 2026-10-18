@@ -600,7 +600,7 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
                       _StoryProductsStrip(products: storyProducts),
                     if (discoverStores.isNotEmpty) ...[
                       ShowTitle(
-                        text: "Decouvrir des stores",
+                        text: "Découvrir des boutiques",
                         actionLabel: "Voir tout le store",
                         onActionTap: () {
                           Navigator.push(
@@ -628,7 +628,7 @@ class _HomeDefaultContentState extends State<_HomeDefaultContent> {
                       ),
                     ],
                     if (discoverProducts.isNotEmpty) ...[
-                      ShowTitle(text: "Decouvrir aussi", showAction: false),
+                      ShowTitle(text: "Découvrir aussi", showAction: false),
                       _TrendingRail(
                         products: horizontalDiscoverProducts,
                         controller: _discoverRailController,
@@ -714,8 +714,8 @@ class _HomeCatalogStatus extends StatelessWidget {
             isLoading
                 ? "Patientez un instant, les produits et stores arrivent."
                 : hasError
-                ? "Impossible d'actualiser Home. Verifiez la connexion puis reessayez."
-                : "Tirez vers le bas ou appuyez sur Reessayer pour actualiser.",
+                ? "Impossible d’actualiser l’accueil. Vérifiez la connexion puis réessayez."
+                : "Tirez vers le bas ou appuyez sur Réessayer pour actualiser.",
             textAlign: TextAlign.center,
             style: AppTextStyles.subtitle(context).copyWith(height: 1.35),
           ),
@@ -724,7 +724,7 @@ class _HomeCatalogStatus extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text("Reessayer"),
+              label: const Text("Réessayer"),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.accent(context),
                 side: BorderSide(color: AppColors.border(context)),
@@ -948,7 +948,7 @@ class _PromotionCard extends StatelessWidget {
               Positioned(
                 top: 14,
                 left: 14,
-                child: _RankBadge(label: "Selection"),
+                child: _RankBadge(label: "Sélection"),
               ),
               Positioned(
                 left: 16,
@@ -1185,7 +1185,7 @@ class _StoreDiscoveryCard extends StatelessWidget {
             ),
             const Spacer(),
             Text(
-              "Decouvrir",
+              "Découvrir",
               style: AppTextStyles.label(context).copyWith(fontSize: 11),
             ),
             const SizedBox(height: 4),
@@ -1487,7 +1487,7 @@ class _ProgressiveDiscoverSections extends StatelessWidget {
                     horizontal: AppSizes.padding + 8,
                   ),
                   child: Text(
-                    "Decouvrir des stores",
+                    "Découvrir des boutiques",
                     style: AppTextStyles.sectionTitle(
                       context,
                     ).copyWith(fontSize: 14, fontWeight: FontWeight.w900),
@@ -1557,7 +1557,7 @@ class _InlineDiscoverRail extends StatelessWidget {
           Padding(
             padding: EdgeInsets.symmetric(horizontal: AppSizes.padding + 8),
             child: Text(
-              sectionIndex.isOdd ? "Selection rapide" : "A ne pas manquer",
+              sectionIndex.isOdd ? "Sélection rapide" : "À ne pas manquer",
               style: AppTextStyles.sectionTitle(
                 context,
               ).copyWith(fontSize: 14, fontWeight: FontWeight.w900),
@@ -1728,10 +1728,7 @@ class _DynamicProductPlaceholder extends StatelessWidget {
     return Container(
       color: AppColors.softSurface(context),
       alignment: Alignment.center,
-      child: Icon(
-        Icons.inventory_2_outlined,
-        color: AppColors.accent(context),
-      ),
+      child: Icon(Icons.inventory_2_outlined, color: AppColors.accent(context)),
     );
   }
 }

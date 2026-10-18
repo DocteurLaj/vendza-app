@@ -96,7 +96,7 @@ class _AddCathegoryDialogState extends State<AddCathegoryDialog> {
             const SizedBox(height: 18),
             AppPopupActions(
               cancelLabel: 'Annuler',
-              confirmLabel: 'Creer',
+              confirmLabel: 'Créer',
               onCancel: () => Navigator.pop(context),
               onConfirm: _createCathegory,
               borderRadius: 9,
