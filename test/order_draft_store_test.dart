@@ -76,4 +76,17 @@ void main() {
       isNull,
     );
   });
+
+  test('checkout validation rejects a draft without a store identity', () {
+    final draft = OrderDraftStore();
+    draft.addProduct(product(id: '3', storeId: ''));
+
+    expect(
+      draft.validateCheckout(
+        contactPhone: '+243****0111',
+        deliveryAddress: 'Kin',
+      ),
+      'Les produits doivent appartenir à la même boutique.',
+    );
+  });
 }
