@@ -10,6 +10,7 @@ import 'package:vendza/features/subscription/presentation/widgets/upgrade_requir
 import 'package:vendza/shared/widgets/bouton/list_button_section.dart';
 import 'package:vendza/shared/widgets/dialog/confirm_delete_dialog.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
+import 'package:vendza/shared/utils/user_error_message.dart';
 
 class CollectionPage extends StatefulWidget {
   const CollectionPage({
@@ -39,7 +40,7 @@ class _CollectionPageState extends State<CollectionPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      ).showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
     });
   }
 
@@ -80,7 +81,7 @@ class _CollectionPageState extends State<CollectionPage> {
       )) {
         return;
       }
-      messenger.showSnackBar(SnackBar(content: Text(error.toString())));
+      messenger.showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
     }
   }
 
@@ -122,7 +123,7 @@ class _CollectionPageState extends State<CollectionPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      ).showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
     }
   }
 

@@ -35,6 +35,7 @@ import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/product/product_section.dart';
 import 'package:vendza/shared/widgets/search/search_bar.dart';
 import 'package:vendza/shared/utils/catalog_refresh_feedback.dart';
+import 'package:vendza/shared/utils/user_error_message.dart';
 
 class MyStoreProductPage extends StatefulWidget {
   const MyStoreProductPage({super.key, required this.store});
@@ -234,9 +235,13 @@ class _MyStoreProductPageState extends State<MyStoreProductPage>
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {});
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Suppression impossible: $error")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            userErrorMessageWithContext('Suppression impossible', error),
+          ),
+        ),
+      );
     }
   }
 

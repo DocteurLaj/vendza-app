@@ -9,6 +9,7 @@ import 'package:vendza/shared/utils/phone_number.dart';
 import 'package:vendza/shared/widgets/input/phone_number_field.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
+import 'package:vendza/shared/utils/user_error_message.dart';
 
 class MyProfilePage extends StatelessWidget {
   const MyProfilePage({super.key});
@@ -200,9 +201,9 @@ Future<void> _showEditProfileSheet(BuildContext context, UserModel user) {
                     }
                   } on Object catch (error) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text(error.toString())));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(userErrorMessage(error))),
+                      );
                     }
                   }
                 },

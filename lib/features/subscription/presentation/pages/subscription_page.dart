@@ -15,6 +15,7 @@ import 'package:vendza/shared/widgets/dialog/app_popup_actions.dart';
 import 'package:vendza/shared/widgets/dialog/show_app_popup.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
+import 'package:vendza/shared/utils/user_error_message.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -71,7 +72,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error is ApiException ? error.message : error.toString();
+        _error = userErrorMessage(error);
         _loading = false;
       });
     }
@@ -139,7 +140,10 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       if (!mounted) return;
       final message = error is ApiException
           ? error.message
-          : 'Impossible de démarrer le paiement: $error';
+          : userErrorMessageWithContext(
+              'Impossible de démarrer le paiement',
+              error,
+            );
       messenger.showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _paying = false);
@@ -267,7 +271,10 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
                     if (!mounted) return;
                     final message = error is ApiException
                         ? error.message
-                        : 'Impossible de vérifier: $error';
+                        : userErrorMessageWithContext(
+                            'Impossible de vérifier',
+                            error,
+                          );
                     messenger.showSnackBar(SnackBar(content: Text(message)));
                   }
                 },

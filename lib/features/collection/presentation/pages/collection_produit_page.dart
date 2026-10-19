@@ -13,6 +13,7 @@ import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/product/product_section.dart';
+import 'package:vendza/shared/utils/user_error_message.dart';
 
 class CollectionProduitPage extends StatefulWidget {
   const CollectionProduitPage(
@@ -65,7 +66,7 @@ class _CollectionProduitPageState extends State<CollectionProduitPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      ).showSnackBar(SnackBar(content: Text(userErrorMessage(error))));
     }
   }
 

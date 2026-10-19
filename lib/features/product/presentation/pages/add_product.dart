@@ -19,6 +19,7 @@ import 'package:vendza/shared/widgets/input/from_section.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/media/upload_image_slot.dart';
+import 'package:vendza/shared/utils/user_error_message.dart';
 
 class AddProduct extends StatefulWidget {
   const AddProduct({
@@ -246,7 +247,10 @@ class _AddProductState extends State<AddProduct> {
       }
       final message = error is ApiException
           ? error.message
-          : "Impossible d'ajouter ce produit pour le moment: $error";
+          : userErrorMessageWithContext(
+              "Impossible d'ajouter ce produit pour le moment",
+              error,
+            );
       messenger.showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

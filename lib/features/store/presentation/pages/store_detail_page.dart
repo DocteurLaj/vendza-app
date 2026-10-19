@@ -7,6 +7,7 @@ import 'package:vendza/features/store/data/services/data_exemple.dart';
 import 'package:vendza/features/store/presentation/widgets/store_presentation_widget.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
+import 'package:vendza/shared/utils/user_error_message.dart';
 
 class StoreDetailPage extends StatefulWidget {
   const StoreDetailPage({super.key, required this.store});
@@ -51,7 +52,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
               } on Object catch (error) {
                 if (!mounted) return;
                 messenger.showSnackBar(
-                  SnackBar(content: Text(error.toString())),
+                  SnackBar(content: Text(userErrorMessage(error))),
                 );
               }
             },

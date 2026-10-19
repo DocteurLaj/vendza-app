@@ -22,6 +22,7 @@ import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/media/upload_image_slot.dart';
+import 'package:vendza/shared/utils/user_error_message.dart';
 
 class AddStore extends StatefulWidget {
   const AddStore({super.key});
@@ -258,7 +259,10 @@ class _AddStoreState extends State<AddStore> {
       }
       final message = error is ApiException
           ? error.message
-          : "Impossible de créer le store pour le moment: $error";
+          : userErrorMessageWithContext(
+              'Impossible de créer la boutique pour le moment',
+              error,
+            );
       messenger.showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

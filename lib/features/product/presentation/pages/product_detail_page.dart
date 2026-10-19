@@ -24,6 +24,7 @@ import 'package:vendza/core/services/share/whatsapp_seller_chat.dart';
 import 'package:vendza/core/sync/entity_sync_status.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/sync/sync_status_strip.dart';
+import 'package:vendza/shared/utils/user_error_message.dart';
 
 class ProductDetailPage extends StatefulWidget {
   const ProductDetailPage({
@@ -258,9 +259,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       return true;
     } on Object catch (error) {
       if (!mounted) return false;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Mise à jour impossible: $error")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            userErrorMessageWithContext('Mise à jour impossible', error),
+          ),
+        ),
+      );
       return false;
     }
   }
@@ -281,9 +286,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       Navigator.of(context).pop(true);
     } on Object catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Suppression impossible: $error")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            userErrorMessageWithContext('Suppression impossible', error),
+          ),
+        ),
+      );
     }
   }
 
