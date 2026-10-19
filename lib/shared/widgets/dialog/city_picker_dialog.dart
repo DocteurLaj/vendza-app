@@ -88,7 +88,7 @@ class _CityPickerDialogState extends State<CityPickerDialog> {
             SearchBarWidget(
               controller: _searchController,
               autofocus: true,
-              hintText: 'Rechercher ou ecrire une ville',
+              hintText: 'Rechercher ou écrire une ville',
               isActive: _query.isNotEmpty,
               onChanged: (value) => setState(() => _query = value),
               onClear: () => setState(() => _query = ''),
@@ -117,7 +117,7 @@ class _CityPickerDialogState extends State<CityPickerDialog> {
                   if (filteredCities.isEmpty && !_canUseCustomCity)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 28),
-                      child: Center(child: Text('Aucune ville trouvee')),
+                      child: Center(child: Text('Aucune ville trouvée')),
                     ),
                 ],
               ),

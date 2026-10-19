@@ -72,13 +72,14 @@ class AutoScrollListHelper {
   VoidCallback? _scrollListener;
   bool userInteracting = false;
   bool _isAutoAdvancing = false;
+  bool _disposed = false;
   int activeIndex = 0;
 
   void startAfterLayout() {
     if (itemCount <= 1) return;
 
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!scrollController.hasClients) return;
+      if (_disposed || !scrollController.hasClients) return;
       _schedulePeriodicStart();
     });
   }
@@ -88,7 +89,7 @@ class AutoScrollListHelper {
     _initialTimer?.cancel();
 
     _initialTimer = Timer(initialDelay, () {
-      if (itemCount <= 1) return;
+      if (_disposed || itemCount <= 1) return;
 
       _advance();
       _timer?.cancel();
@@ -184,6 +185,7 @@ class AutoScrollListHelper {
   }
 
   void dispose() {
+    _disposed = true;
     _timer?.cancel();
     _initialTimer?.cancel();
     _resumeTimer?.cancel();
@@ -216,6 +218,7 @@ class AutoScrollPageHelper {
   Timer? _initialTimer;
   Timer? _resumeTimer;
   bool _userInteracting = false;
+  bool _disposed = false;
   late int currentPage;
 
   void startAfterLayout() {
@@ -223,7 +226,7 @@ class AutoScrollPageHelper {
     currentPage = initialPage;
 
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!controller.hasClients) return;
+      if (_disposed || !controller.hasClients) return;
       _schedulePeriodicStart();
     });
   }
@@ -233,7 +236,7 @@ class AutoScrollPageHelper {
     _initialTimer?.cancel();
 
     _initialTimer = Timer(initialDelay, () {
-      if (itemCount <= 1) return;
+      if (_disposed || itemCount <= 1) return;
 
       _advance();
       _timer?.cancel();
@@ -288,6 +291,7 @@ class AutoScrollPageHelper {
   }
 
   void dispose() {
+    _disposed = true;
     _timer?.cancel();
     _initialTimer?.cancel();
     _resumeTimer?.cancel();
