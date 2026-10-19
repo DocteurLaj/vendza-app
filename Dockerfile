@@ -72,6 +72,7 @@ FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 ENV GOOGLE_WEB_CLIENT_ID=""
 
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/security-headers.inc /etc/nginx/conf.d/security-headers.inc
 COPY --from=build /app/build/web /usr/share/nginx/html
 COPY deploy/docker-entrypoint.d/40-vendza-config.sh /docker-entrypoint.d/40-vendza-config.sh
 USER root
