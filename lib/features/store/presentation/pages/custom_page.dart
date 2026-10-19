@@ -126,13 +126,17 @@ class _CustomPageState extends State<CustomPage> {
           ? customization.profileImageUrl
           : widget.store.imageUrl,
     );
+    // #112: use the dedicated profiles so the cover gets the wide banner
+    // variants (768/1440 px) instead of a 480 px product card.
     _coverUpload = ImageUploadController(
       initialUrl: _initialCover,
       pickTitle: "Choisir la couverture",
+      purpose: 'banner',
     )..addListener(_onChanged);
     _profileUpload = ImageUploadController(
       initialUrl: _initialProfile,
       pickTitle: "Choisir la photo de profil",
+      purpose: 'logo',
     )..addListener(_onChanged);
     _featuredProducts = customization.featuredProducts.isNotEmpty
         ? List.of(customization.featuredProducts)

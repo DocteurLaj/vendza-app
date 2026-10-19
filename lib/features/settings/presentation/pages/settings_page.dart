@@ -247,8 +247,7 @@ class _SubscriptionSettingsTile extends StatefulWidget {
       _SubscriptionSettingsTileState();
 }
 
-class _SubscriptionSettingsTileState
-    extends State<_SubscriptionSettingsTile> {
+class _SubscriptionSettingsTileState extends State<_SubscriptionSettingsTile> {
   bool _tried = false; // ignore: unused_field
 
   @override
@@ -312,17 +311,17 @@ class _SubscriptionSettingsTileState
                     children: [
                       Text(
                         'Mon abonnement',
-                        style: AppTextStyles.body(context).copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: AppTextStyles.body(
+                          context,
+                        ).copyWith(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         plan == null
                             ? 'Chargement…'
                             : isFree
-                                ? 'Plan Gratuit · Passer à un plan supérieur'
-                                : '${plan.title} · ${plan.formattedPrice}/mois',
+                            ? 'Plan Gratuit · Passer à un plan supérieur'
+                            : '${plan.title} · ${plan.formattedPrice}/mois',
                         style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,

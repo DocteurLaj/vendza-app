@@ -20,12 +20,12 @@ class SiteLinks {
 
   static bool get hasSupportWhatsApp => whatsappUri != null;
 
-  static Uri mailtoSupport({String subject = 'Support Vendza'}) {
-    return Uri(
-      scheme: 'mailto',
-      path: supportEmail,
-      query: 'subject=${Uri.encodeComponent(subject)}',
-    );
+  static Uri mailtoSupport({String subject = 'Support Vendza', String? body}) {
+    final params = <String>['subject=${Uri.encodeComponent(subject)}'];
+    if (body != null && body.isNotEmpty) {
+      params.add('body=${Uri.encodeComponent(body)}');
+    }
+    return Uri(scheme: 'mailto', path: supportEmail, query: params.join('&'));
   }
 
   static Uri? get whatsappUri {

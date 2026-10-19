@@ -173,24 +173,57 @@ Future<void> _showEditProfileSheet(BuildContext context, UserModel user) {
                     return;
                   }
 
+                  // #112: the API has one route per field. Apply each saved
+                  // field locally as soon as it succeeds, so a later failure
+                  // never leaves the screen showing stale values for fields
+                  // the server already accepted.
+                  var saved = currentUserStore.value;
+                  void commitLocal(UserModel next) {
+                    saved = next;
+                    updateCurrentUser(next);
+                  }
+
                   try {
                     final profileApi = ProfileApiService();
                     await profileApi.updateFullName(displayName);
-                    await profileApi.updatePhone(phone.e164);
-                    await profileApi.updateAddress(
-                      address: addressController.text,
-                    );
-
-                    updateCurrentUser(
+                    commitLocal(
                       UserModel(
-                        userId: user.userId,
+                        userId: saved.userId,
                         name: displayName,
                         firstname: firstnameController.text.trim(),
                         lastname: lastnameController.text.trim(),
-                        email: email,
+                        email: saved.email,
+                        phoneNumber: saved.phoneNumber,
+                        address: saved.address,
+                        urlimage: saved.urlimage,
+                      ),
+                    );
+                    await profileApi.updatePhone(phone.e164);
+                    commitLocal(
+                      UserModel(
+                        userId: saved.userId,
+                        name: saved.name,
+                        firstname: saved.firstname,
+                        lastname: saved.lastname,
+                        email: saved.email,
                         phoneNumber: phone.e164,
+                        address: saved.address,
+                        urlimage: saved.urlimage,
+                      ),
+                    );
+                    await profileApi.updateAddress(
+                      address: addressController.text,
+                    );
+                    commitLocal(
+                      UserModel(
+                        userId: saved.userId,
+                        name: saved.name,
+                        firstname: saved.firstname,
+                        lastname: saved.lastname,
+                        email: saved.email,
+                        phoneNumber: saved.phoneNumber,
                         address: addressController.text.trim(),
-                        urlimage: user.urlimage,
+                        urlimage: saved.urlimage,
                       ),
                     );
                     if (sheetContext.mounted) Navigator.pop(sheetContext);

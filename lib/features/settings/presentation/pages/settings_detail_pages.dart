@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:vendza/core/connectivity/network_status.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/constants/site_links.dart';
 import 'package:vendza/core/session/current_user_store.dart';
 import 'package:vendza/core/session/notifications_enabled_store.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/core/theme/theme_controller.dart';
+import 'package:vendza/features/auth/presantation/widgets/forgot_password_dialog.dart';
 import 'package:vendza/features/settings/presentation/pages/delete_account_page.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
@@ -183,114 +183,28 @@ class PrivacySettingsPage extends StatefulWidget {
 }
 
 class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
-  late final TextEditingController emailController;
-  final TextEditingController currentPasswordController =
-      TextEditingController();
-  final TextEditingController newPasswordController = TextEditingController();
-  bool showPassword = false;
-  bool _isSaving = false;
-
-  bool get _canSave {
-    final email = emailController.text.trim();
-    final current = currentPasswordController.text;
-    final next = newPasswordController.text;
-    if (_isSaving) return false;
-    if (!email.contains('@')) return false;
-    if (current.isEmpty && next.isEmpty) return false;
-    return current.isNotEmpty && next.length >= 8;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    emailController = TextEditingController(text: currentUserStore.value.email);
-    emailController.addListener(_onFieldChanged);
-    currentPasswordController.addListener(_onFieldChanged);
-    newPasswordController.addListener(_onFieldChanged);
-  }
-
-  void _onFieldChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void dispose() {
-    emailController
-      ..removeListener(_onFieldChanged)
-      ..dispose();
-    currentPasswordController
-      ..removeListener(_onFieldChanged)
-      ..dispose();
-    newPasswordController
-      ..removeListener(_onFieldChanged)
-      ..dispose();
-    super.dispose();
-  }
-
-  Future<void> _savePrivacy() async {
-    if (!_canSave || _isSaving) return;
-    if (!NetworkStatus.ensureOnline(context)) return;
-    setState(() => _isSaving = true);
-    await Future<void>.delayed(const Duration(milliseconds: 280));
-    if (!mounted) return;
-    setState(() => _isSaving = false);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Le changement de mot de passe depuis les paramètres n’est pas encore disponible. Utilisez Mot de passe oublié.',
-        ),
-      ),
-    );
-  }
-
+  // #107: there is no change-password/change-email API. The previous form
+  // accepted input and then refused it; show the real, working flows instead.
   @override
   Widget build(BuildContext context) {
+    final email = currentUserStore.value.email;
     return _SettingsSimpleScaffold(
       title: "Confidentialité",
       children: [
-        _InputSettingsTile(
+        _ActionSettingsTile(
+          key: const ValueKey('privacy-account-email'),
           icon: Icons.email_outlined,
           title: "Email du compte",
-          controller: emailController,
-          keyboardType: TextInputType.emailAddress,
+          subtitle: email.isEmpty ? "Non renseigné" : email,
+          onTap: () {},
         ),
         const SizedBox(height: 10),
-        _InputSettingsTile(
-          icon: Icons.lock_outline,
-          title: "Mot de passe actuel",
-          controller: currentPasswordController,
-          obscureText: !showPassword,
-        ),
-        const SizedBox(height: 10),
-        _InputSettingsTile(
-          icon: Icons.password_outlined,
-          title: "Nouveau mot de passe",
-          controller: newPasswordController,
-          obscureText: !showPassword,
-        ),
-        const SizedBox(height: 10),
-        _SwitchSettingsTile(
-          icon: Icons.visibility_outlined,
-          title: "Afficher le mot de passe",
-          subtitle: "Voir ou masquer les champs mot de passe",
-          value: showPassword,
-          onChanged: (value) {
-            setState(() {
-              showPassword = value;
-            });
-          },
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: AppBouton(
-            text: "Enregistrer",
-            loadingText: "Enregistrement...",
-            onPressed: _savePrivacy,
-            enabled: _canSave,
-            isLoading: _isSaving,
-          ),
+        _ActionSettingsTile(
+          key: const ValueKey('privacy-reset-password'),
+          icon: Icons.lock_reset_outlined,
+          title: "Changer mon mot de passe",
+          subtitle: "Recevoir un lien de réinitialisation par email",
+          onTap: () => showForgotPasswordDialog(context),
         ),
         const SizedBox(height: 24),
         _ActionSettingsTile(
@@ -401,17 +315,32 @@ class _FeedbackSettingsPageState extends State<FeedbackSettingsPage> {
     super.dispose();
   }
 
+  // #107: feedback used to be discarded after a fake delay. It is now sent
+  // to the support mailbox through the user's email app; the text is only
+  // cleared once that app has actually opened.
   Future<void> _submitFeedback() async {
     if (!_canSubmit) return;
-    if (!NetworkStatus.ensureOnline(context)) return;
     setState(() => _isSubmitting = true);
-    await Future<void>.delayed(const Duration(milliseconds: 280));
+    final opened = await SiteLinks.openUri(
+      SiteLinks.mailtoSupport(
+        subject: 'Feedback Vendza',
+        body: feedbackController.text.trim(),
+      ),
+    );
     if (!mounted) return;
-    feedbackController.clear();
     setState(() => _isSubmitting = false);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Merci pour votre feedback")));
+    if (opened) {
+      feedbackController.clear();
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          opened
+              ? "Votre application email s'est ouverte : envoyez le message pour transmettre votre retour."
+              : "Aucune application email disponible. Écrivez-nous à ${SiteLinks.supportEmail}.",
+        ),
+      ),
+    );
   }
 
   @override
@@ -437,8 +366,8 @@ class _FeedbackSettingsPageState extends State<FeedbackSettingsPage> {
         SizedBox(
           width: double.infinity,
           child: AppBouton(
-            text: "Soumettre",
-            loadingText: "Envoi...",
+            text: "Envoyer par email",
+            loadingText: "Ouverture...",
             onPressed: _submitFeedback,
             enabled: _canSubmit,
             isLoading: _isSubmitting,
@@ -616,49 +545,6 @@ class _ActionSettingsTile extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _InputSettingsTile extends StatelessWidget {
-  const _InputSettingsTile({
-    required this.icon,
-    required this.title,
-    required this.controller,
-    this.obscureText = false,
-    this.keyboardType,
-  });
-
-  final IconData icon;
-  final String title;
-  final TextEditingController controller;
-  final bool obscureText;
-  final TextInputType? keyboardType;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _settingsBoxDecoration(context),
-      child: Row(
-        children: [
-          _SettingsIcon(icon: icon),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              obscureText: obscureText,
-              keyboardType: keyboardType,
-              cursorColor: AppColors.accent(context),
-              decoration: InputDecoration(
-                labelText: title,
-                border: InputBorder.none,
-                labelStyle: AppTextStyles.label(context),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

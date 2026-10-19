@@ -70,6 +70,9 @@ class ProfileApiService {
     final response = await _client.put(
       ApiEndpoints.profileAddress,
       authenticated: true,
+      // Kept as new_city on purpose: UserAddress.city feeds the admin geo map,
+      // city filters and city-targeted campaigns. Splitting street vs city
+      // needs a separate "Ville" field (product decision, Trello #112).
       body: {'new_city': address.trim()},
     );
     return Map<String, dynamic>.from(response as Map);
