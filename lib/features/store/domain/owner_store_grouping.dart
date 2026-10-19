@@ -11,8 +11,12 @@ class OwnerCategoryGroup {
 }
 
 bool productBelongsToOwnerStore(ProductModel product, ListStoreModel store) {
-  return product.storeId == store.id ||
-      (store.localId.isNotEmpty && product.storeId == store.localId);
+  final productStoreId = product.storeId.trim();
+  final remoteStoreId = store.id.trim();
+  final localStoreId = store.localId.trim();
+  if (productStoreId.isEmpty) return false;
+  return (remoteStoreId.isNotEmpty && productStoreId == remoteStoreId) ||
+      (localStoreId.isNotEmpty && productStoreId == localStoreId);
 }
 
 List<OwnerCategoryGroup> ownerCategoryGroups({

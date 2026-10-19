@@ -108,4 +108,24 @@ void main() {
       expect(scoped.map((product) => product.id), ['1']);
     },
   );
+
+  test('store matching normalizes ids and never matches missing ids', () {
+    expect(
+      productBelongsToOwnerStore(product(id: '1', storeId: ' 1 '), store),
+      isTrue,
+    );
+
+    final unsyncedStore = ListStoreModel(
+      id: '',
+      localId: '',
+      name: 'Brouillon',
+      description: '',
+      imageUrl: '',
+      rating: 0,
+    );
+    expect(
+      productBelongsToOwnerStore(product(id: '2', storeId: ''), unsyncedStore),
+      isFalse,
+    );
+  });
 }
