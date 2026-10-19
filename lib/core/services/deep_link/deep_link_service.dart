@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:vendza/core/services/deep_link/catalog_lookup.dart';
+import 'package:vendza/core/services/deep_link/deep_link_content_resolver.dart';
+import 'package:vendza/features/home/data/models/store_model.dart';
+import 'package:vendza/shared/models/product_model.dart';
 import 'package:vendza/features/auth/presantation/pages/reset_password_page.dart';
 import 'package:vendza/features/product/presentation/pages/product_detail_page.dart';
 import 'package:vendza/features/store/presentation/pages/store_detail_page.dart';
@@ -45,12 +47,54 @@ final class PaymentReturnDeepLink extends DeepLinkTarget {
   final int paymentId;
 }
 
+typedef ProductPageBuilder = Widget Function(ProductModel product);
+typedef StorePageBuilder = Widget Function(StoreModel store);
+
 class DeepLinkService {
-  DeepLinkService._();
+  DeepLinkService._({
+    GlobalKey<NavigatorState>? navigatorKey,
+    DeepLinkContentResolver? resolver,
+    ProductPageBuilder? productPageBuilder,
+    StorePageBuilder? storePageBuilder,
+    AppLinks? appLinks,
+  }) : _navigatorKey = navigatorKey ?? rootNavigatorKey,
+       _resolverOverride = resolver,
+       _productPageBuilder =
+           productPageBuilder ??
+           ((product) => ProductDetailPage(product: product)),
+       _storePageBuilder =
+           storePageBuilder ?? ((store) => StoreDetailPage(store: store)),
+       _appLinksOverride = appLinks;
 
   static final DeepLinkService instance = DeepLinkService._();
 
-  final AppLinks _appLinks = AppLinks();
+  @visibleForTesting
+  factory DeepLinkService.forTesting({
+    required GlobalKey<NavigatorState> navigatorKey,
+    required DeepLinkContentResolver resolver,
+    required ProductPageBuilder productPageBuilder,
+    required StorePageBuilder storePageBuilder,
+  }) => DeepLinkService._(
+    navigatorKey: navigatorKey,
+    resolver: resolver,
+    productPageBuilder: productPageBuilder,
+    storePageBuilder: storePageBuilder,
+  );
+
+  final GlobalKey<NavigatorState> _navigatorKey;
+  final DeepLinkContentResolver? _resolverOverride;
+  DeepLinkContentResolver? _defaultResolver;
+  DeepLinkContentResolver get _resolver =>
+      _resolverOverride ?? (_defaultResolver ??= DeepLinkContentResolver());
+  final ProductPageBuilder _productPageBuilder;
+  final StorePageBuilder _storePageBuilder;
+  final AppLinks? _appLinksOverride;
+  AppLinks? _appLinksInstance;
+  AppLinks get _appLinks => _appLinksOverride ?? (_appLinksInstance ??= AppLinks());
+
+  /// Links currently being resolved, keyed by target, so that the same link
+  /// delivered twice (initial link + stream, double tap) opens one page.
+  final Set<String> _inFlight = <String>{};
   StreamSubscription<Uri>? _subscription;
   Uri? _pendingUri;
   bool _navigationReady = false;
@@ -98,6 +142,9 @@ class DeepLinkService {
   void dispose() {
     _subscription?.cancel();
   }
+
+  @visibleForTesting
+  void handleUriForTesting(Uri uri) => _handleUri(uri);
 
   void _handleUri(Uri uri) {
     final target = parseDeepLink(uri);
@@ -180,7 +227,7 @@ class DeepLinkService {
     final target = parseDeepLink(uri);
     if (target == null) return;
 
-    final navigator = rootNavigatorKey.currentState;
+    final navigator = _navigatorKey.currentState;
     if (navigator == null) {
       _pendingUri = uri;
       return;
@@ -188,26 +235,17 @@ class DeepLinkService {
 
     switch (target) {
       case ProductDeepLink(:final id):
-        final product = findProductById(id);
-        if (product == null) {
-          _showNotFound();
-          return;
-        }
-        navigator.push(
-          MaterialPageRoute(
-            builder: (context) => ProductDetailPage(product: product),
-          ),
+        _openResolved(
+          key: 'p/$id',
+          uri: uri,
+          load: () async =>
+              _productPageBuilder((await _resolver.resolveProduct(id)).product),
         );
       case StoreDeepLink(:final id):
-        final store = findStoreById(id);
-        if (store == null) {
-          _showNotFound();
-          return;
-        }
-        navigator.push(
-          MaterialPageRoute(
-            builder: (context) => StoreDetailPage(store: store),
-          ),
+        _openResolved(
+          key: 'store/$id',
+          uri: uri,
+          load: () async => _storePageBuilder(await _resolver.resolveStore(id)),
         );
       case ResetPasswordDeepLink(:final token):
         _resetRouteOpen = true;
@@ -224,12 +262,52 @@ class DeepLinkService {
     }
   }
 
+  Future<void> _openResolved({
+    required String key,
+    required Uri uri,
+    required Future<Widget> Function() load,
+  }) async {
+    if (!_inFlight.add(key)) return;
+    try {
+      final page = await load();
+      final navigator = _navigatorKey.currentState;
+      if (navigator == null) return;
+      navigator.push(MaterialPageRoute(builder: (context) => page));
+    } on DeepLinkNotFoundException {
+      _showNotFound();
+    } catch (error) {
+      // Network/server failure: the content may exist, so offer a retry
+      // instead of claiming it is missing.
+      debugPrint('deep_link_resolve_failed target=$key error=$error');
+      _showRetry(uri);
+    } finally {
+      _inFlight.remove(key);
+    }
+  }
+
+  void _showRetry(Uri uri) {
+    final context = _navigatorKey.currentContext;
+    if (context == null) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(
+        content: const Text('Impossible d’ouvrir ce contenu'),
+        duration: const Duration(seconds: 10),
+        action: SnackBarAction(
+          label: 'Réessayer',
+          onPressed: () => _navigate(uri),
+        ),
+      ),
+    );
+  }
+
   void _showNotFound() {
-    final context = rootNavigatorKey.currentContext;
+    final context = _navigatorKey.currentContext;
     if (context == null) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Contenu introuvable')));
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      const SnackBar(content: Text('Contenu introuvable')),
+    );
   }
 }
