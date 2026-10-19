@@ -158,7 +158,7 @@ class _AddStoreState extends State<AddStore> {
           : null;
       _imageError = _imageUpload.hasImage
           ? null
-          : "Ajoutez une image pour creer ce store.";
+          : "Ajoutez une image pour créer ce store.";
       _socialError = instagramError ?? facebookError;
     });
 

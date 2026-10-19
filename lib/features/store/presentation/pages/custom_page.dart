@@ -405,10 +405,10 @@ class _CustomPageState extends State<CustomPage> {
     try {
       final result = await StoreApiService().toggleStoreActive(storeId);
       final newActive = result['is_active'] as bool? ?? !isCurrentlyActive;
+      if (!mounted) return;
       setState(() => _isActive = newActive);
       // Update the store in catalog so the list reflects the change
       updateOwnedStoreActiveState(widget.store.id, isActive: newActive);
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
