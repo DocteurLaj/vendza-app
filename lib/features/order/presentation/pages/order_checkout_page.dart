@@ -65,6 +65,7 @@ class _OrderCheckoutPageState extends State<OrderCheckoutPage> {
   }
 
   Future<void> _submit(OrderDraft draft) async {
+    if (_submitting) return;
     final error = orderDraftStore.validateCheckout(
       contactPhone: _phone,
       deliveryAddress: _addressController.text,

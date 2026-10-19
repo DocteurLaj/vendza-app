@@ -116,6 +116,11 @@ class OrderDraftStore extends ChangeNotifier {
     if (current == null || current.items.isEmpty) {
       return 'Choisissez au moins un produit.';
     }
+    final storeId = current.storeId.trim();
+    if (storeId.isEmpty ||
+        current.items.any((item) => item.product.storeId.trim() != storeId)) {
+      return 'Les produits doivent appartenir à la même boutique.';
+    }
     if (current.items.any((item) => item.productId <= 0 || item.quantity < 1)) {
       return 'Un produit de la commande est invalide.';
     }
