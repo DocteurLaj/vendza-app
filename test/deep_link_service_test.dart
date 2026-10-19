@@ -40,15 +40,27 @@ void main() {
     expect((target as ResetPasswordDeepLink).token, 'secure-token');
   });
 
-  test('parseDeepLink product via vendza.app', () {
-    final target = service.parseDeepLink(Uri.parse('https://vendza.app/p/3'));
+  test('parseDeepLink product via app.vendza.online', () {
+    final target = service.parseDeepLink(
+      Uri.parse('https://app.vendza.online/p/3'),
+    );
     expect(target, isA<ProductDeepLink>());
     expect((target as ProductDeepLink).id, '3');
   });
 
+  test('third-party vendza.app links are ignored', () {
+    expect(service.parseDeepLink(Uri.parse('https://vendza.app/p/3')), isNull);
+    expect(
+      service.parseDeepLink(
+        Uri.parse('https://vendza.app/reset-password?token=attacker'),
+      ),
+      isNull,
+    );
+  });
+
   test('parseDeepLink store via https', () {
     final target = service.parseDeepLink(
-      Uri.parse('https://vendza.app/store/4'),
+      Uri.parse('https://app.vendza.online/store/4'),
     );
     expect(target, isA<StoreDeepLink>());
     expect((target as StoreDeepLink).id, '4');
@@ -64,7 +76,7 @@ void main() {
 
   test('parseDeepLink password reset via https', () {
     final target = service.parseDeepLink(
-      Uri.parse('https://vendza.app/reset-password?token=secure-token'),
+      Uri.parse('https://vendza.online/reset-password?token=secure-token'),
     );
     expect(target, isA<ResetPasswordDeepLink>());
     expect((target as ResetPasswordDeepLink).token, 'secure-token');
@@ -75,7 +87,9 @@ void main() {
   });
 
   test('parseDeepLink payment return via custom scheme', () {
-    final uri = Uri.parse('vendza://payment-return?payment_id=42&platform=mobile');
+    final uri = Uri.parse(
+      'vendza://payment-return?payment_id=42&platform=mobile',
+    );
     final result = service.parseDeepLink(uri);
     expect(result, isA<PaymentReturnDeepLink>());
     expect((result as PaymentReturnDeepLink).paymentId, 42);

@@ -22,7 +22,11 @@ void main() {
         return http.Response(jsonEncode({'success': true, 'data': {}}), 200);
       }),
     );
-    final presence = PresenceService(client: client, tokenStore: tokens, platform: 'web')..path = 'home';
+    final presence = PresenceService(
+      client: client,
+      tokenStore: tokens,
+      platform: 'web',
+    )..path = 'home';
 
     await presence.beat();
 
@@ -46,7 +50,11 @@ void main() {
         return http.Response('{}', 200);
       }),
     );
-    await PresenceService(client: client, tokenStore: tokens, platform: 'web').beat();
+    await PresenceService(
+      client: client,
+      tokenStore: tokens,
+      platform: 'web',
+    ).beat();
     expect(calls, 0);
   });
 
@@ -86,6 +94,10 @@ void main() {
       baseUrl: 'https://api.test',
       httpClient: MockClient((request) async => http.Response('boom', 500)),
     );
-    await PresenceService(client: client, tokenStore: tokens, platform: 'web').beat();
+    await PresenceService(
+      client: client,
+      tokenStore: tokens,
+      platform: 'web',
+    ).beat();
   });
 }

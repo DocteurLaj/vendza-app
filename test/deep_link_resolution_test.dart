@@ -74,9 +74,7 @@ void main() {
 
   test('cache miss fetches product detail and owning store', () async {
     final productApi = _FakeProductApi((id) async => _productJson(id));
-    final storeApi = _FakeStoreApi((page, pageSize) async => [
-      _storeJson(7),
-    ]);
+    final storeApi = _FakeStoreApi((page, pageSize) async => [_storeJson(7)]);
     final resolver = DeepLinkContentResolver(
       productApiService: productApi,
       storeApiService: storeApi,
@@ -108,43 +106,53 @@ void main() {
     );
   });
 
-  test('network error remains retryable and is not converted to not found', () async {
-    final resolver = DeepLinkContentResolver(
-      productApiService: _FakeProductApi(
-        (_) async => throw const ApiException(
-          message: 'Service indisponible',
-          statusCode: 503,
+  test(
+    'network error remains retryable and is not converted to not found',
+    () async {
+      final resolver = DeepLinkContentResolver(
+        productApiService: _FakeProductApi(
+          (_) async => throw const ApiException(
+            message: 'Service indisponible',
+            statusCode: 503,
+          ),
         ),
-      ),
-      storeApiService: _FakeStoreApi((_, _) async => []),
-    );
+        storeApiService: _FakeStoreApi((_, _) async => []),
+      );
 
-    await expectLater(
-      resolver.resolveProduct('8'),
-      throwsA(
-        isA<ApiException>().having((error) => error.statusCode, 'status', 503),
-      ),
-    );
-  });
+      await expectLater(
+        resolver.resolveProduct('8'),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.statusCode,
+            'status',
+            503,
+          ),
+        ),
+      );
+    },
+  );
 
-  test('store lookup follows public pagination beyond first 100 items', () async {
-    final firstPage = List.generate(100, (index) => _storeJson(index + 1));
-    final storeApi = _FakeStoreApi((page, pageSize) async {
-      if (page == 1) return firstPage;
-      if (page == 2) return [_storeJson(150)];
-      return [];
-    });
-    final resolver = DeepLinkContentResolver(
-      productApiService: _FakeProductApi((id) async => _productJson(id)),
-      storeApiService: storeApi,
-    );
+  test(
+    'store lookup follows public pagination beyond first 100 items',
+    () async {
+      final firstPage = List.generate(100, (index) => _storeJson(index + 1));
+      final storeApi = _FakeStoreApi((page, pageSize) async {
+        if (page == 1) return firstPage;
+        if (page == 2) return [_storeJson(150)];
+        return [];
+      });
+      final resolver = DeepLinkContentResolver(
+        productApiService: _FakeProductApi((id) async => _productJson(id)),
+        storeApiService: storeApi,
+      );
 
-    final store = await resolver.resolveStore('150');
+      final store = await resolver.resolveStore('150');
 
-    expect(store.id, '150');
-    expect(store.name, 'Boutique 150');
-    expect(storeApi.requestedPages, [1, 2]);
-  });
+      expect(store.id, '150');
+      expect(store.name, 'Boutique 150');
+      expect(storeApi.requestedPages, [1, 2]);
+    },
+  );
 
   testWidgets('cold-start link waits for navigation readiness', (tester) async {
     final navigatorKey = GlobalKey<NavigatorState>();
@@ -270,10 +278,8 @@ void main() {
       navigatorKey: navigatorKey,
       resolver: DeepLinkContentResolver(
         productApiService: _FakeProductApi(
-          (_) async => throw const ApiException(
-            message: 'missing',
-            statusCode: 404,
-          ),
+          (_) async =>
+              throw const ApiException(message: 'missing', statusCode: 404),
         ),
         storeApiService: _FakeStoreApi((_, _) async => []),
       ),

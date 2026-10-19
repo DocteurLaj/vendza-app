@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vendza.marketplace",
+      "sha256_cert_fingerprints": [
+        "9D:07:92:F3:54:68:41:4B:7A:0F:6A:B1:C7:A2:FA:8E:93:83:4B:ED:9C:0D:C4:40:57:A2:96:2B:32:15:FE:DC"
+      ]
+    }
+  }
+]

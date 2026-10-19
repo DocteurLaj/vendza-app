@@ -90,7 +90,8 @@ class DeepLinkService {
   final StorePageBuilder _storePageBuilder;
   final AppLinks? _appLinksOverride;
   AppLinks? _appLinksInstance;
-  AppLinks get _appLinks => _appLinksOverride ?? (_appLinksInstance ??= AppLinks());
+  AppLinks get _appLinks =>
+      _appLinksOverride ?? (_appLinksInstance ??= AppLinks());
 
   /// Links currently being resolved, keyed by target, so that the same link
   /// delivered twice (initial link + stream, double tap) opens one page.
@@ -184,9 +185,9 @@ class DeepLinkService {
 
     final webHost = uri.host.toLowerCase();
     const vendzaWebHosts = {
+      // Only domains Vendza controls. vendza.app belongs to a third party and
+      // must never be trusted (it could hand the app a reset-password token).
       'app.vendza.online',
-      'vendza.app',
-      'www.vendza.app',
       'vendza.online',
       'www.vendza.online',
     };
@@ -306,8 +307,8 @@ class DeepLinkService {
     final context = _navigatorKey.currentContext;
     if (context == null) return;
 
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      const SnackBar(content: Text('Contenu introuvable')),
-    );
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(const SnackBar(content: Text('Contenu introuvable')));
   }
 }

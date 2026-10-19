@@ -31,10 +31,7 @@ void main() {
     });
 
     test('accepts a complete Instagram URL', () {
-      expect(
-        validateInstagramUrl('https://instagram.com/vendza'),
-        isNull,
-      );
+      expect(validateInstagramUrl('https://instagram.com/vendza'), isNull);
     });
 
     test('accepts facebook.com and fb.com', () {

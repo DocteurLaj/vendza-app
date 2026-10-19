@@ -192,7 +192,9 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: PrivacySettingsPage()));
     expect(find.text('Supprimer mon compte'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('delete-account-settings-entry')));
+    await tester.tap(
+      find.byKey(const ValueKey('delete-account-settings-entry')),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(DeleteAccountPage), findsOneWidget);
   });

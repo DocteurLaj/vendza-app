@@ -80,34 +80,43 @@ class _UploadFlowClient extends http.BaseClient {
 }
 
 void main() {
-  test('uploaded catalog images are completed before returning public URL', () async {
-    final httpClient = _UploadFlowClient();
-    final tokenStore = ApiTokenStore(storage: MemorySecureStorage());
-    await tokenStore.saveTokens(accessToken: 'access', refreshToken: 'refresh');
+  test(
+    'uploaded catalog images are completed before returning public URL',
+    () async {
+      final httpClient = _UploadFlowClient();
+      final tokenStore = ApiTokenStore(storage: MemorySecureStorage());
+      await tokenStore.saveTokens(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+      );
 
-    final apiClient = ApiClient(
-      httpClient: httpClient,
-      tokenStore: tokenStore,
-      baseUrl: 'https://api.example.com/api/v1',
-    );
-    final uploads = UploadApiService(
-      client: apiClient,
-      httpClient: httpClient,
-      auth: AuthApiService(client: apiClient, tokenStore: tokenStore),
-    );
+      final apiClient = ApiClient(
+        httpClient: httpClient,
+        tokenStore: tokenStore,
+        baseUrl: 'https://api.example.com/api/v1',
+      );
+      final uploads = UploadApiService(
+        client: apiClient,
+        httpClient: httpClient,
+        auth: AuthApiService(client: apiClient, tokenStore: tokenStore),
+      );
 
-    final url = await uploads.uploadLocalImage(
-      'data:image/png;base64,${base64Encode([1, 2, 3, 4])}',
-      purpose: 'product',
-    );
+      final url = await uploads.uploadLocalImage(
+        'data:image/png;base64,${base64Encode([1, 2, 3, 4])}',
+        purpose: 'product',
+      );
 
-    expect(url, 'https://cdn.example.com/images/user-1/image/product/s320.webp');
-    expect(
-      httpClient.requests.any(
-        (request) => request.contains(ApiEndpoints.uploadImageComplete),
-      ),
-      isTrue,
-    );
-    expect(httpClient.completeBody, contains('"profile":"product"'));
-  });
+      expect(
+        url,
+        'https://cdn.example.com/images/user-1/image/product/s320.webp',
+      );
+      expect(
+        httpClient.requests.any(
+          (request) => request.contains(ApiEndpoints.uploadImageComplete),
+        ),
+        isTrue,
+      );
+      expect(httpClient.completeBody, contains('"profile":"product"'));
+    },
+  );
 }

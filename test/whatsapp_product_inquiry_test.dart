@@ -21,21 +21,26 @@ void main() {
     );
   });
 
-  test('can place a public image URL between the prompt and the product link', () {
-    final message = WhatsappProductInquiry.message(
-      productId: '42',
-      productName: 'Robe wax',
-      imageUrl: 'https://cdn.vendza.app/robe.jpg',
-      includeImageUrl: true,
-    );
+  test(
+    'can place a public image URL between the prompt and the product link',
+    () {
+      final message = WhatsappProductInquiry.message(
+        productId: '42',
+        productName: 'Robe wax',
+        imageUrl: 'https://cdn.vendza.app/robe.jpg',
+        includeImageUrl: true,
+      );
 
-    final promptAt = message.indexOf(WhatsappProductInquiry.continueWritingMark);
-    final photoAt = message.indexOf('https://cdn.vendza.app/robe.jpg');
-    final productAt = message.indexOf('https://app.vendza.online/p/42');
+      final promptAt = message.indexOf(
+        WhatsappProductInquiry.continueWritingMark,
+      );
+      final photoAt = message.indexOf('https://cdn.vendza.app/robe.jpg');
+      final productAt = message.indexOf('https://app.vendza.online/p/42');
 
-    expect(photoAt, greaterThan(promptAt));
-    expect(productAt, greaterThan(photoAt));
-  });
+      expect(photoAt, greaterThan(promptAt));
+      expect(productAt, greaterThan(photoAt));
+    },
+  );
 
   test('omits local image URLs from the WhatsApp message', () {
     final message = WhatsappProductInquiry.message(
@@ -49,15 +54,18 @@ void main() {
     expect(message, contains('https://app.vendza.online/p/7'));
   });
 
-  test('does not embed the image URL when the photo is attached separately', () {
-    final message = WhatsappProductInquiry.message(
-      productId: '42',
-      productName: 'Robe wax',
-      imageUrl: 'https://cdn.vendza.app/robe.jpg',
-    );
+  test(
+    'does not embed the image URL when the photo is attached separately',
+    () {
+      final message = WhatsappProductInquiry.message(
+        productId: '42',
+        productName: 'Robe wax',
+        imageUrl: 'https://cdn.vendza.app/robe.jpg',
+      );
 
-    expect(message, isNot(contains('cdn.vendza.app')));
-  });
+      expect(message, isNot(contains('cdn.vendza.app')));
+    },
+  );
 
   test('adds the product text to an existing wa.me link', () {
     final uri = WhatsappProductInquiry.conversationUri(
