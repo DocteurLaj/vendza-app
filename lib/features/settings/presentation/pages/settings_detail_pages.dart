@@ -44,8 +44,8 @@ class NotificationSettingsPage extends StatelessWidget {
               icon: Icons.notifications_outlined,
               title: "Autoriser les notifications",
               subtitle: notificationsEnabled
-                  ? "Notifications activees : Vendza synchronise votre appareil pour les push."
-                  : "Notifications coupees : les push sont desactives sur cet appareil.",
+                  ? "Notifications activées : Vendza synchronise votre appareil pour les push."
+                  : "Notifications coupées : les push sont désactivés sur cet appareil.",
               value: notificationsEnabled,
               onChanged: (enabled) {
                 setNotificationsEnabledAndSync(enabled);
@@ -96,9 +96,9 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: _SettingsText(
-                                title: "Theme",
+                                title: "Thème",
                                 subtitle:
-                                    "Choisir le mode clair, sombre ou systeme",
+                                    "Choisir le mode clair, sombre ou système",
                               ),
                             ),
                           ],
@@ -136,7 +136,7 @@ class _ThemeModeSelector extends StatelessWidget {
       segments: const [
         ButtonSegment(
           value: ThemeMode.system,
-          label: Text("Systeme"),
+          label: Text("Système"),
           icon: Icon(Icons.phone_android_outlined),
         ),
         ButtonSegment(
@@ -247,7 +247,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
   @override
   Widget build(BuildContext context) {
     return _SettingsSimpleScaffold(
-      title: "Confidentialite",
+      title: "Confidentialité",
       children: [
         _InputSettingsTile(
           icon: Icons.email_outlined,
@@ -295,7 +295,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
         const SizedBox(height: 24),
         _ActionSettingsTile(
           icon: Icons.policy_outlined,
-          title: "Politique de confidentialite",
+          title: "Politique de confidentialité",
           subtitle: "Lire la page sur vendza.online",
           onTap: () => _openExternalLink(context, SiteLinks.privacy),
         ),
@@ -303,7 +303,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
         _ActionSettingsTile(
           icon: Icons.gavel_outlined,
           title: "Conditions d'utilisation",
-          subtitle: "Regles d'usage de Vendza",
+          subtitle: "Règles d'usage de Vendza",
           onTap: () => _openExternalLink(context, SiteLinks.terms),
         ),
         const SizedBox(height: 10),
@@ -311,7 +311,7 @@ class _PrivacySettingsPageState extends State<PrivacySettingsPage> {
           key: const ValueKey('delete-account-settings-entry'),
           icon: Icons.delete_forever_outlined,
           title: "Supprimer mon compte",
-          subtitle: "Anonymisation definitive de vos donnees personnelles",
+          subtitle: "Anonymisation définitive de vos données personnelles",
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const DeleteAccountPage()),
@@ -428,7 +428,7 @@ class _FeedbackSettingsPageState extends State<FeedbackSettingsPage> {
             maxLines: 8,
             cursorColor: AppColors.accent(context),
             decoration: const InputDecoration(
-              hintText: "Ecrivez votre retour ici...",
+              hintText: "Écrivez votre retour ici...",
               border: InputBorder.none,
             ),
           ),
@@ -455,11 +455,11 @@ class AboutSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _SettingsSimpleScaffold(
-      title: "A propos",
+      title: "À propos",
       children: [
         _ActionSettingsTile(
           icon: Icons.open_in_new_outlined,
-          title: "A propos",
+          title: "À propos",
           subtitle: "C'est quoi Vendza",
           onTap: () => _openExternalLink(context, SiteLinks.about),
         ),
@@ -474,20 +474,20 @@ class AboutSettingsPage extends StatelessWidget {
         _ActionSettingsTile(
           icon: Icons.gavel_outlined,
           title: "Conditions d'utilisation",
-          subtitle: "Regles d'usage",
+          subtitle: "Règles d'usage",
           onTap: () => _openExternalLink(context, SiteLinks.terms),
         ),
         const SizedBox(height: 10),
         _ActionSettingsTile(
           icon: Icons.policy_outlined,
-          title: "Politique de confidentialite",
-          subtitle: "Donnees et compte",
+          title: "Politique de confidentialité",
+          subtitle: "Données et compte",
           onTap: () => _openExternalLink(context, SiteLinks.privacy),
         ),
         const SizedBox(height: 10),
         _ActionSettingsTile(
           icon: Icons.download_outlined,
-          title: "Telecharger l'application",
+          title: "Télécharger l'application",
           subtitle: "APK Android",
           onTap: () => _openExternalLink(context, SiteLinks.download),
         ),
@@ -705,10 +705,10 @@ class _SettingsText extends StatelessWidget {
 IconData _settingsHeaderIcon(String title) {
   return switch (title) {
     'Notifications' => Icons.notifications_outlined,
-    'Confidentialite' || 'Confidentialité' => Icons.privacy_tip_outlined,
+    'Confidentialité' => Icons.privacy_tip_outlined,
     'Support' => Icons.support_agent_outlined,
     'Feedback' => Icons.rate_review_outlined,
-    'A propos' || 'À propos' => Icons.info_outline,
+    'À propos' => Icons.info_outline,
     _ => Icons.settings_outlined,
   };
 }

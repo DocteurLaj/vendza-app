@@ -96,7 +96,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Cette action est definitive.',
+                    'Cette action est définitive.',
                     style: TextStyle(
                       color: AppColors.textPrimary(context),
                       fontWeight: FontWeight.w800,
@@ -105,10 +105,10 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Vos donnees personnelles seront anonymisees. '
-                    'Les commandes sont conservees pour la comptabilite. '
-                    'Vos favoris, notifications et sessions seront supprimes. '
-                    'Vos boutiques et produits seront retires de la vente.',
+                    'Vos données personnelles seront anonymisées. '
+                    'Les commandes sont conservées pour la comptabilité. '
+                    'Vos favoris, notifications et sessions seront supprimés. '
+                    'Vos boutiques et produits seront retirés de la vente.',
                     style: TextStyle(
                       color: AppColors.textSecondary(context),
                       height: 1.4,
@@ -152,7 +152,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                       child: Text(
                         _loading
                             ? 'Suppression...'
-                            : 'Supprimer definitivement',
+                            : 'Supprimer définitivement',
                       ),
                     ),
                   ),

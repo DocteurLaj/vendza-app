@@ -51,7 +51,7 @@ class SettingsPage extends StatelessWidget {
                   _SettingsTile(
                     icon: Icons.palette_outlined,
                     title: "Apparence",
-                    subtitle: "Systeme, clair ou sombre",
+                    subtitle: "Système, clair ou sombre",
                     onTap: () {
                       Navigator.push(
                         context,
@@ -64,8 +64,8 @@ class SettingsPage extends StatelessWidget {
                   const SizedBox(height: 10),
                   _SettingsTile(
                     icon: Icons.lock_outline,
-                    title: "Confidentialite",
-                    subtitle: "Securite et visibilite du compte",
+                    title: "Confidentialité",
+                    subtitle: "Sécurité et visibilité du compte",
                     onTap: () {
                       Navigator.push(
                         context,
@@ -108,7 +108,7 @@ class SettingsPage extends StatelessWidget {
                   const SizedBox(height: 10),
                   _SettingsTile(
                     icon: Icons.info_outline,
-                    title: "A propos de l'application",
+                    title: "À propos de l'application",
                     subtitle: "Informations sur Vendza",
                     onTap: () {
                       Navigator.push(

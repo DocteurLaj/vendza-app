@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vendza/core/catalog/catalog_repository.dart';
@@ -11,7 +13,32 @@ import 'package:vendza/shared/widgets/dialog/destructive_action_dialog.dart';
 
 class _FailingNotificationApiService extends NotificationApiService {
   @override
+  Future<Map<String, dynamic>> deleteNotification(int notificationId) {
+    throw Exception('network down');
+  }
+
+  @override
   Future<Map<String, dynamic>> deleteThread(String threadId) {
+    throw Exception('network down');
+  }
+}
+
+class _PendingFailingNotificationApiService extends NotificationApiService {
+  final deleteNotificationStarted = Completer<void>();
+  final deleteThreadStarted = Completer<void>();
+  final failure = Completer<void>();
+
+  @override
+  Future<Map<String, dynamic>> deleteNotification(int notificationId) async {
+    deleteNotificationStarted.complete();
+    await failure.future;
+    throw Exception('network down');
+  }
+
+  @override
+  Future<Map<String, dynamic>> deleteThread(String threadId) async {
+    deleteThreadStarted.complete();
+    await failure.future;
     throw Exception('network down');
   }
 }
@@ -194,6 +221,63 @@ void main() {
         '1',
         '2',
         '3',
+      ]);
+    },
+  );
+
+  test(
+    'failed notification delete keeps events received while request is pending',
+    () async {
+      final api = _PendingFailingNotificationApiService();
+      notificationStore.value = [
+        _notification('1', 'thread-a'),
+        _notification('2', 'thread-b'),
+      ];
+
+      final deletion = deleteNotificationLocallyAndRemote('1', api: api);
+      await api.deleteNotificationStarted.future;
+      notificationStore.value = [
+        _notification('3', 'thread-c'),
+        ...notificationStore.value,
+      ];
+      api.failure.complete();
+      expect(await deletion, isFalse);
+
+      expect(notificationStore.value.map((notification) => notification.id), [
+        '1',
+        '2',
+        '3',
+      ]);
+    },
+  );
+
+  test(
+    'failed thread delete keeps events received while request is pending',
+    () async {
+      final api = _PendingFailingNotificationApiService();
+      notificationStore.value = [
+        _notification('1', 'thread-a'),
+        _notification('2', 'thread-a'),
+        _notification('3', 'thread-b'),
+      ];
+
+      final deletion = deleteNotificationThreadLocallyAndRemote(
+        'thread-a',
+        api: api,
+      );
+      await api.deleteThreadStarted.future;
+      notificationStore.value = [
+        _notification('4', 'thread-c'),
+        ...notificationStore.value,
+      ];
+      api.failure.complete();
+      expect(await deletion, isFalse);
+
+      expect(notificationStore.value.map((notification) => notification.id), [
+        '1',
+        '2',
+        '3',
+        '4',
       ]);
     },
   );

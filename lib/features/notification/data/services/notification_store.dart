@@ -103,7 +103,10 @@ Future<bool> deleteNotificationLocallyAndRemote(
     await (api ?? NotificationApiService()).deleteNotification(notificationId);
     return true;
   } on Object {
-    notificationStore.value = before;
+    _restoreOptimisticallyDeleted(
+      before,
+      (notification) => notification.id == id,
+    );
     return false;
   }
 }
@@ -121,7 +124,31 @@ Future<bool> deleteNotificationThreadLocallyAndRemote(
     await (api ?? NotificationApiService()).deleteThread(threadId);
     return true;
   } on Object {
-    notificationStore.value = before;
+    _restoreOptimisticallyDeleted(
+      before,
+      (notification) => notification.threadKey == threadId,
+    );
     return false;
   }
+}
+
+void _restoreOptimisticallyDeleted(
+  List<NotificationModel> before,
+  bool Function(NotificationModel notification) wasDeleted,
+) {
+  final current = notificationStore.value;
+  final currentById = {
+    for (final notification in current) notification.id: notification,
+  };
+  final beforeIds = before.map((notification) => notification.id).toSet();
+
+  notificationStore.value = [
+    for (final notification in before)
+      if (currentById[notification.id] case final currentNotification?)
+        currentNotification
+      else if (wasDeleted(notification))
+        notification,
+    for (final notification in current)
+      if (!beforeIds.contains(notification.id)) notification,
+  ];
 }
