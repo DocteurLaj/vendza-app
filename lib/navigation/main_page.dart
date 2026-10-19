@@ -58,6 +58,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       DeepLinkService.instance.markNavigationReady();
       _syncCatalogPolling();
       _syncPresence();

@@ -2,15 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:vendza/core/utils/search/search_results_page.dart';
 
 void handleSearch(String query, BuildContext context) {
-  if (query.trim().isEmpty) {
-    debugPrint('Veuillez entrer un terme de recherche');
-    return;
-  }
-
-  debugPrint('Recherche: $query');
+  final normalizedQuery = query.trim();
+  if (normalizedQuery.isEmpty) return;
 
   Navigator.push(
     context,
-    MaterialPageRoute(builder: (context) => SearchResultsPage(query)),
+    MaterialPageRoute(builder: (context) => SearchResultsPage(normalizedQuery)),
   );
 }
