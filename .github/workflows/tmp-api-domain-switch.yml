@@ -1,0 +1,53 @@
+name: TMP api domain switch (admin env + duplicate cleanup)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  switch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+      DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+      ADMIN_APP_ID: qrH_E1A1zIa0qSqUvWpTS
+      DUP_DOMAIN_ID: t8JE-JIdshJSpy9Jmmppd
+    steps:
+      - name: Delete duplicate api.vendza.online domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          code=$(curl -s -o /tmp/r -w '%{http_code}' -X POST "${DOKPLOY_URL%/}/api/domain.delete" \
+            -H "content-type: application/json" -H "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "{\"domainId\":\"${DUP_DOMAIN_ID}\"}")
+          echo "domain.delete HTTP $code"; test "$code" -lt 300
+      - name: Point admin VENDZA_API_URL to api.vendza.online
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sf "${DOKPLOY_URL%/}/api/application.one?applicationId=${ADMIN_APP_ID}" \
+            -H "x-api-key: ${DOKPLOY_API_TOKEN}" > /tmp/app.json
+          before=$(jq -r '.env // ""' /tmp/app.json | grep -c '^[A-Za-z_]' || true)
+          jq -r '.env // ""' /tmp/app.json | grep '^VENDZA_API_URL=' | sed 's/=.*/=<present>/' || echo "VENDZA_API_URL absent"
+          newenv=$(jq -r '.env // ""' /tmp/app.json | sed -E 's#^VENDZA_API_URL=.*#VENDZA_API_URL=https://api.vendza.online#')
+          echo "$newenv" | grep -q '^VENDZA_API_URL=https://api.vendza.online$' || newenv="${newenv}"$'\n'"VENDZA_API_URL=https://api.vendza.online"
+          after=$(printf '%s\n' "$newenv" | grep -c '^[A-Za-z_]' || true)
+          echo "env keys before=$before after=$after"
+          payload=$(jq -n --arg id "$ADMIN_APP_ID" --arg env "$newenv" --slurpfile a /tmp/app.json \
+            '{applicationId:$id, env:$env, buildArgs:($a[0].buildArgs // ""), buildSecrets:($a[0].buildSecrets // ""), createEnvFile:($a[0].createEnvFile // true)}')
+          code=$(curl -s -o /tmp/r -w '%{http_code}' -X POST "${DOKPLOY_URL%/}/api/application.saveEnvironment" \
+            -H "content-type: application/json" -H "x-api-key: ${DOKPLOY_API_TOKEN}" --data "$payload")
+          echo "saveEnvironment HTTP $code"; test "$code" -lt 300
+          curl -sf "${DOKPLOY_URL%/}/api/application.one?applicationId=${ADMIN_APP_ID}" -H "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            | jq -r '.env' | grep '^VENDZA_API_URL='
+      - name: Redeploy admin
+        shell: bash
+        run: |
+          set -euo pipefail
+          code=$(curl -s -o /tmp/r -w '%{http_code}' -X POST "${DOKPLOY_URL%/}/api/application.deploy" \
+            -H "content-type: application/json" -H "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "{\"applicationId\":\"${ADMIN_APP_ID}\",\"titleLog\":\"#117 VENDZA_API_URL -> api.vendza.online\"}")
+          echo "deploy HTTP $code"; test "$code" -lt 300
