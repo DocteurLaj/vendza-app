@@ -123,7 +123,9 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
               confirmLabel: _isLoading ? 'Envoi...' : 'Envoyer',
               spacing: 10,
               borderRadius: 12,
-              onCancel: _isLoading ? () {} : () => Navigator.pop(context, false),
+              onCancel: _isLoading
+                  ? () {}
+                  : () => Navigator.pop(context, false),
               onConfirm: _submit,
             ),
           ],

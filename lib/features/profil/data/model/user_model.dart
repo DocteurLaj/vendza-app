@@ -6,6 +6,7 @@ class UserModel {
   final String lastname;
   final String firstname;
   final String address;
+  final String city;
   final String email;
   final String phoneNumber;
   final String urlimage;
@@ -16,6 +17,7 @@ class UserModel {
     required this.lastname,
     required this.firstname,
     required this.address,
+    this.city = '',
     required this.email,
     required this.phoneNumber,
     required this.urlimage,
@@ -53,6 +55,7 @@ class UserModel {
     String? lastname,
     String? firstname,
     String? address,
+    String? city,
     String? email,
     String? phoneNumber,
     String? urlimage,
@@ -63,6 +66,7 @@ class UserModel {
       lastname: lastname ?? this.lastname,
       firstname: firstname ?? this.firstname,
       address: address ?? this.address,
+      city: city ?? this.city,
       email: email ?? this.email,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       urlimage: urlimage ?? this.urlimage,

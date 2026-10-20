@@ -66,14 +66,16 @@ class ProfileApiService {
     return saved;
   }
 
-  Future<Map<String, dynamic>> updateAddress({required String address}) async {
+  /// Street address and city are stored separately (#112): `city` feeds the
+  /// admin geo map, city filters and city-targeted campaigns.
+  Future<Map<String, dynamic>> updateAddress({
+    required String address,
+    required String city,
+  }) async {
     final response = await _client.put(
       ApiEndpoints.profileAddress,
       authenticated: true,
-      // Kept as new_city on purpose: UserAddress.city feeds the admin geo map,
-      // city filters and city-targeted campaigns. Splitting street vs city
-      // needs a separate "Ville" field (product decision, Trello #112).
-      body: {'new_city': address.trim()},
+      body: {'new_address_line1': address.trim(), 'new_city': city.trim()},
     );
     return Map<String, dynamic>.from(response as Map);
   }

@@ -260,6 +260,7 @@ class AuthSessionService {
         firstname: nameParts.first,
         lastname: nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '',
         address: (profile['address'] as String?)?.trim() ?? '',
+        city: (profile['city'] as String?)?.trim() ?? '',
         email: email,
         phoneNumber: profile['phone'] as String? ?? '',
         urlimage: sanitizeAvatarUrl(avatarUrl),

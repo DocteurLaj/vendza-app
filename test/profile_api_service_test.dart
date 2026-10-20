@@ -29,19 +29,25 @@ void main() {
     final client = _FakeApiClient();
     final service = ProfileApiService(client: client);
 
-    await service.updateAddress(address: 'Kinshasa');
+    await service.updateAddress(
+      address: '12 avenue du Commerce, Gombe',
+      city: 'Kinshasa',
+    );
 
     expect(client.lastPath, ApiEndpoints.profileAddress);
     expect(client.lastAuthenticated, isTrue);
-    expect(client.lastBody, {'new_city': 'Kinshasa'});
+    expect(client.lastBody, {
+      'new_address_line1': '12 avenue du Commerce, Gombe',
+      'new_city': 'Kinshasa',
+    });
   });
 
   test('updateAddress can clear the profile address', () async {
     final client = _FakeApiClient();
     final service = ProfileApiService(client: client);
 
-    await service.updateAddress(address: '   ');
+    await service.updateAddress(address: '   ', city: '  ');
 
-    expect(client.lastBody, {'new_city': ''});
+    expect(client.lastBody, {'new_address_line1': '', 'new_city': ''});
   });
 }

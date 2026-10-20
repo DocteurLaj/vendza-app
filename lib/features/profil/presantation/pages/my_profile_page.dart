@@ -76,6 +76,12 @@ class MyProfilePage extends StatelessWidget {
                         title: "Adresse",
                         value: user.address,
                       ),
+                      const SizedBox(height: 10),
+                      _ProfileInfoTile(
+                        icon: Icons.location_city_outlined,
+                        title: "Ville",
+                        value: user.city,
+                      ),
                       const SizedBox(height: 20),
                       const _SectionTitle(title: "Abonnement"),
                       const SizedBox(height: 8),
@@ -98,6 +104,7 @@ Future<void> _showEditProfileSheet(BuildContext context, UserModel user) {
   final lastnameController = TextEditingController(text: user.lastname);
   final emailController = TextEditingController(text: user.email);
   final addressController = TextEditingController(text: user.address);
+  final cityController = TextEditingController(text: user.city);
   final phoneFieldKey = GlobalKey<PhoneNumberFieldState>();
 
   return showModalBottomSheet<void>(
@@ -138,7 +145,11 @@ Future<void> _showEditProfileSheet(BuildContext context, UserModel user) {
                 label: "Téléphone",
                 initialValue: user.phoneNumber,
               ),
-              _EditField(label: "Adresse", controller: addressController),
+              _EditField(
+                label: "Adresse (rue, numéro, quartier)",
+                controller: addressController,
+              ),
+              _EditField(label: "Ville", controller: cityController),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () async {
@@ -187,43 +198,22 @@ Future<void> _showEditProfileSheet(BuildContext context, UserModel user) {
                     final profileApi = ProfileApiService();
                     await profileApi.updateFullName(displayName);
                     commitLocal(
-                      UserModel(
-                        userId: saved.userId,
+                      saved.copyWith(
                         name: displayName,
                         firstname: firstnameController.text.trim(),
                         lastname: lastnameController.text.trim(),
-                        email: saved.email,
-                        phoneNumber: saved.phoneNumber,
-                        address: saved.address,
-                        urlimage: saved.urlimage,
                       ),
                     );
                     await profileApi.updatePhone(phone.e164);
-                    commitLocal(
-                      UserModel(
-                        userId: saved.userId,
-                        name: saved.name,
-                        firstname: saved.firstname,
-                        lastname: saved.lastname,
-                        email: saved.email,
-                        phoneNumber: phone.e164,
-                        address: saved.address,
-                        urlimage: saved.urlimage,
-                      ),
-                    );
+                    commitLocal(saved.copyWith(phoneNumber: phone.e164));
                     await profileApi.updateAddress(
                       address: addressController.text,
+                      city: cityController.text,
                     );
                     commitLocal(
-                      UserModel(
-                        userId: saved.userId,
-                        name: saved.name,
-                        firstname: saved.firstname,
-                        lastname: saved.lastname,
-                        email: saved.email,
-                        phoneNumber: saved.phoneNumber,
+                      saved.copyWith(
                         address: addressController.text.trim(),
-                        urlimage: saved.urlimage,
+                        city: cityController.text.trim(),
                       ),
                     );
                     if (sheetContext.mounted) Navigator.pop(sheetContext);
@@ -253,6 +243,7 @@ Future<void> _showEditProfileSheet(BuildContext context, UserModel user) {
     lastnameController.dispose();
     emailController.dispose();
     addressController.dispose();
+    cityController.dispose();
   });
 }
 
