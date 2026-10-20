@@ -1,0 +1,28 @@
+name: Add Dokploy API domain
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  domain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Create HTTPS api.vendza.online domain on the API service
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          payload=$(jq -nc '{host:"api.vendza.online",path:"/",port:8000,https:true,certificateType:"letsencrypt",applicationId:"CHl42zYU8qsZw3QyKn9dP",domainType:"application",stripPath:false}')
+          curl --fail --silent --show-error \
+            --request POST \
+            "${DOKPLOY_URL%/}/api/domain.create" \
+            --header "accept: application/json" \
+            --header "content-type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$payload" | jq '{host: .host, https: .https, domainId: .domainId}'
