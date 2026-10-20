@@ -1,0 +1,30 @@
+name: TMP add api.vendza.online domain
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  domain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Create HTTPS API domain
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          payload=$(jq -nc '{host:"api.vendza.online",path:"/",port:8000,https:true,certificateType:"letsencrypt",applicationId:"CHl42zYU8qsZw3QyKn9dP",domainType:"application",stripPath:false}')
+          code=$(curl --silent --show-error -o /tmp/resp.json -w '%{http_code}' \
+            --request POST "${DOKPLOY_URL%/}/api/domain.create" \
+            --header "accept: application/json" \
+            --header "content-type: application/json" \
+            --header "x-api-key: ${DOKPLOY_API_TOKEN}" \
+            --data "$payload")
+          echo "HTTP $code"
+          jq -c '{host: (.host // .json.host // null), domainId: (.domainId // null), message: (.message // null)}' /tmp/resp.json || head -c 300 /tmp/resp.json
+          test "$code" -lt 300
