@@ -4,7 +4,7 @@ ARG FLUTTER_VERSION=3.47.2
 FROM debian:bookworm-slim AS build
 
 ARG FLUTTER_VERSION
-ARG VENDZA_API_BASE_URL="https://vendza-vendzaapi-lenoer-604821-72-60-90-32.sslip.io/api/v1"
+ARG VENDZA_API_BASE_URL="https://api.vendza.online/api/v1"
 ARG VENDZA_MEDIA_BASE_URL="https://vendza-vendzaminiostorage-tx8h0h-c106eb-72-60-90-32.sslip.io"
 ARG GOOGLE_WEB_CLIENT_ID=""
 ARG VENDZA_FIREBASE_API_KEY=""
