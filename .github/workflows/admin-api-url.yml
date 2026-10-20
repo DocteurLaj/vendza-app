@@ -1,0 +1,29 @@
+name: Point Control Center at api.vendza.online
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  env:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Update admin environment and redeploy
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_TOKEN: ${{ secrets.DOKPLOY_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="${DOKPLOY_URL%/}/api"
+          hdr=(--header "accept: application/json" --header "content-type: application/json" --header "x-api-key: ${DOKPLOY_API_TOKEN}")
+          app=qrH_E1A1zIa0qSqUvWpTS
+          payload=$(jq -nc --arg id "$app" '{applicationId:$id, env:"VENDZA_API_URL=https://api.vendza.online", buildArgs:"", buildSecrets:""}')
+          curl --fail --silent --show-error --request POST "$api/application.saveEnvironment" "${hdr[@]}" --data "$payload" >/dev/null
+          echo "environment saved"
+          curl --fail --silent --show-error --request POST "$api/application.redeploy" "${hdr[@]}" \
+            --data "$(jq -nc --arg id "$app" '{applicationId:$id, title:"Switch to api.vendza.online (#117)"}')" >/dev/null
+          echo "redeploy requested"
