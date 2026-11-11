@@ -187,6 +187,12 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Use supported JDK for Android Gradle
+        run: flutter config --jdk-dir="$JAVA_HOME"
       - name: Restore Android Firebase config
         id: android_firebase
         shell: bash
