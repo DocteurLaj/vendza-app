@@ -15,7 +15,10 @@ class NotificationBadgeCounters {
   final Map<String, int> storeOrders;
   final Map<String, int> storeAttention;
 
-  int get storeNav => store + orders;
+  int get storeNav =>
+      store + storeOrders.values.fold<int>(0, (total, count) => total + count);
+  int get buyerOrdersNav =>
+      orders - storeOrders.values.fold<int>(0, (total, count) => total + count);
 
   int storeOrdersFor(String storeId) => storeOrders[storeId] ?? 0;
   int storeAttentionFor(String storeId) => storeAttention[storeId] ?? 0;
@@ -35,7 +38,9 @@ NotificationBadgeCounters notificationBadgeCounters(
     if (isOrderAttentionNotification(notification)) {
       orders++;
       final storeId = notification.storeId?.toString();
-      if (storeId != null && storeId.isNotEmpty) {
+      if (storeId != null &&
+          storeId.isNotEmpty &&
+          notification.name.trim().toLowerCase() == 'store_order') {
         storeOrders[storeId] = (storeOrders[storeId] ?? 0) + 1;
       }
       continue;

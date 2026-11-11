@@ -131,4 +131,29 @@ void main() {
     expect(notification.storeId, 7);
     expect(notification.orderId, 44);
   });
+
+  test('opening buyer orders leaves seller order alerts unread', () {
+    notificationStore.value = [
+      NotificationModel(
+        id: 'buyer',
+        name: 'order',
+        description: 'Achat',
+        imageUrl: '',
+        isRead: false,
+        storeId: 7,
+      ),
+      NotificationModel(
+        id: 'seller',
+        name: 'store_order',
+        description: 'Vente',
+        imageUrl: '',
+        isRead: false,
+        storeId: 7,
+      ),
+    ];
+    markBuyerOrderNotificationsAsRead();
+    expect(notificationStore.value[0].isRead, isTrue);
+    expect(notificationStore.value[1].isRead, isFalse);
+    notificationStore.value = [];
+  });
 }

@@ -37,16 +37,30 @@ class ProfilePage extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(18, 8, 18, 0),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Text(
-                        "Profil",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
+                    children: [
+                      if (Navigator.of(context).canPop())
+                        IconButton(
+                          tooltip: 'Retour',
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                          ),
+                          onPressed: () => Navigator.of(context).pop(),
+                        )
+                      else
+                        const SizedBox(width: 48),
+                      const Expanded(
+                        child: Text(
+                          'Profil',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 48),
                     ],
                   ),
                 ),

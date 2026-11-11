@@ -12,6 +12,7 @@ import 'package:vendza/features/home/data/services/data_exemple.dart';
 import 'package:vendza/features/home/presantation/pages/home_product_list_page.dart';
 import 'package:vendza/features/home/presantation/widgets/home_search_filter_bar.dart';
 import 'package:vendza/features/product/presentation/pages/product_detail_page.dart';
+import 'package:vendza/features/profil/presantation/pages/profile_page.dart';
 import 'package:vendza/features/store/presentation/pages/all_stores_page.dart';
 import 'package:vendza/features/store/presentation/pages/store_detail_page.dart';
 import 'package:vendza/features/subscription/presentation/pages/subscription_page.dart';
@@ -269,6 +270,19 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
+              actions: [
+                IconButton(
+                  tooltip: 'Ouvrir le profil',
+                  icon: Icon(
+                    Icons.account_circle_outlined,
+                    color: AppColors.accent(context),
+                  ),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProfilePage()),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
             ),
           ),
           body: AnimatedSwitcher(

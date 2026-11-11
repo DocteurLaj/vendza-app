@@ -15,7 +15,9 @@ import 'package:vendza/shared/widgets/loading/vendza_loading_state.dart';
 import 'package:vendza/shared/widgets/media/context_image.dart';
 
 class BuyerOrdersPage extends StatefulWidget {
-  const BuyerOrdersPage({super.key});
+  const BuyerOrdersPage({super.key, this.inNavigation = false});
+
+  final bool inNavigation;
 
   @override
   State<BuyerOrdersPage> createState() => _BuyerOrdersPageState();
@@ -123,11 +125,17 @@ class _BuyerOrdersPageState extends State<BuyerOrdersPage> {
     );
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
-      appBar: const VendzaPageHeader.back(
-        title: 'Mes commandes',
-        subtitle: 'Suivi clair de vos achats',
-        icon: Icons.receipt_long_outlined,
-      ),
+      appBar: widget.inNavigation
+          ? const VendzaPageHeader.root(
+              title: 'Mes commandes',
+              subtitle: 'Suivi clair de vos achats',
+              icon: Icons.receipt_long_outlined,
+            )
+          : const VendzaPageHeader.back(
+              title: 'Mes commandes',
+              subtitle: 'Suivi clair de vos achats',
+              icon: Icons.receipt_long_outlined,
+            ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading

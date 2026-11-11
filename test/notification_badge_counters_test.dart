@@ -32,7 +32,7 @@ void main() {
         notif(id: '1', name: 'store_update', storeId: 7),
         notif(id: '2', name: 'message', threadType: 'chat'),
         notif(id: '3', name: 'store_order', storeId: 7, orderId: 44),
-        notif(id: '4', name: 'order', orderId: 45),
+        notif(id: '4', name: 'order', storeId: 7, orderId: 45),
         notif(id: '5', name: 'message', threadType: 'chat', read: true),
         notif(id: '6', name: 'product_low_stock', storeId: 7),
       ]);
@@ -42,6 +42,8 @@ void main() {
       expect(counters.orders, 2);
       expect(counters.storeOrdersFor('7'), 1);
       expect(counters.storeAttentionFor('7'), 2);
+      expect(counters.storeNav, 3);
+      expect(counters.buyerOrdersNav, 1);
     },
   );
 

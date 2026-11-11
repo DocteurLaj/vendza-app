@@ -3,14 +3,12 @@ import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/session/entitlement_guards.dart' as ent;
 import 'package:vendza/core/utils/search/catalog_search.dart';
 import 'package:vendza/features/home/data/models/store_model.dart' as detail;
-import 'package:vendza/features/notification/data/models/notification_model.dart';
 import 'package:vendza/features/notification/data/services/notification_badge_counters.dart';
 import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/order/data/services/order_api_service.dart';
 import 'package:vendza/features/order/presentation/helpers/order_list_presentation.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
-import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
 import 'package:vendza/features/store/presentation/pages/add_store_page.dart';
 import 'package:vendza/features/store/presentation/pages/my_store_product_page.dart';
 import 'package:vendza/features/store/presentation/pages/store_detail_page.dart';
@@ -18,7 +16,6 @@ import 'package:vendza/features/store/presentation/widgets/store_list_section.da
 import 'package:vendza/features/subscription/presentation/widgets/plan_chip.dart';
 import 'package:vendza/features/subscription/presentation/widgets/upgrade_required_popup.dart';
 import 'package:vendza/shared/widgets/bouton/button.dart';
-import 'package:vendza/shared/widgets/badge/attention_badge.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/search/search_bar.dart';
@@ -133,7 +130,7 @@ class _MyStorePageState extends State<MyStorePage> {
     return Scaffold(
       appBar: const VendzaPageHeader.root(
         title: 'Mes Stores',
-        subtitle: 'Boutiques, commandes et produits',
+        subtitle: 'Vos boutiques, en un seul endroit',
         icon: Icons.storefront_outlined,
       ),
       body: Column(
@@ -187,86 +184,6 @@ class _MyStorePageState extends State<MyStorePage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  20,
-                                  0,
-                                  20,
-                                  16,
-                                ),
-                                child:
-                                    ValueListenableBuilder<
-                                      List<NotificationModel>
-                                    >(
-                                      valueListenable: notificationStore,
-                                      builder: (context, notifications, _) {
-                                        final counters =
-                                            notificationBadgeCounters(
-                                              notifications,
-                                            );
-                                        final orderCount =
-                                            counters.orders +
-                                            _activeOrderAttentionByStore.values
-                                                .fold<int>(0, (a, b) => a + b);
-                                        return ListTile(
-                                          tileColor: Theme.of(
-                                            context,
-                                          ).colorScheme.surface,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          leading: const Icon(
-                                            Icons.receipt_long_outlined,
-                                          ),
-                                          title: const Text('Mes commandes'),
-                                          subtitle: const Text(
-                                            'Voir les commandes passees',
-                                          ),
-                                          trailing: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              AttentionBadge(count: orderCount),
-                                              const SizedBox(width: 8),
-                                              const Icon(Icons.chevron_right),
-                                            ],
-                                          ),
-                                          onTap: () {
-                                            markOrderNotificationsAsRead();
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    const BuyerOrdersPage(),
-                                              ),
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                              ),
-                              StoreListSection(
-                                title: "Mes favoris",
-                                stores: filteredFavorites,
-                                emptyText:
-                                    "Les boutiques aimees apparaitront ici.",
-                                onStoreTap: (store) {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => StoreDetailPage(
-                                        store: detail.StoreModel(
-                                          id: store.id,
-                                          name: store.name,
-                                          image: store.imageUrl,
-                                          description: store.description,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
                               StoreListSection(
                                 title: "Mes stores",
                                 stores: filteredOwned,
@@ -295,6 +212,28 @@ class _MyStorePageState extends State<MyStorePage> {
                                   onPressed: _openAddStore,
                                   enabled: true,
                                 ),
+                              ),
+                              const SizedBox(height: 20),
+                              StoreListSection(
+                                title: "Mes favoris",
+                                stores: filteredFavorites,
+                                emptyText:
+                                    "Les boutiques aimees apparaitront ici.",
+                                onStoreTap: (store) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => StoreDetailPage(
+                                        store: detail.StoreModel(
+                                          id: store.id,
+                                          name: store.name,
+                                          image: store.imageUrl,
+                                          description: store.description,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                               const SizedBox(height: 20),
                             ],

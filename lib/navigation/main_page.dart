@@ -15,7 +15,7 @@ import 'package:vendza/features/notification/data/services/notification_badge_co
 import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/notification/data/services/realtime_notification_service.dart';
 import 'package:vendza/features/notification/presantation/pages/notification_page.dart';
-import 'package:vendza/features/profil/presantation/pages/profile_page.dart';
+import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
 import 'package:vendza/features/store/presentation/pages/my_store_page.dart';
 import 'package:vendza/shared/widgets/badge/attention_badge.dart';
 
@@ -27,13 +27,14 @@ class _NavItem {
 }
 
 const _navItems = [
-  _NavItem(icon: Symbols.home, label: 'Home'),
+  _NavItem(icon: Symbols.home, label: 'Accueil'),
   _NavItem(icon: Symbols.store, label: 'Store'),
-  _NavItem(icon: Symbols.notifications, label: 'Chat'),
-  _NavItem(icon: Symbols.person, label: 'Profile'),
+  _NavItem(icon: Symbols.receipt_long, label: 'Commandes'),
+  _NavItem(icon: Symbols.notifications, label: 'Notifications'),
 ];
 
-const _chatNavIndex = 2;
+const _notificationNavIndex = 3;
+const _ordersNavIndex = 2;
 const _storeNavIndex = 1;
 const _homeNavIndex = 0;
 
@@ -51,7 +52,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   bool _isForeground = true;
   bool _wasBackgrounded = false;
 
-  final pages = [HomePage(), MyStorePage(), NotificationPage(), ProfilePage()];
+  final pages = [
+    HomePage(),
+    MyStorePage(),
+    const BuyerOrdersPage(inNavigation: true),
+    const NotificationPage(),
+  ];
 
   @override
   void initState() {
@@ -96,7 +102,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     _syncPresence();
   }
 
-  static const _navPaths = ['home', 'store', 'chat', 'profile'];
+  static const _navPaths = ['home', 'store', 'orders', 'notifications'];
 
   void _syncPresence() {
     presenceService.path = _navPaths[index];
@@ -112,7 +118,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     if (nextIndex == _storeNavIndex) {
       markStoreAttentionNotificationsAsRead();
     }
-    if (nextIndex == _chatNavIndex) {
+    if (nextIndex == _ordersNavIndex) {
+      markBuyerOrderNotificationsAsRead();
+    }
+    if (nextIndex == _notificationNavIndex) {
       markChatNotificationsAsRead();
     }
     setState(() => index = nextIndex);
@@ -271,8 +280,13 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       destinations: [
         for (var i = 0; i < _navItems.length; i++)
           NavigationRailDestination(
-            icon: i == _chatNavIndex
+            icon: i == _notificationNavIndex
                 ? BadgedIcon(icon: _navItems[i].icon, count: counters.chat)
+                : i == _ordersNavIndex
+                ? BadgedIcon(
+                    icon: _navItems[i].icon,
+                    count: counters.buyerOrdersNav,
+                  )
                 : i == _storeNavIndex
                 ? BadgedIcon(icon: _navItems[i].icon, count: counters.storeNav)
                 : Icon(_navItems[i].icon),
@@ -298,8 +312,13 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       items: [
         for (var i = 0; i < _navItems.length; i++)
           BottomNavigationBarItem(
-            icon: i == _chatNavIndex
+            icon: i == _notificationNavIndex
                 ? BadgedIcon(icon: _navItems[i].icon, count: counters.chat)
+                : i == _ordersNavIndex
+                ? BadgedIcon(
+                    icon: _navItems[i].icon,
+                    count: counters.buyerOrdersNav,
+                  )
                 : i == _storeNavIndex
                 ? BadgedIcon(icon: _navItems[i].icon, count: counters.storeNav)
                 : Icon(_navItems[i].icon),

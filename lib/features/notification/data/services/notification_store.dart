@@ -69,10 +69,19 @@ void markOrderNotificationsAsRead() {
   markNotificationsMatchingAsRead(isOrderAttentionNotification);
 }
 
+void markBuyerOrderNotificationsAsRead() {
+  markNotificationsMatchingAsRead(
+    (notification) =>
+        isOrderAttentionNotification(notification) &&
+        notification.name.trim().toLowerCase() != 'store_order',
+  );
+}
+
 void markStoreOrderNotificationsAsRead(String storeId) {
   markNotificationsMatchingAsRead(
     (notification) =>
         isOrderAttentionNotification(notification) &&
+        notification.name.trim().toLowerCase() == 'store_order' &&
         notification.storeId?.toString() == storeId,
   );
 }
