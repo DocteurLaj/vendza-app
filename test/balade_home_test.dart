@@ -71,6 +71,20 @@ void main() {
     },
   );
 
+  test(
+    'successful empty API feed does not repopulate excluded catalog items',
+    () {
+      ProductModel product(String id) =>
+          ProductModel(id: id, name: id, price: '1', imageurl: '', status: '');
+      final feed = HomeFeedModel.fromResponse({'data': <String, dynamic>{}});
+      expect(feed.rankedProducts([product('excluded')]), isEmpty);
+      expect(
+        HomeFeedModel.empty.rankedProducts([product('fallback')]),
+        hasLength(1),
+      );
+    },
+  );
+
   test('feed sends bearer token only when present', () async {
     final requests = <http.Request>[];
     final tokens = ApiTokenStore(storage: MemorySecureStorage());

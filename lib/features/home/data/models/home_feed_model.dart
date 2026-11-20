@@ -10,6 +10,7 @@ class HomeFeedModel {
     this.newestProducts = const [],
     this.discoverProducts = const [],
     this.personalized = false,
+    this.receivedFromApi = false,
   });
 
   final List<StoreModel> featuredStores;
@@ -18,6 +19,9 @@ class HomeFeedModel {
   final List<ProductModel> newestProducts;
   final List<ProductModel> discoverProducts;
   final bool personalized;
+
+  /// An empty server response must not be replaced by the unranked catalog.
+  final bool receivedFromApi;
 
   static const empty = HomeFeedModel();
 
@@ -32,7 +36,7 @@ class HomeFeedModel {
       ...popularProducts,
       ...discoverProducts,
     ];
-    return [...ranked, if (ranked.isEmpty) ...catalog]
+    return [...ranked, if (ranked.isEmpty && !receivedFromApi) ...catalog]
         .where(
           (product) =>
               product.isActive && product.id.isNotEmpty && seen.add(product.id),
@@ -53,6 +57,7 @@ class HomeFeedModel {
   }) {
     final data = _unwrapData(response);
     return HomeFeedModel(
+      receivedFromApi: true,
       personalized: data['personalized'] == true,
       featuredStores: _mapStores(data['featured_stores']),
       trendingProducts: _mapProducts(data['trending_products'], storeNames),
