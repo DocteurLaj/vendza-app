@@ -35,13 +35,17 @@ class CatalogCacheSnapshot {
 
 String encodeCatalogCache(CatalogCacheSnapshot snapshot) {
   return jsonEncode({
-    'version': 1,
+    'version': 2,
     'savedAt': DateTime.now().toIso8601String(),
     'stores': snapshot.stores.map(_storeToJson).toList(),
     'homeStores': snapshot.homeStores.map(_homeStoreToJson).toList(),
     'products': snapshot.products.map(_productToJson).toList(),
     'homeProducts': snapshot.homeProducts.map(_productToJson).toList(),
-    'homeFeed': _homeFeedToJson(snapshot.homeFeed),
+    // Shared disk cache is restored before identity is known: never write a
+    // buyer-ranked list into it.
+    'homeFeed': _homeFeedToJson(
+      snapshot.homeFeed.personalized ? HomeFeedModel.empty : snapshot.homeFeed,
+    ),
     'categories': snapshot.categories.map(_sectionToJson).toList(),
   });
 }
@@ -51,6 +55,8 @@ CatalogCacheSnapshot? decodeCatalogCache(String json) {
     final decoded = jsonDecode(json);
     if (decoded is! Map) return null;
     final data = Map<String, dynamic>.from(decoded);
+    // Version 1 may have persisted a personalized feed without an identity flag.
+    if (data['version'] != 2) return null;
     return CatalogCacheSnapshot(
       stores: _mapList(data['stores'], _storeFromJson),
       homeStores: _mapList(data['homeStores'], _homeStoreFromJson),
@@ -163,7 +169,10 @@ Map<String, dynamic> _productToJson(ProductModel product) {
 ProductModel _productFromJson(Map<String, dynamic> json) {
   final rawImages = json['images'];
   final List<String> images = rawImages is List
-      ? rawImages.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList()
+      ? rawImages
+            .map((e) => e?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toList()
       : const [];
   return ProductModel(
     id: json['id']?.toString() ?? '',
@@ -223,6 +232,8 @@ Map<String, dynamic> _homeFeedToJson(HomeFeedModel feed) {
 HomeFeedModel _homeFeedFromJson(dynamic raw) {
   if (raw is! Map) return HomeFeedModel.empty;
   final json = Map<String, dynamic>.from(raw);
+  // Discard legacy cache entries that carried private recommendations.
+  if (json['personalized'] == true) return HomeFeedModel.empty;
   return HomeFeedModel(
     featuredStores: _mapList(json['featuredStores'], _homeStoreFromJson),
     trendingProducts: _mapList(json['trendingProducts'], _productFromJson),

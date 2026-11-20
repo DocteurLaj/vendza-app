@@ -120,8 +120,11 @@ class CatalogRepository {
   late final LocalCreateQueue _localCreates;
 
   Future<void>? _inFlightRefresh;
+  int? _refreshSessionGeneration;
+  String? _refreshToken;
   Future<bool>? _inFlightCacheRestore;
   DateTime? _lastRefreshAt;
+  int _sessionGeneration = 0;
   static const Duration softRefreshDebounce = Duration(seconds: 5);
 
   Future<bool> restoreCachedCatalog() {
@@ -171,7 +174,13 @@ class CatalogRepository {
   /// Shares one in-flight request and debounces rapid triggers.
   Future<void> softRefreshCatalog({bool force = false}) async {
     if (_inFlightRefresh != null) {
+      final generation = _refreshSessionGeneration;
+      final token = _refreshToken;
       await _inFlightRefresh;
+      if (generation != _sessionGeneration ||
+          token != _tokenStore.accessToken) {
+        await softRefreshCatalog(force: true);
+      }
       return;
     }
 
@@ -182,6 +191,8 @@ class CatalogRepository {
       return;
     }
 
+    _refreshSessionGeneration = _sessionGeneration;
+    _refreshToken = _tokenStore.accessToken;
     final future = _runCatalogRefresh();
     _inFlightRefresh = future;
     try {
@@ -189,6 +200,8 @@ class CatalogRepository {
     } finally {
       if (identical(_inFlightRefresh, future)) {
         _inFlightRefresh = null;
+        _refreshSessionGeneration = null;
+        _refreshToken = null;
       }
     }
   }
@@ -196,6 +209,8 @@ class CatalogRepository {
   Future<void> refreshCatalog() => softRefreshCatalog(force: true);
 
   Future<void> _runCatalogRefresh() async {
+    final sessionAtStart = _sessionGeneration;
+    final tokenAtStart = _tokenStore.accessToken;
     catalogLoading.value = true;
     catalogError.value = null;
 
@@ -232,7 +247,14 @@ class CatalogRepository {
       await _hydratePublicStoreProducts(mappedStores);
 
       try {
-        homeFeed = await _homeFeedApi.fetchFeed(storeNames: storeNames);
+        final fetchedFeed = await _homeFeedApi.fetchFeed(
+          storeNames: storeNames,
+        );
+        homeFeed =
+            sessionAtStart == _sessionGeneration &&
+                tokenAtStart == _tokenStore.accessToken
+            ? fetchedFeed
+            : HomeFeedModel.empty;
       } on Object {
         homeFeed = HomeFeedModel.empty;
       }
@@ -353,6 +375,9 @@ class CatalogRepository {
   }
 
   void clearUserData() {
+    _sessionGeneration++;
+    // A different buyer (or guest) must never inherit this session's ranking.
+    homeFeed = HomeFeedModel.empty;
     ownedStores.clear();
     favoriteStores.clear();
     likedProductIdsStore.value = <String>{};
