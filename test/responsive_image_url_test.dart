@@ -23,6 +23,14 @@ void main() {
     );
   });
 
+  test(
+    'preserves original logo variant when large slot lacks generated sizes',
+    () {
+      const logo = 'https://media.example.com/users/a/logo/b/medium.webp';
+      expect(responsiveImageUrl(logo, width: 420, devicePixelRatio: 2), logo);
+    },
+  );
+
   test('chooses detail variant for large image slots', () {
     expect(
       responsiveImageUrl(

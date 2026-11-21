@@ -5,6 +5,8 @@ String responsiveImageUrl(
   double devicePixelRatio = 1,
 }) {
   final trimmed = url.trim();
+  // Store logos only generate thumb/medium. Never request a nonexistent card/detail.
+  if (trimmed.contains('/logo/')) return trimmed;
   if (!_looksLikeVendzaVariant(trimmed)) return trimmed;
 
   final dpr = devicePixelRatio <= 0 ? 1.0 : devicePixelRatio;
