@@ -27,12 +27,12 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
     return Scaffold(
       backgroundColor: storeSurface,
       appBar: VendzaPageHeader.back(
-        title: widget.store.name,
-        subtitle: 'Boutique Vendza',
+        title: 'Boutique',
         icon: Icons.storefront_outlined,
         backgroundColor: storeSurface,
         actions: [
           IconButton(
+            tooltip: isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
             onPressed: () async {
               final messenger = ScaffoldMessenger.of(context);
               try {
@@ -62,6 +62,7 @@ class _StoreDetailPageState extends State<StoreDetailPage> {
             ),
           ),
           IconButton(
+            tooltip: 'Partager la boutique',
             onPressed: () => AppShareService.shareStore(context, widget.store),
             icon: Icon(Icons.share_outlined, color: AppColors.accent(context)),
           ),

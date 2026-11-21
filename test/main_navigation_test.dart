@@ -28,6 +28,14 @@ void main() {
     await tester.pump();
     expect(find.byType(BuyerOrdersPage), findsOneWidget);
     expect(
+      tester
+          .widget<BuyerOrdersPage>(find.byType(BuyerOrdersPage))
+          .onExploreProducts,
+      isNotNull,
+      reason:
+          'Le bouton de découverte doit changer l’onglet racine vers Accueil.',
+    );
+    expect(
       tester.widget<VendzaPageHeader>(find.byType(VendzaPageHeader)).showBack,
       isFalse,
     );

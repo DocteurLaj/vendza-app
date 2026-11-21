@@ -52,10 +52,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   bool _isForeground = true;
   bool _wasBackgrounded = false;
 
-  final pages = [
+  List<Widget> get pages => [
     HomePage(),
     MyStorePage(),
-    const BuyerOrdersPage(inNavigation: true),
+    BuyerOrdersPage(inNavigation: true, onExploreProducts: () => _setIndex(0)),
     const NotificationPage(),
   ];
 
