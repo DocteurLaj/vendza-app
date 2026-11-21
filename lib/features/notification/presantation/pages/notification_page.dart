@@ -3,6 +3,7 @@ import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
 import 'package:vendza/features/order/presentation/pages/store_orders_page.dart';
 import 'package:vendza/features/store/presentation/pages/my_store_product_page.dart';
+import 'package:vendza/features/store/presentation/pages/all_stores_page.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
 import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/notification/presantation/helpers/notification_presentation.dart';
@@ -174,10 +175,11 @@ class _NotificationPageState extends State<NotificationPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
-                    child: _NotificationHeader(unreadCount: unreadCount),
-                  ),
+                  if (threads.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
+                      child: _NotificationHeader(unreadCount: unreadCount),
+                    ),
                   Expanded(
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 320),
@@ -702,46 +704,66 @@ class _EmptyNotificationState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                color: AppColors.accent(context).withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Icon(
-                Icons.notifications_off_outlined,
-                color: AppColors.accent(context),
+    return LayoutBuilder(
+      builder: (context, constraints) => ListView(
+        children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent(
+                          context,
+                        ).withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Icon(
+                        Icons.notifications_none_rounded,
+                        color: AppColors.accent(context),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Aucune notification pour le moment',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.textPrimary(context),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Les nouvelles de vos commandes et les messages des boutiques apparaîtront ici.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.textSecondary(context),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AllStoresPage(),
+                        ),
+                      ),
+                      child: const Text('Explorer les boutiques'),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 14),
-            Text(
-              'Aucune conversation pour le moment',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textPrimary(context),
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Les nouveaux messages de boutique, produit ou commande apparaîtront ici.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textSecondary(context),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

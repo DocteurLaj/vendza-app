@@ -8,6 +8,8 @@ import 'package:vendza/features/home/data/models/store_model.dart';
 import 'package:vendza/features/store/data/models/store_customization_model.dart';
 import 'package:vendza/features/store/data/services/data_exemple.dart';
 import 'package:vendza/features/store/data/services/product_management_service.dart';
+import 'package:vendza/features/store/data/services/store_customization_state.dart'
+    show isPlaceholderStoreImage;
 import 'package:vendza/features/product/presentation/pages/product_detail_page.dart';
 import 'package:vendza/features/store/presentation/pages/store_product_page.dart';
 import 'package:vendza/shared/models/product_model.dart';
@@ -41,15 +43,18 @@ class StorePresentationWidget extends StatelessWidget {
             ? store.getDescription()
             : storeCustomizationData.description;
         final coverImage =
-            !shouldUseCustomization ||
-                storeCustomizationData.coverImageUrl.isEmpty
+            shouldUseCustomization &&
+                !isPlaceholderStoreImage(storeCustomizationData.coverImageUrl)
+            ? storeCustomizationData.coverImageUrl
+            : '';
+        final configuredProfile = shouldUseCustomization
+            ? storeCustomizationData.profileImageUrl
+            : '';
+        final profileImage = !isPlaceholderStoreImage(configuredProfile)
+            ? configuredProfile
+            : !isPlaceholderStoreImage(store.image)
             ? store.image
-            : storeCustomizationData.coverImageUrl;
-        final profileImage =
-            !shouldUseCustomization ||
-                storeCustomizationData.profileImageUrl.isEmpty
-            ? coverImage
-            : storeCustomizationData.profileImageUrl;
+            : '';
         final List<ProductModel> storeProducts = activeProductsForDetailStore(
           store,
         );
@@ -58,6 +63,12 @@ class StorePresentationWidget extends StatelessWidget {
                 storeCustomizationData.featuredProducts.isNotEmpty
             ? activeProducts(storeCustomizationData.featuredProducts)
             : storeProducts.take(4).toList();
+        final visibleProductIds = featuredProducts
+            .map((product) => product.id)
+            .toSet();
+        final hasMoreProducts = storeProducts.any(
+          (product) => !visibleProductIds.contains(product.id),
+        );
         final List<SocialItem> configuredSocials = configuredStoreSocials(
           store.id,
         );
@@ -68,6 +79,7 @@ class StorePresentationWidget extends StatelessWidget {
             StoreCoverHeader(
               coverImageUrl: coverImage,
               profileImageUrl: profileImage,
+              storeName: displayName,
             ),
             const SizedBox(height: 58),
             Padding(
@@ -102,44 +114,45 @@ class StorePresentationWidget extends StatelessWidget {
                     SocialMediaLinks(socials: configuredSocials),
                   ],
                   const SizedBox(height: 24),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => StoreProductPage(
-                                store: StoreModel(
-                                  id: store.id,
-                                  name: displayName,
-                                  image: coverImage,
-                                  description: displayDescription,
+                  if (hasMoreProducts)
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => StoreProductPage(
+                                  store: StoreModel(
+                                    id: store.id,
+                                    name: displayName,
+                                    image: profileImage,
+                                    description: displayDescription,
+                                  ),
                                 ),
                               ),
+                            );
+                          },
+                          icon: const Icon(Icons.storefront_outlined),
+                          label: const Text(
+                            "Voir les produits",
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.softSurface(context),
+                            foregroundColor: AppColors.accent(context),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(9),
                             ),
-                          );
-                        },
-                        icon: const Icon(Icons.storefront_outlined),
-                        label: const Text(
-                          "Voir les produits",
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.softSurface(context),
-                          foregroundColor: AppColors.accent(context),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(9),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
+                  if (hasMoreProducts) const SizedBox(height: 24),
                   StoreProductPreviewTitle(productCount: storeProducts.length),
                   const SizedBox(height: 14),
                 ],
@@ -161,15 +174,24 @@ class StoreCoverHeader extends StatelessWidget {
     super.key,
     required this.coverImageUrl,
     required this.profileImageUrl,
+    this.storeName = '',
   });
 
   final String coverImageUrl;
   final String profileImageUrl;
+  final String storeName;
 
   @override
   Widget build(BuildContext context) {
-    final String coverPath = coverImageUrl.trim();
-    final String profilePath = profileImageUrl.trim();
+    final String coverPath = isPlaceholderStoreImage(coverImageUrl)
+        ? ''
+        : coverImageUrl.trim();
+    final String profilePath = isPlaceholderStoreImage(profileImageUrl)
+        ? ''
+        : profileImageUrl.trim();
+    final initial = storeName.trim().isEmpty
+        ? '?'
+        : storeName.trim()[0].toUpperCase();
 
     return Stack(
       clipBehavior: Clip.none,
@@ -177,13 +199,13 @@ class StoreCoverHeader extends StatelessWidget {
       children: [
         SizedBox(
           width: double.infinity,
-          height: 214,
+          height: coverPath.isEmpty ? 116 : 214,
           child: coverPath.isEmpty
-              ? const _StoreHeaderPlaceholder(iconSize: 64)
+              ? const _StoreCoverPlaceholder()
               : SmartImage(
                   path: coverPath,
                   fit: BoxFit.cover,
-                  errorWidget: const _StoreHeaderPlaceholder(iconSize: 64),
+                  errorWidget: const _StoreCoverPlaceholder(),
                 ),
         ),
         Positioned(
@@ -205,11 +227,11 @@ class StoreCoverHeader extends StatelessWidget {
             ),
             child: ClipOval(
               child: profilePath.isEmpty
-                  ? const _StoreHeaderPlaceholder(iconSize: 38)
+                  ? _StoreMonogram(initial: initial)
                   : SmartImage(
                       path: profilePath,
                       fit: BoxFit.cover,
-                      errorWidget: const _StoreHeaderPlaceholder(iconSize: 38),
+                      errorWidget: _StoreMonogram(initial: initial),
                     ),
             ),
           ),
@@ -219,23 +241,43 @@ class StoreCoverHeader extends StatelessWidget {
   }
 }
 
-class _StoreHeaderPlaceholder extends StatelessWidget {
-  const _StoreHeaderPlaceholder({required this.iconSize});
-
-  final double iconSize;
+class _StoreCoverPlaceholder extends StatelessWidget {
+  const _StoreCoverPlaceholder();
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.softSurface(context),
       alignment: Alignment.center,
-      child: Icon(
-        Icons.storefront_outlined,
-        color: AppColors.iconAccent(context),
-        size: iconSize,
+      child: Container(
+        margin: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border(context)),
+        ),
       ),
     );
   }
+}
+
+class _StoreMonogram extends StatelessWidget {
+  const _StoreMonogram({required this.initial});
+
+  final String initial;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    color: AppColors.softSurface(context),
+    alignment: Alignment.center,
+    child: Text(
+      initial,
+      style: TextStyle(
+        fontSize: 36,
+        fontWeight: FontWeight.w800,
+        color: AppColors.pageTitle(context),
+      ),
+    ),
+  );
 }
 
 class StoreProductPreviewTitle extends StatelessWidget {
@@ -260,7 +302,7 @@ class StoreProductPreviewTitle extends StatelessWidget {
             borderRadius: BorderRadius.circular(9),
           ),
           child: Text(
-            "$productCount produits",
+            '$productCount ${productCount == 1 ? 'produit' : 'produits'}',
             style: AppTextStyles.label(context),
           ),
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
+import 'package:vendza/features/home/presantation/pages/home.dart';
 import 'package:vendza/features/order/data/models/order_model.dart';
 import 'package:vendza/features/order/data/services/order_api_service.dart';
 import 'package:vendza/features/order/data/services/realtime_order_store.dart';
@@ -15,16 +16,25 @@ import 'package:vendza/shared/widgets/loading/vendza_loading_state.dart';
 import 'package:vendza/shared/widgets/media/context_image.dart';
 
 class BuyerOrdersPage extends StatefulWidget {
-  const BuyerOrdersPage({super.key, this.inNavigation = false});
+  const BuyerOrdersPage({
+    super.key,
+    this.inNavigation = false,
+    this.onExploreProducts,
+    this.api,
+  });
 
   final bool inNavigation;
+
+  /// Parent tab-switch action. A root tab must never push a second home page.
+  final VoidCallback? onExploreProducts;
+  final OrderApiService? api;
 
   @override
   State<BuyerOrdersPage> createState() => _BuyerOrdersPageState();
 }
 
 class _BuyerOrdersPageState extends State<BuyerOrdersPage> {
-  final _api = OrderApiService();
+  late final OrderApiService _api = widget.api ?? OrderApiService();
   final Set<int> _expandedIds = {};
   final Set<int> _hiddenIds = {};
   List<OrderModel> _orders = [];
@@ -114,6 +124,16 @@ class _BuyerOrdersPageState extends State<BuyerOrdersPage> {
     );
   }
 
+  void _exploreProducts() {
+    if (widget.inNavigation) {
+      widget.onExploreProducts?.call();
+      return;
+    }
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const HomePage()));
+  }
+
   @override
   Widget build(BuildContext context) {
     final summary = summarizeOrders(_orders, hiddenIds: _hiddenIds);
@@ -158,17 +178,82 @@ class _BuyerOrdersPageState extends State<BuyerOrdersPage> {
                 ],
               )
             : summary.total == 0
-            ? ListView(
-                children: const [
-                  Padding(
-                    padding: EdgeInsets.all(24),
-                    child: EmptyStateWidget(
-                      icon: Icons.receipt_long_outlined,
-                      title: 'Aucune commande',
-                      message: 'Vous n’avez encore effectué aucune commande.',
+            ? LayoutBuilder(
+                builder: (context, constraints) => ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight.isFinite
+                            ? constraints.maxHeight
+                            : 500,
+                      ),
+                      child: Center(
+                        child: ResponsiveContent(
+                          maxWidth: 440,
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 72,
+                                  height: 72,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.border(context),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Icon(
+                                    Icons.receipt_long_outlined,
+                                    size: 32,
+                                    color: AppColors.success(context),
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  'Pas encore de commande',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary(context),
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Vos commandes apparaîtront ici. En attendant, découvrez les articles et les boutiques.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary(context),
+                                    fontSize: 14,
+                                    height: 1.45,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                ElevatedButton(
+                                  onPressed:
+                                      widget.inNavigation &&
+                                          widget.onExploreProducts == null
+                                      ? null
+                                      : _exploreProducts,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 22,
+                                      vertical: 15,
+                                    ),
+                                  ),
+                                  child: const Text('Découvrir les produits'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               )
             : ListView(
                 padding: const EdgeInsets.all(16),
