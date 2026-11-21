@@ -24,6 +24,7 @@ class ApiEndpoints {
   static const storeBrowse = '/store/browse';
   static const homeFeed = '/home/feed';
   static const eventsProduct = '/events/product';
+  static const eventsSearch = '/events/search';
 
   static String storeUpdate(int storeId) => '/store/update/$storeId';
   static String storeName(int storeId) => '/store/name/$storeId';

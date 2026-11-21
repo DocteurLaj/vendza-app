@@ -9,6 +9,8 @@ class HomeFeedModel {
     this.popularProducts = const [],
     this.newestProducts = const [],
     this.discoverProducts = const [],
+    this.personalized = false,
+    this.receivedFromApi = false,
   });
 
   final List<StoreModel> featuredStores;
@@ -16,8 +18,31 @@ class HomeFeedModel {
   final List<ProductModel> popularProducts;
   final List<ProductModel> newestProducts;
   final List<ProductModel> discoverProducts;
+  final bool personalized;
+
+  /// An empty server response must not be replaced by the unranked catalog.
+  final bool receivedFromApi;
 
   static const empty = HomeFeedModel();
+
+  /// The same ordered, distinct articles drive the home and its "Voir tout".
+  /// Never append catalog items to a real feed: they can include purchases
+  /// intentionally excluded by the buyer's ranking.
+  List<ProductModel> rankedProducts(List<ProductModel> catalog) {
+    final seen = <String>{};
+    final ranked = [
+      ...trendingProducts,
+      ...newestProducts,
+      ...popularProducts,
+      ...discoverProducts,
+    ];
+    return [...ranked, if (ranked.isEmpty && !receivedFromApi) ...catalog]
+        .where(
+          (product) =>
+              product.isActive && product.id.isNotEmpty && seen.add(product.id),
+        )
+        .toList();
+  }
 
   bool get isEmpty =>
       featuredStores.isEmpty &&
@@ -32,6 +57,8 @@ class HomeFeedModel {
   }) {
     final data = _unwrapData(response);
     return HomeFeedModel(
+      receivedFromApi: true,
+      personalized: data['personalized'] == true,
       featuredStores: _mapStores(data['featured_stores']),
       trendingProducts: _mapProducts(data['trending_products'], storeNames),
       popularProducts: _mapProducts(data['popular_products'], storeNames),

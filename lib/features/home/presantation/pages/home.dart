@@ -4,31 +4,25 @@ import 'package:flutter/material.dart';
 import 'package:vendza/core/catalog/catalog_repository.dart'
     show catalogError, catalogLoading, catalogRepository, catalogRevision;
 import 'package:vendza/core/constants/colors.dart';
-import 'package:vendza/core/constants/sizes.dart';
+import 'package:vendza/core/services/search_event_api_service.dart';
+import 'package:vendza/core/services/api_token_store.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
-import 'package:vendza/features/home/data/models/home_feed_model.dart';
 import 'package:vendza/features/home/data/models/store_model.dart';
 import 'package:vendza/features/home/data/services/data_exemple.dart';
 import 'package:vendza/features/home/presantation/pages/home_product_list_page.dart';
 import 'package:vendza/features/home/presantation/widgets/home_search_filter_bar.dart';
+import 'package:vendza/features/home/presantation/widgets/balade_home.dart';
 import 'package:vendza/features/product/presentation/pages/product_detail_page.dart';
 import 'package:vendza/features/profil/presantation/pages/profile_page.dart';
 import 'package:vendza/features/store/presentation/pages/all_stores_page.dart';
 import 'package:vendza/features/store/presentation/pages/store_detail_page.dart';
 import 'package:vendza/features/subscription/presentation/pages/subscription_page.dart';
 import 'package:vendza/shared/models/product_model.dart';
-import 'package:vendza/shared/widgets/carousel/animated_circular_ring.dart';
-import 'package:vendza/shared/widgets/carousel/auto_scroll_carousel.dart';
-import 'package:vendza/shared/widgets/carousel/carousel_scroll_scope.dart';
 import 'package:vendza/shared/widgets/interaction/app_interactive.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/media/smart_image.dart';
 import 'package:vendza/shared/widgets/product/product_price_text.dart';
-import 'package:vendza/shared/widgets/product/product_section.dart';
 import 'package:vendza/shared/widgets/search/search_bar.dart';
-import 'package:vendza/shared/widgets/show_title.dart';
-import 'package:vendza/shared/widgets/store/store_section.dart';
-import 'package:vendza/shared/utils/catalog_refresh_feedback.dart';
 
 void openHomeProduct(
   BuildContext context,
@@ -46,79 +40,6 @@ void openHomeProduct(
       ),
     ),
   );
-}
-
-List<StoreModel> _fillStoreRail(
-  List<StoreModel> preferred,
-  List<StoreModel> catalog, {
-  int limit = 8,
-  Set<String> excludeIds = const {},
-  bool allowReuse = false,
-}) {
-  final seen = <String>{};
-  final result = <StoreModel>[];
-
-  bool add(StoreModel store) {
-    if (result.length >= limit) return false;
-    final key = store.id.isNotEmpty ? store.id : store.name;
-    if (key.isEmpty || !seen.add(key)) return true;
-    result.add(store);
-    return true;
-  }
-
-  for (final store in preferred) {
-    if (excludeIds.contains(store.id)) continue;
-    if (!add(store)) return result;
-  }
-  for (final store in catalog) {
-    if (excludeIds.contains(store.id)) continue;
-    if (!add(store)) return result;
-  }
-  if (!allowReuse || catalog.isEmpty) return result;
-  for (final store in catalog) {
-    if (!add(store)) return result;
-  }
-  return result;
-}
-
-List<ProductModel> _activeCatalogProducts() {
-  return homeProducts.where((product) => product.isActive).toList();
-}
-
-List<ProductModel> _fillHomeSection(
-  List<ProductModel> feed,
-  List<ProductModel> catalog,
-  Set<String> usedIds, {
-  int? limit,
-  bool allowReuse = false,
-}) {
-  final seen = <String>{};
-  final result = <ProductModel>[];
-
-  bool add(ProductModel product) {
-    if (limit != null && result.length >= limit) return false;
-    final id = product.id;
-    if (id.isEmpty || !seen.add(id)) return true;
-    result.add(product);
-    return true;
-  }
-
-  for (final product in feed) {
-    if (!add(product)) return result;
-  }
-
-  for (final product in catalog) {
-    if (usedIds.contains(product.id)) continue;
-    if (!add(product)) return result;
-  }
-
-  if (!allowReuse || catalog.isEmpty) return result;
-  if (limit == null && result.isNotEmpty) return result;
-
-  for (final product in catalog) {
-    if (!add(product)) return result;
-  }
-  return result;
 }
 
 class HomePage extends StatefulWidget {
@@ -139,6 +60,14 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _searchFocusNode.addListener(_handleSearchFocusChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          homeStores.isEmpty &&
+          homeProducts.isEmpty &&
+          !catalogLoading.value) {
+        unawaited(catalogRepository.softRefreshCatalog(force: true));
+      }
+    });
   }
 
   @override
@@ -211,78 +140,112 @@ class _HomePageState extends State<HomePage> {
       valueListenable: catalogRevision,
       builder: (context, _, child) {
         return Scaffold(
+          backgroundColor: AppColors.isDark(context)
+              ? AppColors.appBackground(context)
+              : const Color(0xFFFAF8F3),
           appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(80),
-            child: AppBar(
-              leading: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                child: _isSearching
-                    ? IconButton(
-                        key: const ValueKey("close-search"),
-                        icon: Icon(
-                          Icons.arrow_back,
-                          color: AppColors.accent(context),
+            preferredSize: const Size.fromHeight(118),
+            child: SafeArea(
+              bottom: false,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 660),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 53,
+                          child: Row(
+                            children: [
+                              if (_isSearching)
+                                IconButton(
+                                  tooltip: 'Fermer la recherche',
+                                  onPressed: _closeSearch,
+                                  icon: const Icon(Icons.arrow_back),
+                                ),
+                              Expanded(
+                                child: Text(
+                                  'vendza.',
+                                  style: TextStyle(
+                                    fontSize: 23,
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.textPrimary(context),
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Voir les abonnements',
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => SubscriptionPage(),
+                                  ),
+                                ),
+                                icon: const Icon(
+                                  Icons.workspace_premium_outlined,
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Ouvrir le profil',
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ProfilePage(),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.person_outline),
+                              ),
+                            ],
+                          ),
                         ),
-                        onPressed: _closeSearch,
-                      )
-                    : _PremiumButton(
-                        key: const ValueKey("premium-button"),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => SubscriptionPage(),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-              backgroundColor: AppColors.appBackground(context),
-              elevation: 0,
-              title: AnimatedContainer(
-                duration: const Duration(milliseconds: 260),
-                curve: Curves.easeOutCubic,
-                transform: Matrix4.translationValues(
-                  _isSearching ? -6 : 0,
-                  0,
-                  0,
-                ),
-                child: ResponsiveContent(
-                  maxWidth: 720,
-                  child: SearchBarWidget(
-                    controller: _searchController,
-                    focusNode: _searchFocusNode,
-                    hintText: 'Rechercher produits ou stores...',
-                    isActive: _isSearching,
-                    onChanged: (value) => setState(() {
-                      _query = value;
-                      _isSearching = true;
-                    }),
-                    onClear: () {
-                      _searchController.clear();
-                      setState(() {
-                        _query = '';
-                        _searchFilter = HomeSearchFilter.all;
-                        _isSearching = _hasActiveSearch;
-                      });
-                    },
-                    onSubmitted: (_) {},
+                        const SizedBox(height: 5),
+                        SearchBarWidget(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
+                          hintText: 'Rechercher un article ou une boutique',
+                          isActive: _isSearching,
+                          onChanged: (value) => setState(() {
+                            _query = value;
+                            _isSearching = true;
+                          }),
+                          onClear: () {
+                            _searchController.clear();
+                            setState(() {
+                              _query = '';
+                              _searchFilter = HomeSearchFilter.all;
+                              _isSearching = _hasActiveSearch;
+                            });
+                          },
+                          onSubmitted: (query) {
+                            if (query.trim().length < 2 ||
+                                !apiTokenStore.hasAccessToken) {
+                              return;
+                            }
+                            unawaited(
+                              Future(() async {
+                                try {
+                                  await searchEventApiService.track(
+                                    query,
+                                    resultsCount:
+                                        _matchingProducts.length +
+                                        _matchingStores.length,
+                                  );
+                                  await catalogRepository.softRefreshCatalog(
+                                    force: true,
+                                  );
+                                } catch (_) {
+                                  // Local search remains available offline.
+                                }
+                              }),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              actions: [
-                IconButton(
-                  tooltip: 'Ouvrir le profil',
-                  icon: Icon(
-                    Icons.account_circle_outlined,
-                    color: AppColors.accent(context),
-                  ),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ProfilePage()),
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
             ),
           ),
           body: AnimatedSwitcher(
@@ -309,1440 +272,41 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _PremiumButton extends StatelessWidget {
-  const _PremiumButton({super.key, required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: AppInteractive(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                Color.fromARGB(126, 255, 193, 7),
-                Color.fromARGB(214, 255, 153, 0),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.all(8),
-          child: const Icon(Icons.workspace_premium, color: Colors.white),
-        ),
-      ),
-    );
-  }
-}
-
-class _HomeDefaultContent extends StatefulWidget {
+class _HomeDefaultContent extends StatelessWidget {
   const _HomeDefaultContent({super.key});
 
   @override
-  State<_HomeDefaultContent> createState() => _HomeDefaultContentState();
-}
-
-class _HomeDefaultContentState extends State<_HomeDefaultContent> {
-  static const int _initialVisibleProducts = 16;
-  static const int _productsPerLoad = 8;
-  static const double _discoverTileExtent = 154;
-
-  final ScrollController _scrollController = ScrollController();
-  final ScrollController _discoverRailController = ScrollController();
-  int _visibleProductCount = _initialVisibleProducts;
-  bool _isLoadingMore = false;
-  bool _showBackToTop = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_handleScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _requestInitialRefreshIfEmpty();
-    });
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_handleScroll);
-    _scrollController.dispose();
-    _discoverRailController.dispose();
-    super.dispose();
-  }
-
-  void _handleScroll() {
-    if (!_scrollController.hasClients) return;
-
-    final position = _scrollController.position;
-    final shouldShowBackToTop = position.pixels > 520;
-    if (shouldShowBackToTop != _showBackToTop) {
-      setState(() => _showBackToTop = shouldShowBackToTop);
-    }
-
-    if (_isLoadingMore) return;
-    if (position.pixels < position.maxScrollExtent - 260) return;
-
-    _loadMoreProducts(animateToNewItems: false);
-  }
-
-  Future<void> _loadMoreProducts({bool animateToNewItems = true}) async {
-    final discoverProducts = homeFeed.discoverProducts;
-    if (_visibleProductCount >= discoverProducts.length) return;
-    final previousVisibleCount = _visibleProductCount;
-
-    setState(() => _isLoadingMore = true);
-    await Future<void>.delayed(const Duration(milliseconds: 420));
-    if (!mounted) return;
-
-    setState(() {
-      _visibleProductCount = (_visibleProductCount + _productsPerLoad).clamp(
-        0,
-        discoverProducts.length,
-      );
-      _isLoadingMore = false;
-    });
-
-    if (animateToNewItems) {
-      _scrollDiscoverRailToIndex(previousVisibleCount);
-      _scrollPageTowardNewItems();
-    }
-  }
-
-  void _requestInitialRefreshIfEmpty() {
-    if (!mounted) return;
-    if (catalogLoading.value) return;
-    if (homeStores.isNotEmpty || homeProducts.isNotEmpty) return;
-    unawaited(_refreshCatalog(showFeedback: false));
-  }
-
-  Future<void> _refreshCatalog({required bool showFeedback}) async {
-    if (showFeedback) {
-      await refreshCatalogWithFeedback(
-        context,
-        targetLabel: "Home",
-        successMessage: "Home actualise.",
-      );
-      return;
-    }
-
-    await catalogRepository.softRefreshCatalog(force: true);
-  }
-
-  void _scrollDiscoverRailToIndex(int index) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_discoverRailController.hasClients) return;
-
-      final targetOffset = (index * _discoverTileExtent).clamp(
-        0,
-        _discoverRailController.position.maxScrollExtent,
-      );
-      _discoverRailController.animateTo(
-        targetOffset.toDouble(),
-        duration: const Duration(milliseconds: 360),
-        curve: Curves.easeOutCubic,
-      );
-    });
-  }
-
-  void _scrollPageTowardNewItems() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-
-      final targetOffset = (_scrollController.offset + 420).clamp(
-        0,
-        _scrollController.position.maxScrollExtent,
-      );
-      _scrollController.animateTo(
-        targetOffset.toDouble(),
-        duration: const Duration(milliseconds: 360),
-        curve: Curves.easeOutCubic,
-      );
-    });
-  }
-
-  Future<void> _scrollToTop() async {
-    if (_discoverRailController.hasClients) {
-      _discoverRailController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeOutCubic,
-      );
-    }
-
-    if (_scrollController.hasClients) {
-      await _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 520),
-        curve: Curves.easeOutCubic,
-      );
-    }
-
-    if (mounted && _showBackToTop) {
-      setState(() => _showBackToTop = false);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final sections = HomeSectionsView(homeFeed);
-    final featuredStores = _fillStoreRail(sections.stores, homeStores);
-    final catalogProducts = _activeCatalogProducts();
-    final usedProductIds = <String>{};
-    final promotionProducts = _fillHomeSection(
-      sections.tendances,
-      catalogProducts,
-      usedProductIds,
-      limit: 8,
-    );
-    usedProductIds.addAll(promotionProducts.map((product) => product.id));
-    final storyProducts = _fillHomeSection(
-      sections.newest,
-      catalogProducts,
-      usedProductIds,
-      limit: 8,
-    );
-    usedProductIds.addAll(storyProducts.map((product) => product.id));
-    final popularProducts = _fillHomeSection(
-      sections.popular,
-      catalogProducts,
-      usedProductIds,
-      limit: 8,
-      allowReuse: true,
-    );
-    usedProductIds.addAll(popularProducts.map((product) => product.id));
-    final discoverProducts = _fillHomeSection(
-      sections.discover,
-      catalogProducts,
-      usedProductIds,
-      allowReuse: true,
-    );
-    final featuredStoreIds = featuredStores
-        .map((store) => store.id)
-        .where((id) => id.isNotEmpty)
-        .toSet();
-    final discoverStores = _fillStoreRail(
-      const [],
-      homeStores,
-      excludeIds: featuredStoreIds,
-      allowReuse: true,
-    );
-    final visibleDiscoverProducts = discoverProducts
-        .take(_visibleProductCount)
-        .toList();
-    final horizontalDiscoverProducts = visibleDiscoverProducts
-        .take(12)
-        .toList();
-    final verticalDiscoverProducts = visibleDiscoverProducts.skip(4).toList();
-    final canLoadMore = _visibleProductCount < discoverProducts.length;
-    final hasHomeContent =
-        featuredStores.isNotEmpty ||
-        promotionProducts.isNotEmpty ||
-        storyProducts.isNotEmpty ||
-        discoverStores.isNotEmpty ||
-        popularProducts.isNotEmpty ||
-        discoverProducts.isNotEmpty ||
-        verticalDiscoverProducts.isNotEmpty;
-
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: RefreshIndicator(
-            onRefresh: () => _refreshCatalog(showFeedback: true),
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: ResponsiveContent(
-                maxWidth: 920,
-                child: Column(
-                  spacing: AppSizes.padding,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (!hasHomeContent)
-                      ValueListenableBuilder<bool>(
-                        valueListenable: catalogLoading,
-                        builder: (context, isLoading, _) {
-                          return ValueListenableBuilder<String?>(
-                            valueListenable: catalogError,
-                            builder: (context, error, _) {
-                              return _HomeCatalogStatus(
-                                isLoading: isLoading,
-                                error: error,
-                                onRetry: () =>
-                                    _refreshCatalog(showFeedback: true),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    if (featuredStores.isNotEmpty) ...[
-                      ShowTitle(
-                        text: "Stores",
-                        onActionTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const AllStoresPage(),
-                            ),
-                          );
-                        },
-                      ),
-                      StoreSectionWidget(stores: featuredStores),
-                    ],
-                    if (promotionProducts.isNotEmpty) ...[
-                      ShowTitle(
-                        text: "Tendances",
-                        onActionTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => HomeProductListPage(
-                                title: "Tendances",
-                                products: promotionProducts,
-                                section: 'trending',
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      _PromotionCarousel(products: promotionProducts),
-                    ],
-                    if (storyProducts.isNotEmpty)
-                      _StoryProductsStrip(products: storyProducts),
-                    if (discoverStores.isNotEmpty) ...[
-                      ShowTitle(
-                        text: "Découvrir des boutiques",
-                        actionLabel: "Voir tout le store",
-                        onActionTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const AllStoresPage(),
-                            ),
-                          );
-                        },
-                      ),
-                      _StoreDiscoveryRail(stores: discoverStores),
-                    ],
-                    if (popularProducts.isNotEmpty) ...[
-                      ShowTitle(text: "Articles Populaires", showAction: false),
-                      ProductSectionWidget(
-                        products: popularProducts,
-                        onProductTap: (product) {
-                          openHomeProduct(
-                            context,
-                            product,
-                            section: 'popular',
-                            position: popularProducts.indexOf(product),
-                          );
-                        },
-                      ),
-                    ],
-                    if (discoverProducts.isNotEmpty) ...[
-                      ShowTitle(text: "Découvrir aussi", showAction: false),
-                      _TrendingRail(
-                        products: horizontalDiscoverProducts,
-                        controller: _discoverRailController,
-                      ),
-                    ],
-                    if (verticalDiscoverProducts.isNotEmpty)
-                      _ProgressiveDiscoverSections(
-                        products: verticalDiscoverProducts,
-                        stores: discoverStores,
-                        promoProducts: promotionProducts,
-                      ),
-                    if (canLoadMore || _isLoadingMore)
-                      _LoadMoreProductsButton(
-                        isLoading: _isLoadingMore,
-                        onPressed: () => _loadMoreProducts(),
-                      ),
-                    const SizedBox(height: 78),
-                  ],
-                ),
-              ),
-            ),
-          ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: catalogLoading,
+      builder: (context, loading, _) => BaladeHome(
+        feed: homeFeed,
+        catalogProducts: homeProducts,
+        catalogStores: homeStores,
+        loading: loading,
+        error: catalogError.value,
+        onRefresh: () => catalogRepository.softRefreshCatalog(force: true),
+        onProductTap: (product) =>
+            openHomeProduct(context, product, section: 'discover'),
+        onStoreTap: (store) => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => StoreDetailPage(store: store)),
         ),
-        Positioned(
-          right: 16,
-          bottom: 16 + MediaQuery.of(context).padding.bottom,
-          child: _BackToTopButton(
-            visible: _showBackToTop,
-            onPressed: _scrollToTop,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HomeCatalogStatus extends StatelessWidget {
-  const _HomeCatalogStatus({
-    required this.isLoading,
-    required this.error,
-    required this.onRetry,
-  });
-
-  final bool isLoading;
-  final String? error;
-  final Future<void> Function() onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasError = error != null && error!.trim().isNotEmpty;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 96, 22, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isLoading)
-            const SizedBox(
-              width: 30,
-              height: 30,
-              child: CircularProgressIndicator(strokeWidth: 2.6),
-            )
-          else
-            Icon(
-              hasError
-                  ? Icons.wifi_tethering_error_rounded
-                  : Icons.inventory_2_outlined,
-              color: AppColors.iconAccent(context),
-              size: 34,
-            ),
-          const SizedBox(height: 16),
-          Text(
-            isLoading
-                ? "Chargement du catalogue..."
-                : hasError
-                ? "Catalogue indisponible"
-                : "Aucun article pour le moment",
-            textAlign: TextAlign.center,
-            style: AppTextStyles.pageTitle(context).copyWith(fontSize: 18),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            isLoading
-                ? "Patientez un instant, les produits et stores arrivent."
-                : hasError
-                ? "Impossible d’actualiser l’accueil. Vérifiez la connexion puis réessayez."
-                : "Tirez vers le bas ou appuyez sur Réessayer pour actualiser.",
-            textAlign: TextAlign.center,
-            style: AppTextStyles.subtitle(context).copyWith(height: 1.35),
-          ),
-          if (!isLoading) ...[
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text("Réessayer"),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.accent(context),
-                side: BorderSide(color: AppColors.border(context)),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _BackToTopButton extends StatelessWidget {
-  const _BackToTopButton({required this.visible, required this.onPressed});
-
-  final bool visible;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      ignoring: !visible,
-      child: AnimatedOpacity(
-        opacity: visible ? 1 : 0,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-        child: AnimatedScale(
-          scale: visible ? 1 : 0.86,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutBack,
-          child: AppInteractive(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(23),
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.24),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.keyboard_arrow_up_rounded,
-                color: Colors.white,
-                size: 28,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PromotionCarousel extends StatefulWidget {
-  const _PromotionCarousel({required this.products});
-
-  final List<ProductModel> products;
-
-  @override
-  State<_PromotionCarousel> createState() => _PromotionCarouselState();
-}
-
-class _PromotionCarouselState extends State<_PromotionCarousel> {
-  late final PageController _controller;
-  AutoScrollPageHelper? _autoScroll;
-  int _currentPage = 1000;
-
-  int get _itemCount => widget.products.length;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = PageController(
-      viewportFraction: 0.86,
-      initialPage: _currentPage,
-    );
-    if (_itemCount > 1) {
-      _autoScroll = AutoScrollPageHelper(
-        controller: _controller,
-        itemCount: _itemCount,
-        initialPage: _currentPage,
-        initialDelay: const Duration(milliseconds: 400),
-        onVirtualPageChanged: (page) {
-          if (mounted) setState(() => _currentPage = page);
-        },
-      );
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _autoScroll?.startAfterLayout();
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _autoScroll?.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.products.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      children: [
-        SizedBox(
-          height: 190,
-          child: CarouselScrollScope(
-            onUserScrollStart: () => _autoScroll?.onUserScrollStart(),
-            onUserScrollEnd: () => _autoScroll?.onUserScrollEnd(),
-            child: PageView.builder(
-              controller: _controller,
-              itemCount: _itemCount > 1 ? null : _itemCount,
-              onPageChanged: (index) {
-                _autoScroll?.updateCurrentPage(index);
-                setState(() => _currentPage = index);
-              },
-              itemBuilder: (context, index) {
-                final product = widget.products[index % _itemCount];
-
-                return AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    double scale = 1;
-                    if (_controller.hasClients &&
-                        _controller.position.haveDimensions) {
-                      final page = _controller.page ?? _currentPage.toDouble();
-                      scale = (1 - (page - index).abs() * 0.08)
-                          .clamp(0.92, 1.0)
-                          .toDouble();
-                    }
-
-                    return Transform.scale(scale: scale, child: child);
-                  },
-                  child: _PromotionCard(
-                    product: product,
-                    index: index % _itemCount,
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        CarouselCircularDots(
-          count: _itemCount,
-          activeIndex: _currentPage % _itemCount,
-          onDotTap: _itemCount > 1
-              ? (index) => _autoScroll?.goToItemIndex(index)
-              : null,
-        ),
-      ],
-    );
-  }
-}
-
-class _PromotionCard extends StatelessWidget {
-  const _PromotionCard({required this.product, required this.index});
-
-  final ProductModel product;
-  final int index;
-
-  @override
-  Widget build(BuildContext context) {
-    final imagePath = product.imageurl.trim();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: AppInteractive(
-        onTap: () {
-          openHomeProduct(
-            context,
-            product,
-            section: 'trending',
-            position: index,
-          );
-        },
-        borderRadius: BorderRadius.circular(18),
-        enableHoverElevation: true,
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.16),
-                blurRadius: 22,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (imagePath.isNotEmpty)
-                SmartImage(
-                  path: imagePath,
-                  fit: BoxFit.cover,
-                  errorWidget: const SizedBox.shrink(),
-                ),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.08),
-                      Colors.black.withValues(alpha: 0.72),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 14,
-                left: 14,
-                child: _RankBadge(label: "Sélection"),
-              ),
-              Positioned(
-                left: 16,
-                right: 16,
-                bottom: 16,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            product.storeName.trim().isEmpty
-                                ? "Produit demande"
-                                : product.storeName.trim(),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFFEAF2EF),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        Flexible(
-                          child: ProductPriceText(
-                            product.price,
-                            textAlign: TextAlign.right,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RankBadge extends StatelessWidget {
-  const _RankBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.elevatedSurface(context).withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.label(context).copyWith(
-          color: AppColors.cardTitle(context),
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
-class _StoreDiscoveryRail extends StatefulWidget {
-  const _StoreDiscoveryRail({required this.stores});
-
-  final List<StoreModel> stores;
-
-  @override
-  State<_StoreDiscoveryRail> createState() => _StoreDiscoveryRailState();
-}
-
-class _StoreDiscoveryRailState extends State<_StoreDiscoveryRail> {
-  static const double _itemExtent = 168;
-
-  late final ScrollController _scrollController;
-  late final AutoScrollListHelper _autoScroll;
-  int _activeIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController();
-    _autoScroll = AutoScrollListHelper(
-      scrollController: _scrollController,
-      itemCount: widget.stores.length,
-      itemExtent: _itemExtent,
-      initialDelay: const Duration(milliseconds: 1400),
-      onIndexChanged: (index) {
-        if (mounted) setState(() => _activeIndex = index);
-      },
-    )..attachListener();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _autoScroll.startAfterLayout();
-    });
-  }
-
-  @override
-  void dispose() {
-    _autoScroll.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.stores.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      children: [
-        SizedBox(
-          height: 170,
-          child: CarouselScrollScope(
-            onUserScrollStart: _autoScroll.onUserScrollStart,
-            onUserScrollEnd: _autoScroll.onUserScrollEnd,
-            child: ListView.separated(
-              controller: _scrollController,
-              scrollDirection: Axis.horizontal,
-              physics: carouselListPhysics,
-              padding: EdgeInsets.symmetric(horizontal: AppSizes.padding),
-              itemCount: widget.stores.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                return _StoreDiscoveryCard(
-                  store: widget.stores[index],
-                  index: index,
-                );
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        CarouselCircularDots(
-          count: widget.stores.length,
-          activeIndex: _activeIndex,
-          onDotTap: widget.stores.length > 1 ? _autoScroll.goToIndex : null,
-        ),
-      ],
-    );
-  }
-}
-
-class _StoreDiscoveryCard extends StatelessWidget {
-  const _StoreDiscoveryCard({required this.store, required this.index});
-
-  final StoreModel store;
-  final int index;
-
-  @override
-  Widget build(BuildContext context) {
-    final imagePath = store.image.trim();
-    final accentColors = [
-      AppColors.softSurface(context),
-      AppColors.elevatedSurface(context),
-      AppColors.card(context),
-    ];
-    final backgroundColor = accentColors[index % accentColors.length];
-
-    return AppInteractive(
-      onTap: () {
-        Navigator.push(
+        onAllProducts: () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => StoreDetailPage(store: store),
+            builder: (_) => HomeProductListPage(
+              title: homeFeed.personalized ? 'Pour vous' : 'À découvrir',
+              products: homeFeed.rankedProducts(homeProducts),
+              section: 'discover',
+            ),
           ),
-        );
-      },
-      borderRadius: BorderRadius.circular(18),
-      enableHoverElevation: true,
-      child: Container(
-        width: 156,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border(context)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(13),
-                  child: SizedBox(
-                    width: 54,
-                    height: 54,
-                    child: imagePath.isEmpty
-                        ? const _StoreDiscoveryPlaceholder()
-                        : SmartImage(
-                            path: imagePath,
-                            fit: BoxFit.cover,
-                            errorWidget: const _StoreDiscoveryPlaceholder(),
-                          ),
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: AppColors.card(context).withValues(alpha: 0.78),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    color: AppColors.iconAccent(context),
-                    size: 13,
-                  ),
-                ),
-              ],
-            ),
-            const Spacer(),
-            Text(
-              "Découvrir",
-              style: AppTextStyles.label(context).copyWith(fontSize: 11),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              store.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.cardTitle(
-                context,
-              ).copyWith(fontSize: 15, height: 1.12),
-            ),
-          ],
+        onAllStores: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AllStoresPage()),
         ),
       ),
-    );
-  }
-}
-
-class _StoreDiscoveryPlaceholder extends StatelessWidget {
-  const _StoreDiscoveryPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.card(context).withValues(alpha: 0.68),
-      alignment: Alignment.center,
-      child: Icon(
-        Icons.storefront_outlined,
-        color: AppColors.iconAccent(context),
-      ),
-    );
-  }
-}
-
-class _StoryProductsStrip extends StatefulWidget {
-  const _StoryProductsStrip({required this.products});
-
-  final List<ProductModel> products;
-
-  @override
-  State<_StoryProductsStrip> createState() => _StoryProductsStripState();
-}
-
-class _StoryProductsStripState extends State<_StoryProductsStrip> {
-  static const double _itemExtent = 86;
-
-  late final ScrollController _scrollController;
-  AutoScrollListHelper? _autoScroll;
-  int _activeIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController();
-    if (widget.products.length > 1) {
-      _autoScroll = AutoScrollListHelper(
-        scrollController: _scrollController,
-        itemCount: widget.products.length,
-        itemExtent: _itemExtent,
-        initialDelay: const Duration(milliseconds: 900),
-        onIndexChanged: (index) {
-          if (mounted) setState(() => _activeIndex = index);
-        },
-      )..attachListener();
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _autoScroll?.startAfterLayout();
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _autoScroll?.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.products.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      children: [
-        SizedBox(
-          height: 104,
-          child: CarouselScrollScope(
-            onUserScrollStart: () => _autoScroll?.onUserScrollStart(),
-            onUserScrollEnd: () => _autoScroll?.onUserScrollEnd(),
-            child: ListView.separated(
-              controller: _scrollController,
-              scrollDirection: Axis.horizontal,
-              physics: carouselListPhysics,
-              padding: EdgeInsets.symmetric(horizontal: AppSizes.padding),
-              itemCount: widget.products.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                return _StoryProductBubble(
-                  product: widget.products[index],
-                  index: index,
-                );
-              },
-            ),
-          ),
-        ),
-        if (widget.products.length > 1) ...[
-          const SizedBox(height: 8),
-          CarouselCircularDots(
-            count: widget.products.length.clamp(0, 8),
-            activeIndex: _activeIndex % widget.products.length.clamp(1, 8),
-            onDotTap: (index) => _autoScroll?.goToIndex(index),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _StoryProductBubble extends StatelessWidget {
-  const _StoryProductBubble({required this.product, required this.index});
-
-  final ProductModel product;
-  final int index;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppInteractive(
-      onTap: () {
-        openHomeProduct(context, product, section: 'newest', position: index);
-      },
-      borderRadius: BorderRadius.circular(35),
-      child: SizedBox(
-        width: 74,
-        child: Column(
-          children: [
-            AnimatedCircularRing(
-              size: 70,
-              child: product.imageurl.trim().isEmpty
-                  ? const _DynamicProductPlaceholder()
-                  : SizedBox.expand(
-                      child: SmartImage(
-                        path: product.imageurl,
-                        fit: BoxFit.cover,
-                        errorWidget: const _DynamicProductPlaceholder(),
-                      ),
-                    ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              product.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.label(context).copyWith(fontSize: 11),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TrendingRail extends StatefulWidget {
-  const _TrendingRail({required this.products, required this.controller});
-
-  final List<ProductModel> products;
-  final ScrollController controller;
-
-  @override
-  State<_TrendingRail> createState() => _TrendingRailState();
-}
-
-class _TrendingRailState extends State<_TrendingRail> {
-  static const double _itemExtent = 154;
-
-  AutoScrollListHelper? _autoScroll;
-  int _activeIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.products.length > 1) {
-      _autoScroll = AutoScrollListHelper(
-        scrollController: widget.controller,
-        itemCount: widget.products.length,
-        itemExtent: _itemExtent,
-        initialDelay: const Duration(milliseconds: 1900),
-        onIndexChanged: (index) {
-          if (mounted) setState(() => _activeIndex = index);
-        },
-      )..attachListener();
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _autoScroll?.startAfterLayout();
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _autoScroll?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.products.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      children: [
-        SizedBox(
-          height: 156,
-          child: CarouselScrollScope(
-            onUserScrollStart: () => _autoScroll?.onUserScrollStart(),
-            onUserScrollEnd: () => _autoScroll?.onUserScrollEnd(),
-            child: ListView.separated(
-              controller: widget.controller,
-              scrollDirection: Axis.horizontal,
-              physics: carouselListPhysics,
-              padding: EdgeInsets.symmetric(horizontal: AppSizes.padding),
-              itemCount: widget.products.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                return _TrendingMiniCard(
-                  product: widget.products[index],
-                  index: index,
-                );
-              },
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        CarouselCircularDots(
-          count: widget.products.length,
-          activeIndex: _activeIndex,
-          onDotTap: widget.products.length > 1
-              ? (index) => _autoScroll?.goToIndex(index)
-              : null,
-        ),
-      ],
-    );
-  }
-}
-
-class _ProgressiveDiscoverSections extends StatelessWidget {
-  const _ProgressiveDiscoverSections({
-    required this.products,
-    this.stores = const [],
-    this.promoProducts = const [],
-  });
-
-  static const int _gridChunkSize = 10;
-  static const int _horizontalChunkSize = 6;
-
-  final List<ProductModel> products;
-  final List<StoreModel> stores;
-  final List<ProductModel> promoProducts;
-
-  @override
-  Widget build(BuildContext context) {
-    if (products.isEmpty) return const SizedBox.shrink();
-
-    final sections = <Widget>[];
-    int startIndex = 0;
-    int horizontalSectionIndex = 0;
-    var insertedStores = false;
-    var insertedPromos = false;
-
-    while (startIndex < products.length) {
-      final gridEnd = (startIndex + _gridChunkSize).clamp(0, products.length);
-      final gridProducts = products.sublist(startIndex, gridEnd);
-      if (gridProducts.isNotEmpty) {
-        sections.add(
-          ProductSectionWidget(
-            products: gridProducts,
-            onProductTap: (product) {
-              openHomeProduct(
-                context,
-                product,
-                section: 'discover',
-                position: products.indexOf(product),
-              );
-            },
-          ),
-        );
-      }
-      startIndex = gridEnd;
-
-      if (!insertedStores && stores.isNotEmpty && gridProducts.isNotEmpty) {
-        insertedStores = true;
-        sections.add(
-          Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 6),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppSizes.padding + 8,
-                  ),
-                  child: Text(
-                    "Découvrir des boutiques",
-                    style: AppTextStyles.sectionTitle(
-                      context,
-                    ).copyWith(fontSize: 14, fontWeight: FontWeight.w900),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _StoreDiscoveryRail(stores: stores),
-              ],
-            ),
-          ),
-        );
-      }
-
-      if (startIndex >= products.length) break;
-
-      final horizontalEnd = (startIndex + _horizontalChunkSize).clamp(
-        0,
-        products.length,
-      );
-      final horizontalProducts = products.sublist(startIndex, horizontalEnd);
-      if (horizontalProducts.isNotEmpty) {
-        horizontalSectionIndex++;
-        sections.add(
-          _InlineDiscoverRail(
-            products: horizontalProducts,
-            sectionIndex: horizontalSectionIndex,
-          ),
-        );
-      }
-      startIndex = horizontalEnd;
-
-      if (!insertedPromos &&
-          promoProducts.isNotEmpty &&
-          startIndex < products.length) {
-        insertedPromos = true;
-        sections.add(
-          Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 6),
-            child: _PromotionCarousel(products: promoProducts),
-          ),
-        );
-      }
-    }
-
-    return Column(children: sections);
-  }
-}
-
-class _InlineDiscoverRail extends StatelessWidget {
-  const _InlineDiscoverRail({
-    required this.products,
-    required this.sectionIndex,
-  });
-
-  final List<ProductModel> products;
-  final int sectionIndex;
-
-  @override
-  Widget build(BuildContext context) {
-    if (products.isEmpty) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppSizes.padding + 8),
-            child: Text(
-              sectionIndex.isOdd ? "Sélection rapide" : "À ne pas manquer",
-              style: AppTextStyles.sectionTitle(
-                context,
-              ).copyWith(fontSize: 14, fontWeight: FontWeight.w900),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 156,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: AppSizes.padding),
-              itemCount: products.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                return _TrendingMiniCard(
-                  product: products[index],
-                  index: index,
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TrendingMiniCard extends StatelessWidget {
-  const _TrendingMiniCard({required this.product, this.index = 0});
-
-  final ProductModel product;
-  final int index;
-
-  @override
-  Widget build(BuildContext context) {
-    final imagePath = product.imageurl.trim();
-
-    return AppInteractive(
-      onTap: () {
-        openHomeProduct(context, product, section: 'discover', position: index);
-      },
-      borderRadius: BorderRadius.circular(16),
-      enableHoverElevation: true,
-      child: Container(
-        width: 142,
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border(context)),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(
-                alpha: AppColors.isDark(context) ? 0.12 : 0.04,
-              ),
-              blurRadius: 14,
-              offset: const Offset(0, 7),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    imagePath.isEmpty
-                        ? const _DynamicProductPlaceholder()
-                        : SmartImage(
-                            path: imagePath,
-                            fit: BoxFit.cover,
-                            errorWidget: const _DynamicProductPlaceholder(),
-                          ),
-                    Positioned(
-                      top: 7,
-                      left: 7,
-                      child: _RankBadge(label: "A voir"),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              product.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.cardTitle(context).copyWith(fontSize: 12),
-            ),
-            const SizedBox(height: 3),
-            if (product.storeName.trim().isEmpty)
-              ProductPriceText(
-                product.price,
-                style: AppTextStyles.label(context).copyWith(
-                  color: AppColors.success(context),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              )
-            else
-              Text(
-                product.storeName.trim(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.label(context).copyWith(
-                  color: AppColors.success(context),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LoadMoreProductsButton extends StatelessWidget {
-  const _LoadMoreProductsButton({
-    required this.isLoading,
-    required this.onPressed,
-  });
-
-  final bool isLoading;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppSizes.padding),
-      child: SizedBox(
-        width: double.infinity,
-        height: 46,
-        child: OutlinedButton.icon(
-          onPressed: isLoading ? null : onPressed,
-          icon: isLoading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.expand_more_rounded),
-          label: Text(
-            isLoading ? "Chargement..." : "Voir plus de produits",
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            side: const BorderSide(color: AppColors.primary),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DynamicProductPlaceholder extends StatelessWidget {
-  const _DynamicProductPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.softSurface(context),
-      alignment: Alignment.center,
-      child: Icon(Icons.inventory_2_outlined, color: AppColors.accent(context)),
     );
   }
 }
