@@ -12,7 +12,6 @@ import 'package:vendza/core/session/notifications_enabled_store.dart';
 import 'package:vendza/features/home/presantation/pages/home.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
 import 'package:vendza/features/notification/data/services/notification_badge_counters.dart';
-import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/notification/data/services/realtime_notification_service.dart';
 import 'package:vendza/features/notification/presantation/pages/notification_page.dart';
 import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
@@ -115,15 +114,11 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
   void _setIndex(int nextIndex) {
     if (index == nextIndex) return;
-    if (nextIndex == _storeNavIndex) {
-      markStoreAttentionNotificationsAsRead();
-    }
-    if (nextIndex == _ordersNavIndex) {
-      markBuyerOrderNotificationsAsRead();
-    }
-    if (nextIndex == _notificationNavIndex) {
-      markChatNotificationsAsRead();
-    }
+    // Store alerts also remain unread until their own alert detail is opened.
+    // Unread order alerts remain in Nouvelles until their notification detail
+    // is opened, even when the buyer browses the orders tab.
+    // Entering the inbox must not clear unread alerts: only opening an alert
+    // marks its thread as read, so the Nouvelles section stays meaningful.
     setState(() => index = nextIndex);
     _syncCatalogPolling();
     presenceService.path = _navPaths[nextIndex];

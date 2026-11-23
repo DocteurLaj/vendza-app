@@ -38,6 +38,23 @@ class _FakeOrdersApi extends OrderApiService {
   }
 }
 
+class _PagedOrdersApi extends _FakeOrdersApi {
+  final requestedPages = <int>[];
+
+  @override
+  Future<List<OrderModel>> storeOrders({
+    required int storeId,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    requestedPages.add(page);
+    if (page == 1) {
+      return List.generate(pageSize, (i) => _order(1000 + i, 'delivered'));
+    }
+    return [_order(2481, 'pending')];
+  }
+}
+
 OrderModel _order(int id, String status, {String? phone, String? address}) =>
     OrderModel(
       id: id,
@@ -96,6 +113,8 @@ void main() {
     expect(find.text('Contacter le client'), findsOneWidget);
     expect(find.text('Confirmer la commande'), findsOneWidget);
     expect(api.updates, isEmpty);
+    await tester.ensureVisible(find.text('Confirmer la commande'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Confirmer la commande'));
     await tester.pumpAndSettle();
     expect(api.updates, ['confirmed']);
@@ -107,6 +126,7 @@ void main() {
     (tester) async {
       await openPending(tester);
       await tester.ensureVisible(find.text('Annuler la commande'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Annuler la commande'));
       await tester.pumpAndSettle();
       expect(api.updates, isEmpty);
@@ -134,5 +154,54 @@ void main() {
     await tester.tap(find.text('Historique'));
     await tester.pumpAndSettle();
     expect(find.text('Commande #2477'), findsOneWidget);
+  });
+
+  testWidgets('cancelled order can be hidden without reopening its detail', (
+    tester,
+  ) async {
+    await openPending(tester);
+    await tester.ensureVisible(find.text('Annuler la commande'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Annuler la commande'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirmer l’annulation'));
+    await tester.pumpAndSettle();
+    expect(api.updates, ['cancelled']);
+    expect(find.text('Masquer de l’historique'), findsOneWidget);
+  });
+
+  testWidgets('seller alert finds its order on a later API page', (
+    tester,
+  ) async {
+    final paged = _PagedOrdersApi();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StoreOrdersPage(
+          store: store,
+          apiService: paged,
+          initialOrderId: 2481,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(paged.requestedPages, containsAllInOrder([1, 2]));
+    expect(find.text('Commande #2481'), findsOneWidget);
+  });
+
+  testWidgets('seller alert opens its exact order after list load', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StoreOrdersPage(
+          store: store,
+          apiService: api,
+          initialOrderId: 2478,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Commande #2478'), findsOneWidget);
+    expect(find.text('Préparer la commande'), findsOneWidget);
   });
 }

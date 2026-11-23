@@ -16,9 +16,15 @@ import 'package:vendza/shared/widgets/loading/vendza_loading_state.dart';
 import 'package:vendza/shared/widgets/media/context_image.dart';
 
 class StoreOrdersPage extends StatefulWidget {
-  const StoreOrdersPage({super.key, required this.store, this.apiService});
+  const StoreOrdersPage({
+    super.key,
+    required this.store,
+    this.apiService,
+    this.initialOrderId,
+  });
   final ListStoreModel store;
   final OrderApiService? apiService;
+  final int? initialOrderId;
 
   @override
   State<StoreOrdersPage> createState() => _StoreOrdersPageState();
@@ -31,6 +37,7 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
   OrderSegmentKey _segment = OrderSegmentKey.toProcess;
   OrderFilterKey _filter = OrderFilterKey.all;
   bool _loading = true;
+  bool _openedInitialOrder = false;
   String? _error;
 
   @override
@@ -74,6 +81,22 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
         _loading = false;
       });
       replaceLiveOrdersForStore(storeId, orders);
+      if (!_openedInitialOrder && widget.initialOrderId != null) {
+        _openedInitialOrder = true;
+        final target = await _findInitialOrder(orders, storeId);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (target != null) {
+            _inspect(target);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Commande introuvable dans cette boutique.'),
+              ),
+            );
+          }
+        });
+      }
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
@@ -85,6 +108,31 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
     }
   }
 
+  Future<OrderModel?> _findInitialOrder(
+    List<OrderModel> firstPage,
+    int storeId,
+  ) async {
+    final targetId = widget.initialOrderId;
+    if (targetId == null) return null;
+    var page = firstPage;
+    for (var pageNumber = 1; pageNumber <= 20; pageNumber++) {
+      for (final order in page) {
+        if (order.id == targetId) return order;
+      }
+      if (page.length < 100 || pageNumber == 20) break;
+      try {
+        page = await _api.storeOrders(
+          storeId: storeId,
+          page: pageNumber + 1,
+          pageSize: 100,
+        );
+      } on Object {
+        break;
+      }
+    }
+    return null;
+  }
+
   void _inspect(OrderModel order) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -92,18 +140,14 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
           order: order,
           store: widget.store,
           onStatus: (status) => _updateStatus(order.id, status),
-          onHide: canHideOrder(order)
-              ? () {
-                  setState(() => _hiddenIds.add(order.id));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Commande masquée de l’historique vendeur.',
-                      ),
-                    ),
-                  );
-                }
-              : null,
+          onHide: () {
+            setState(() => _hiddenIds.add(order.id));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Commande masquée de l’historique vendeur.'),
+              ),
+            );
+          },
         ),
       ),
     );

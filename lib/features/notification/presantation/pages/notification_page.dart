@@ -54,12 +54,17 @@ class _NotificationPageState extends State<NotificationPage> {
   void _openDestination(NotificationModel n) {
     if (n.name == 'store_order' && n.storeId != null) {
       Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => StoreOrdersPage(store: _store(n))),
+        MaterialPageRoute(
+          builder: (_) =>
+              StoreOrdersPage(store: _store(n), initialOrderId: n.orderId),
+        ),
       );
     } else if (n.name == 'order' && n.orderId != null) {
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const BuyerOrdersPage()));
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => BuyerOrderDetailPage(orderId: n.orderId!),
+        ),
+      );
     } else if ((n.name == 'product_low_stock' ||
             n.name == 'product_out_of_stock') &&
         n.storeId != null) {
@@ -137,9 +142,6 @@ class _NotificationPageState extends State<NotificationPage> {
         ),
       ),
     );
-    if (success && ModalRoute.of(context)?.isCurrent == false) {
-      Navigator.of(context).pop();
-    }
   }
 
   @override
@@ -173,105 +175,111 @@ class _NotificationPageState extends State<NotificationPage> {
           final fresh = filtered.where((n) => !n.isRead).toList();
           final read = filtered.where((n) => n.isRead).toList();
           final count = unreadNotificationCount(notifications);
+          final content = Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      count == 0
+                          ? 'Aucune nouvelle alerte'
+                          : '$count nouvelle${count > 1 ? 's' : ''} alerte${count > 1 ? 's' : ''}',
+                      style: TextStyle(
+                        color: AppColors.textPrimary(context),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      'Les plus récentes d’abord',
+                      style: TextStyle(
+                        color: AppColors.textSecondary(context),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: 52,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: [
+                    for (final (choice, label) in [
+                      (_InboxFilter.all, 'Tout'),
+                      (_InboxFilter.purchases, 'Achats'),
+                      (_InboxFilter.stores, 'Boutiques'),
+                      (_InboxFilter.info, 'Infos'),
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 7),
+                        child: ChoiceChip(
+                          label: Text(label),
+                          selected: filter == choice,
+                          onSelected: (_) => setState(() => filter = choice),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: notifications.isEmpty
+                    ? const _EmptyNotificationState()
+                    : filtered.isEmpty
+                    ? Center(
+                        child: Text(
+                          'Aucune notification dans cette catégorie',
+                          style: TextStyle(
+                            color: AppColors.textSecondary(context),
+                          ),
+                        ),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+                        children: [
+                          if (fresh.isNotEmpty) ...[
+                            const _SectionTitle('Nouvelles'),
+                            for (final n in fresh)
+                              _NotificationTile(
+                                notification: n,
+                                onTap: () => _openDetail(n, notifications),
+                                onDeleteThread: () => _deleteThread(
+                                  groupNotificationThreads(
+                                    notifications,
+                                  ).firstWhere((t) => t.id == n.threadKey),
+                                ),
+                              ),
+                          ],
+                          if (read.isNotEmpty) ...[
+                            const _SectionTitle('Déjà consultées'),
+                            for (final n in read)
+                              _NotificationTile(
+                                notification: n,
+                                onTap: () => _openDetail(n, notifications),
+                                onDeleteThread: () => _deleteThread(
+                                  groupNotificationThreads(
+                                    notifications,
+                                  ).firstWhere((t) => t.id == n.threadKey),
+                                ),
+                              ),
+                          ],
+                        ],
+                      ),
+              ),
+            ],
+          );
           return ResponsiveContent(
             maxWidth: 720,
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          count == 0
-                              ? 'Aucune nouvelle alerte'
-                              : '$count nouvelle${count > 1 ? 's' : ''} alerte${count > 1 ? 's' : ''}',
-                          style: TextStyle(
-                            color: AppColors.textPrimary(context),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        'Les plus récentes d’abord',
-                        style: TextStyle(
-                          color: AppColors.textSecondary(context),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  height: 52,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: [
-                      for (final (choice, label) in [
-                        (_InboxFilter.all, 'Tout'),
-                        (_InboxFilter.purchases, 'Achats'),
-                        (_InboxFilter.stores, 'Boutiques'),
-                        (_InboxFilter.info, 'Infos'),
-                      ])
-                        Padding(
-                          padding: const EdgeInsets.only(right: 7),
-                          child: ChoiceChip(
-                            label: Text(label),
-                            selected: filter == choice,
-                            onSelected: (_) => setState(() => filter = choice),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: notifications.isEmpty
-                      ? const _EmptyNotificationState()
-                      : filtered.isEmpty
-                      ? Center(
-                          child: Text(
-                            'Aucune notification dans cette catégorie',
-                            style: TextStyle(
-                              color: AppColors.textSecondary(context),
-                            ),
-                          ),
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
-                          children: [
-                            if (fresh.isNotEmpty) ...[
-                              const _SectionTitle('Nouvelles'),
-                              for (final n in fresh)
-                                _NotificationTile(
-                                  notification: n,
-                                  onTap: () => _openDetail(n, notifications),
-                                  onDeleteThread: () => _deleteThread(
-                                    groupNotificationThreads(
-                                      notifications,
-                                    ).firstWhere((t) => t.id == n.threadKey),
-                                  ),
-                                ),
-                            ],
-                            if (read.isNotEmpty) ...[
-                              const _SectionTitle('Déjà consultées'),
-                              for (final n in read)
-                                _NotificationTile(
-                                  notification: n,
-                                  onTap: () => _openDetail(n, notifications),
-                                  onDeleteThread: () => _deleteThread(
-                                    groupNotificationThreads(
-                                      notifications,
-                                    ).firstWhere((t) => t.id == n.threadKey),
-                                  ),
-                                ),
-                            ],
-                          ],
-                        ),
-                ),
-              ],
-            ),
+            child: MediaQuery.sizeOf(context).height < 500
+                ? SingleChildScrollView(
+                    child: SizedBox(height: 700, child: content),
+                  )
+                : content,
           );
         },
       ),
@@ -455,99 +463,163 @@ class NotificationThreadPage extends StatelessWidget {
   final VoidCallback onDeleteThread;
 
   @override
-  Widget build(BuildContext context) {
-    final messages = List<NotificationModel>.from(thread.messages)
-      ..sort(
-        (a, b) => (a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
-            .compareTo(b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
+  Widget build(
+    BuildContext context,
+  ) => ValueListenableBuilder<List<NotificationModel>>(
+    valueListenable: notificationStore,
+    builder: (context, notifications, _) {
+      final current = notifications
+          .where((message) => message.threadKey == thread.id)
+          .toList();
+      if (current.isEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted && Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+        });
+        return const SizedBox.shrink();
+      }
+      final currentThread = NotificationThreadModel(
+        id: thread.id,
+        messages: current,
       );
-    final latest = thread.latest;
-    final fg = AppColors.textPrimary(context);
-    final muted = AppColors.textSecondary(context);
-    return Scaffold(
-      backgroundColor: AppColors.appBackground(context),
-      appBar: AppBar(
-        backgroundColor: AppColors.card(context),
-        foregroundColor: fg,
-        title: Text(thread.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        actions: [
-          PopupMenuButton<String>(
-            tooltip: 'Options',
-            onSelected: (value) {
-              if (value == 'delete') onDeleteNotification(latest);
-              if (value == 'thread') onDeleteThread();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: 'thread',
-                child: Text('Supprimer la conversation'),
-              ),
-              PopupMenuItem(
-                value: 'delete',
-                child: Text('Supprimer cette notification'),
-              ),
-            ],
+      final messages = List<NotificationModel>.from(current)
+        ..sort(
+          (a, b) => (a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+              .compareTo(b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
+        );
+      final latest = currentThread.latest;
+      final fg = AppColors.textPrimary(context);
+      final muted = AppColors.textSecondary(context);
+      return Scaffold(
+        backgroundColor: AppColors.appBackground(context),
+        appBar: AppBar(
+          backgroundColor: AppColors.card(context),
+          foregroundColor: fg,
+          title: Text(
+            currentThread.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-        ],
-      ),
-      body: ResponsiveContent(
-        maxWidth: 720,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Text(
-              '${_contextLabel(latest)}${latest.orderId == null ? '' : ' · Commande #${latest.orderId}'}',
-              style: TextStyle(color: muted, fontSize: 12),
+          actions: [
+            PopupMenuButton<String>(
+              tooltip: 'Options',
+              onSelected: (value) {
+                if (value == 'delete') onDeleteNotification(latest);
+                if (value == 'thread') onDeleteThread();
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'thread',
+                  child: Text('Supprimer la conversation'),
+                ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Supprimer cette notification'),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            const _SectionTitle('Historique des notifications'),
-            for (final message in messages)
+          ],
+        ),
+        body: ResponsiveContent(
+          maxWidth: 720,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text(
+                '${_contextLabel(latest)}${latest.orderId == null ? '' : ' · Commande #${latest.orderId}'}',
+                style: TextStyle(color: muted, fontSize: 12),
+              ),
+              const SizedBox(height: 14),
               Container(
-                margin: const EdgeInsets.only(bottom: 10),
+                key: const Key('notification_summary_card'),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.card(context),
+                  color: AppColors.accent(context).withValues(alpha: .09),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border(context)),
+                  border: Border.all(
+                    color: AppColors.accent(context).withValues(alpha: .16),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (message.createdAt != null)
-                      Text(
-                        vendzaDateTimeLabel(message.createdAt!),
-                        style: TextStyle(color: muted, fontSize: 11),
-                      ),
-                    const SizedBox(height: 6),
                     Text(
-                      message.displayTitle,
+                      latest.displayTitle,
                       style: TextStyle(color: fg, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 5),
-                    Text(
-                      message.description,
-                      style: TextStyle(color: muted, height: 1.4),
-                    ),
+                    Text(latest.description, style: TextStyle(color: muted)),
                   ],
                 ),
               ),
-            if (latest.actionLabel != null) ...[
-              const SizedBox(height: 5),
-              FilledButton(
-                onPressed: () => onOpenNotification(latest),
-                child: Text('${latest.actionLabel} →'),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Cette action ouvre la page concernée ; elle ne confirme rien automatiquement.',
-                style: TextStyle(color: muted, fontSize: 11),
-              ),
+              const SizedBox(height: 14),
+              const _SectionTitle('Historique des notifications'),
+              for (final message in messages)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.card(context),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border(context)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (message.createdAt != null)
+                            Expanded(
+                              child: Text(
+                                vendzaDateTimeLabel(message.createdAt!),
+                                style: TextStyle(color: muted, fontSize: 11),
+                              ),
+                            )
+                          else
+                            const Spacer(),
+                          IconButton(
+                            key: Key('delete_notification_${message.id}'),
+                            tooltip: 'Supprimer cette notification',
+                            icon: const Icon(Icons.delete_outline, size: 19),
+                            onPressed: () => onDeleteNotification(message),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        message.displayTitle,
+                        style: TextStyle(
+                          color: fg,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        message.description,
+                        style: TextStyle(color: muted, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+              if (latest.actionLabel != null) ...[
+                const SizedBox(height: 5),
+                FilledButton(
+                  onPressed: () => onOpenNotification(latest),
+                  child: Text('${latest.actionLabel} →'),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Cette action ouvre la page concernée ; elle ne confirme rien automatiquement.',
+                  style: TextStyle(color: muted, fontSize: 11),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
 }
 
 class _EmptyNotificationState extends StatelessWidget {

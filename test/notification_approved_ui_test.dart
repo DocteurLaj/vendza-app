@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
 import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/notification/presantation/pages/notification_page.dart';
+import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
 
 NotificationModel alert(
   String id,
@@ -134,10 +135,136 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(NotificationThreadPage), findsOneWidget);
       expect(find.text('Historique des notifications'), findsOneWidget);
-      expect(find.text('Texte 1'), findsOneWidget);
-      expect(find.text('Texte 2'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(NotificationThreadPage),
+          matching: find.text('Texte 1'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(NotificationThreadPage),
+          matching: find.text('Texte 2'),
+        ),
+        findsNWidgets(2),
+      );
       expect(notificationStore.value.first.isRead, true);
       expect(notificationStore.value.last.isRead, false);
     },
   );
+
+  testWidgets('alert detail summarizes its latest real event before history', (
+    tester,
+  ) async {
+    notificationStore.value = [
+      alert('1', 'store_order', false, storeId: 7, orderId: 12),
+    ];
+    await tester.pumpWidget(const MaterialApp(home: NotificationPage()));
+    await tester.pump();
+    await tester.tap(find.text('Texte 1'));
+    await tester.pumpAndSettle();
+    final summary = find.byKey(const Key('notification_summary_card'));
+    expect(summary, findsOneWidget);
+    expect(
+      find.descendant(of: summary, matching: find.text('Texte 1')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'delete action targets a selected history entry and refreshes detail',
+    (tester) async {
+      final first = alert(
+        '1',
+        'store_order',
+        true,
+        thread: 'order:12',
+        storeId: 7,
+      );
+      final second = alert(
+        '2',
+        'store_order',
+        true,
+        thread: 'order:12',
+        storeId: 7,
+      );
+      notificationStore.value = [first, second];
+      String? deletedId;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: NotificationThreadPage(
+            thread: groupNotificationThreads(notificationStore.value).single,
+            onOpenNotification: (_) {},
+            onDeleteNotification: (event) {
+              deletedId = event.id;
+              notificationStore.value = notificationStore.value
+                  .where((n) => n.id != event.id)
+                  .toList();
+            },
+            onDeleteThread: () {},
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('delete_notification_1')));
+      await tester.pumpAndSettle();
+      expect(deletedId, '1');
+      expect(find.text('Texte 1'), findsNothing);
+      expect(find.text('Texte 2'), findsWidgets);
+    },
+  );
+
+  testWidgets('removing the final event returns to the inbox once', (
+    tester,
+  ) async {
+    notificationStore.value = [alert('1', 'general', true)];
+    final thread = groupNotificationThreads(notificationStore.value).single;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => NotificationThreadPage(
+                    thread: thread,
+                    onOpenNotification: (_) {},
+                    onDeleteNotification: (_) => notificationStore.value = [],
+                    onDeleteThread: () {},
+                  ),
+                ),
+              ),
+              child: const Text('Ouvrir le détail'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Ouvrir le détail'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete_notification_1')));
+    await tester.pumpAndSettle();
+    expect(find.byType(NotificationThreadPage), findsNothing);
+    expect(find.text('Ouvrir le détail'), findsOneWidget);
+  });
+
+  testWidgets('purchase alert opens the exact buyer order detail', (
+    tester,
+  ) async {
+    notificationStore.value = [alert('1', 'order', false, orderId: 2481)];
+    await tester.pumpWidget(const MaterialApp(home: NotificationPage()));
+    await tester.pump();
+    await tester.tap(find.text('Texte 1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Suivre la commande →'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(BuyerOrderDetailPage), findsOneWidget);
+    expect(
+      tester
+          .widget<BuyerOrderDetailPage>(find.byType(BuyerOrderDetailPage))
+          .orderId,
+      2481,
+    );
+  });
 }
