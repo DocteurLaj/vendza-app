@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/services/api_exception.dart';
-import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/order/data/models/order_model.dart';
 import 'package:vendza/features/order/data/services/order_api_service.dart';
 import 'package:vendza/features/order/data/services/realtime_order_store.dart';
@@ -10,7 +9,6 @@ import 'package:vendza/features/order/presentation/helpers/order_list_presentati
 import 'package:vendza/features/order/presentation/helpers/order_status_presentation.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
 import 'package:vendza/shared/utils/date_time_label.dart';
-import 'package:vendza/shared/widgets/badge/attention_badge.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
@@ -18,24 +16,22 @@ import 'package:vendza/shared/widgets/loading/vendza_loading_state.dart';
 import 'package:vendza/shared/widgets/media/context_image.dart';
 
 class StoreOrdersPage extends StatefulWidget {
-  const StoreOrdersPage({super.key, required this.store});
-
+  const StoreOrdersPage({super.key, required this.store, this.apiService});
   final ListStoreModel store;
+  final OrderApiService? apiService;
 
   @override
   State<StoreOrdersPage> createState() => _StoreOrdersPageState();
 }
 
 class _StoreOrdersPageState extends State<StoreOrdersPage> {
-  final _api = OrderApiService();
-  final Set<int> _expandedIds = {};
+  late final OrderApiService _api = widget.apiService ?? OrderApiService();
   final Set<int> _hiddenIds = {};
   List<OrderModel> _orders = [];
   OrderSegmentKey _segment = OrderSegmentKey.toProcess;
-  OrderFilterKey _advancedFilter = OrderFilterKey.all;
+  OrderFilterKey _filter = OrderFilterKey.all;
   bool _loading = true;
   String? _error;
-  bool _updating = false;
 
   @override
   void initState() {
@@ -52,10 +48,9 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
 
   void _syncLiveOrders() {
     final storeId = int.tryParse(widget.store.id);
-    if (!mounted || storeId == null) return;
-    setState(() {
-      _orders = liveOrdersForStore(storeId);
-    });
+    if (mounted && storeId != null) {
+      setState(() => _orders = liveOrdersForStore(storeId));
+    }
   }
 
   Future<void> _load() async {
@@ -90,59 +85,79 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
     }
   }
 
-  Future<void> _updateStatus(OrderModel order, String status) async {
+  void _inspect(OrderModel order) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _StoreOrderDetailPage(
+          order: order,
+          store: widget.store,
+          onStatus: (status) => _updateStatus(order.id, status),
+          onHide: canHideOrder(order)
+              ? () {
+                  setState(() => _hiddenIds.add(order.id));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Commande masquée de l’historique vendeur.',
+                      ),
+                    ),
+                  );
+                }
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Future<OrderModel?> _updateStatus(int orderId, String status) async {
     final storeId = int.tryParse(widget.store.id);
-    if (storeId == null || _updating) return;
-    setState(() => _updating = true);
+    if (storeId == null) return null;
     try {
       final updated = await _api.updateStoreOrderStatus(
         storeId: storeId,
-        orderId: order.id,
+        orderId: orderId,
         status: status,
       );
-      if (!mounted) return;
-      setState(() {
-        _orders = _orders
+      if (!mounted) return null;
+      setState(
+        () => _orders = _orders
             .map((item) => item.id == updated.id ? updated : item)
-            .toList(growable: false);
-        _expandedIds.add(updated.id);
-      });
+            .toList(growable: false),
+      );
       upsertLiveOrder(updated);
-    } on ApiException catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
-    } finally {
-      if (mounted) setState(() => _updating = false);
+      return updated;
+    } on Object catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error is ApiException
+                  ? error.message
+                  : 'Impossible de modifier la commande.',
+            ),
+          ),
+        );
+      }
+      return null;
     }
-  }
-
-  void _hideOrder(OrderModel order) {
-    setState(() {
-      _hiddenIds.add(order.id);
-      _expandedIds.remove(order.id);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Commande masquée de l’historique vendeur.'),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final summary = summarizeOrders(_orders, hiddenIds: _hiddenIds);
-    final visibleOrders = sellerOrdersForSegment(
+    final visible = sellerOrdersForSegment(
       _orders,
       _segment,
       hiddenIds: _hiddenIds,
-      advancedFilter: _advancedFilter,
+      advancedFilter: _filter,
     );
+    final label = sellerOrderSegmentOptions
+        .firstWhere((option) => option.key == _segment)
+        .label;
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
       appBar: VendzaPageHeader.back(
-        title: 'Commandes',
+        title: 'Commandes reçues',
         subtitle: widget.store.name,
         icon: Icons.storefront_outlined,
       ),
@@ -167,94 +182,123 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
                   ),
                 ],
               )
-            : summary.total == 0
-            ? ListView(
-                children: const [
-                  Padding(
-                    padding: EdgeInsets.all(24),
-                    child: EmptyStateWidget(
-                      icon: Icons.receipt_long_outlined,
-                      title: 'Aucune commande',
-                      message: 'Les commandes de vos clients apparaitront ici.',
-                    ),
-                  ),
-                ],
-              )
             : ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
                   ResponsiveContent(
                     maxWidth: 720,
-                    child: _OrdersHeader(
-                      title: 'Commandes',
-                      subtitle: sellerOrdersIntro(summary),
-                      summary: summary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ResponsiveContent(
-                    maxWidth: 720,
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: _OrderSegmentTabs(
-                            selected: _segment,
-                            options: sellerOrderSegmentOptions,
-                            attentionCounts: {
-                              for (final option in sellerOrderSegmentOptions)
-                                option.key: sellerAttentionCountForSegment(
-                                  _orders,
-                                  option.key,
-                                  hiddenIds: _hiddenIds,
+                        if (summary.newCount > 0)
+                          _Panel(
+                            color: AppColors.accent(
+                              context,
+                            ).withValues(alpha: .12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${summary.newCount} ${summary.newCount == 1 ? 'commande à traiter' : 'commandes à traiter'}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                            },
-                            onSelected: (segment) =>
-                                setState(() => _segment = segment),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Ouvrez une commande pour vérifier les détails avant de la confirmer.',
+                                ),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 14),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              for (final option in sellerOrderSegmentOptions)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 7),
+                                  child: ChoiceChip(
+                                    showCheckmark: false,
+                                    selected: _segment == option.key,
+                                    label: Text(
+                                      option.key == OrderSegmentKey.toProcess &&
+                                              summary.newCount > 0
+                                          ? '${option.label}  ${summary.newCount}'
+                                          : option.label,
+                                    ),
+                                    onSelected: (_) =>
+                                        setState(() => _segment = option.key),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        _AdvancedFilterButton(
-                          selected: _advancedFilter,
-                          onSelected: (filter) =>
-                              setState(() => _advancedFilter = filter),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                label,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            PopupMenuButton<OrderFilterKey>(
+                              tooltip: 'Filtrer',
+                              onSelected: (value) =>
+                                  setState(() => _filter = value),
+                              itemBuilder: (_) => [
+                                for (final option in orderAdvancedFilterOptions)
+                                  PopupMenuItem(
+                                    value: option.key,
+                                    child: Text(option.label),
+                                  ),
+                              ],
+                              child: const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('Filtrer'),
+                                    SizedBox(width: 4),
+                                    Icon(Icons.tune, size: 18),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 8),
+                        if (summary.total == 0)
+                          const EmptyStateWidget(
+                            icon: Icons.receipt_long_outlined,
+                            title: 'Aucune commande',
+                            message:
+                                'Les commandes de vos clients apparaîtront ici.',
+                          )
+                        else if (visible.isEmpty)
+                          const EmptyStateWidget(
+                            icon: Icons.filter_alt_off_outlined,
+                            title: 'Aucune commande ici',
+                            message:
+                                'Changez d’onglet ou retirez le filtre avancé.',
+                          )
+                        else
+                          for (final order in visible)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _SellerOrderCard(
+                                order: order,
+                                onInspect: () => _inspect(order),
+                              ),
+                            ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  if (visibleOrders.isEmpty)
-                    ResponsiveContent(
-                      maxWidth: 720,
-                      child: EmptyStateWidget(
-                        icon: Icons.filter_alt_off_outlined,
-                        title: 'Aucune commande ici',
-                        message:
-                            'Changez d’onglet ou retirez le filtre avancé.',
-                      ),
-                    )
-                  else
-                    ...visibleOrders.map(
-                      (order) => Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: ResponsiveContent(
-                          maxWidth: 720,
-                          child: _StoreOrderCard(
-                            order: order,
-                            expanded: _expandedIds.contains(order.id),
-                            updating: _updating,
-                            onToggle: () => setState(() {
-                              if (!_expandedIds.add(order.id)) {
-                                _expandedIds.remove(order.id);
-                              }
-                            }),
-                            onStatus: (status) => _updateStatus(order, status),
-                            onHide: canHideOrder(order)
-                                ? () => _hideOrder(order)
-                                : null,
-                          ),
-                        ),
-                      ),
-                    ),
                 ],
               ),
       ),
@@ -262,216 +306,173 @@ class _StoreOrdersPageState extends State<StoreOrdersPage> {
   }
 }
 
-class _StoreOrderCard extends StatelessWidget {
-  const _StoreOrderCard({
-    required this.order,
-    required this.expanded,
-    required this.updating,
-    required this.onToggle,
-    required this.onStatus,
-    this.onHide,
-  });
-
+class _SellerOrderCard extends StatelessWidget {
+  const _SellerOrderCard({required this.order, required this.onInspect});
   final OrderModel order;
-  final bool expanded;
-  final bool updating;
-  final VoidCallback onToggle;
-  final ValueChanged<String> onStatus;
-  final VoidCallback? onHide;
+  final VoidCallback onInspect;
 
   @override
   Widget build(BuildContext context) {
-    final next = nextOrderStatus(order.status);
-    final actionLabel = orderStatusActionLabel(order.status);
-    return _PremiumOrderShell(
-      order: order,
-      expanded: expanded,
-      onToggle: onToggle,
-      attentionLabel: orderSellerAttentionLabel(order),
-      collapsedSubtitle:
-          '${vendzaDateTimeLabel(order.createdAt)} · ${order.items.length} article(s) · ${order.totalAmount.toStringAsFixed(0)}',
-      expandedChildren: [
-        _OrderItemsPreview(order: order),
-        if ((order.contactPhone ?? '').trim().isNotEmpty) ...[
-          const SizedBox(height: 12),
-          _CustomerContactRow(phone: order.contactPhone!.trim()),
-        ],
-        const SizedBox(height: 12),
-        _InfoBox(
-          icon: Icons.location_on_outlined,
-          title: 'Adresse de livraison',
-          value: (order.deliveryAddress ?? '').trim().isEmpty
-              ? 'Adresse non renseignée'
-              : order.deliveryAddress!.trim(),
-        ),
-        if ((order.customerNote ?? '').trim().isNotEmpty) ...[
-          const SizedBox(height: 10),
-          _InfoBox(
-            icon: Icons.sticky_note_2_outlined,
-            title: 'Note client',
-            value: order.customerNote!.trim(),
-          ),
-        ],
-        const SizedBox(height: 12),
-        Text(
-          orderStatusDescription(order.status),
-          style: TextStyle(
-            color: AppColors.textSecondary(context),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
-        _OrderTimeline(status: order.status),
-        const SizedBox(height: 14),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            if (next != null && actionLabel != null)
-              FilledButton.icon(
-                onPressed: updating ? null : () => onStatus(next),
-                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                label: Text(actionLabel),
-              ),
-            if (order.status != 'cancelled' && order.status != 'delivered')
-              OutlinedButton.icon(
-                onPressed: updating ? null : () => onStatus('cancelled'),
-                icon: const Icon(Icons.close_rounded, size: 18),
-                label: const Text('Annuler'),
-              ),
-            if (onHide != null)
-              TextButton.icon(
-                onPressed: onHide,
-                icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                label: const Text('Masquer de l’historique'),
-              ),
-          ],
-        ),
-      ],
+    final first = order.items.isEmpty ? null : order.items.first;
+    final quantity = order.items.fold<int>(
+      0,
+      (sum, item) => sum + item.quantity,
     );
-  }
-}
-
-class _PremiumOrderShell extends StatelessWidget {
-  const _PremiumOrderShell({
-    required this.order,
-    required this.expanded,
-    required this.onToggle,
-    this.attentionLabel,
-    required this.collapsedSubtitle,
-    required this.expandedChildren,
-  });
-
-  final OrderModel order;
-  final bool expanded;
-  final VoidCallback onToggle;
-  final String? attentionLabel;
-  final String collapsedSubtitle;
-  final List<Widget> expandedChildren;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border(context)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(
-              alpha: AppColors.isDark(context) ? 0.16 : 0.045,
-            ),
-            blurRadius: expanded ? 22 : 14,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(18),
-            onTap: onToggle,
-            child: Row(
+    return _Panel(
+      child: InkWell(
+        onTap: onInspect,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                VendzaContextImage(
-                  imageUrl: order.storeImage,
-                  icon: orderStatusIcon(order.status),
-                  size: 46,
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        order.storeName == null
-                            ? 'Commande #${order.id}'
-                            : '${order.storeName} · #${order.id}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.cardTitle(context),
+                        'Commande #${order.id}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                      const SizedBox(height: 4),
                       Text(
-                        collapsedSubtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        '${vendzaDateTimeLabel(order.createdAt)} · $quantity ${quantity == 1 ? 'article' : 'articles'}',
                         style: TextStyle(
+                          fontSize: 12,
                           color: AppColors.textSecondary(context),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (attentionLabel != null) ...[
-                  AttentionBadge(count: 1, label: attentionLabel),
-                  const SizedBox(width: 6),
-                ],
-                _StatusPill(status: order.status),
-                IconButton(
-                  tooltip: expanded ? 'Plier' : 'Déplier',
-                  onPressed: onToggle,
-                  icon: Icon(
-                    expanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                  ),
-                ),
+                _StatusChip(status: order.status),
               ],
             ),
-          ),
-          AnimatedCrossFade(
-            firstChild: const SizedBox.shrink(),
-            secondChild: Padding(
-              padding: const EdgeInsets.only(top: 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: expandedChildren,
+            if (first != null) ...[
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  VendzaContextImage(
+                    imageUrl: first.productImage,
+                    icon: Icons.inventory_2_outlined,
+                    size: 48,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${first.productName ?? 'Produit'} × ${first.quantity}${order.items.length > 1 ? ' + ${order.items.length - 1}' : ''}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        Text(
+                          (order.deliveryAddress ?? '').trim().isEmpty
+                              ? 'Adresse non renseignée'
+                              : 'Adresse renseignée',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textSecondary(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '${order.totalAmount.toStringAsFixed(0)} CDF',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
+            ],
+            const Divider(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    order.status == 'pending'
+                        ? 'Vérifier avant de confirmer'
+                        : orderStatusDescription(order.status),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary(context),
+                    ),
+                  ),
+                ),
+                TextButton(onPressed: onInspect, child: const Text('Examiner')),
+              ],
             ),
-            crossFadeState: expanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 180),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _CustomerContactRow extends StatelessWidget {
-  const _CustomerContactRow({required this.phone});
+class _StoreOrderDetailPage extends StatefulWidget {
+  const _StoreOrderDetailPage({
+    required this.order,
+    required this.store,
+    required this.onStatus,
+    this.onHide,
+  });
+  final OrderModel order;
+  final ListStoreModel store;
+  final Future<OrderModel?> Function(String status) onStatus;
+  final VoidCallback? onHide;
 
-  final String phone;
+  @override
+  State<_StoreOrderDetailPage> createState() => _StoreOrderDetailPageState();
+}
 
-  Future<void> _open(BuildContext context) async {
-    final opened = await openCustomerContact(phone);
-    if (!opened && context.mounted) {
+class _StoreOrderDetailPageState extends State<_StoreOrderDetailPage> {
+  late OrderModel _order = widget.order;
+  bool _updating = false;
+
+  Future<void> _changeStatus(String status) async {
+    if (_updating) return;
+    setState(() => _updating = true);
+    final updated = await widget.onStatus(status);
+    if (!mounted) return;
+    setState(() {
+      if (updated != null) _order = updated;
+      _updating = false;
+    });
+  }
+
+  Future<void> _cancel() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Annuler la commande ?'),
+        content: const Text(
+          'Cette action modifiera le statut de la commande pour le client.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Conserver la commande'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirmer l’annulation'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) await _changeStatus('cancelled');
+  }
+
+  Future<void> _contact() async {
+    final opened = await openCustomerContact(_order.contactPhone!.trim());
+    if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Impossible d’ouvrir le contact client.')),
       );
@@ -480,381 +481,256 @@ class _CustomerContactRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _InfoBoxWithAction(
-      icon: Icons.phone_in_talk_outlined,
-      title: 'Contact client',
-      value: phone,
-      action: TextButton.icon(
-        onPressed: () => _open(context),
-        icon: const Icon(Icons.chat_outlined, size: 18),
-        label: const Text('Contacter'),
+    final next = nextOrderStatus(_order.status);
+    final action = orderStatusActionLabel(_order.status);
+    final address = (_order.deliveryAddress ?? '').trim();
+    final phone = (_order.contactPhone ?? '').trim();
+    return Scaffold(
+      backgroundColor: AppColors.appBackground(context),
+      appBar: VendzaPageHeader.back(
+        title: 'Commande #${_order.id}',
+        subtitle:
+            '${widget.store.name} · ${vendzaDateTimeLabel(_order.createdAt)} · ${_order.totalAmount.toStringAsFixed(0)} CDF',
+        icon: Icons.receipt_long_outlined,
       ),
-    );
-  }
-}
-
-class _OrdersHeader extends StatelessWidget {
-  const _OrdersHeader({
-    required this.title,
-    required this.subtitle,
-    required this.summary,
-  });
-
-  final String title;
-  final String subtitle;
-  final OrderSummary summary;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.accent(context).withValues(alpha: 0.18),
-            AppColors.card(context),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border(context)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          Text(title, style: AppTextStyles.cardTitle(context)),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(color: AppColors.textSecondary(context)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _OrderSegmentTabs extends StatelessWidget {
-  const _OrderSegmentTabs({
-    required this.selected,
-    required this.options,
-    required this.attentionCounts,
-    required this.onSelected,
-  });
-
-  final OrderSegmentKey selected;
-  final List<OrderSegmentOption> options;
-  final Map<OrderSegmentKey, int> attentionCounts;
-  final ValueChanged<OrderSegmentKey> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: options
-            .map(
-              (option) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Row(
-                    mainAxisSize: MainAxisSize.min,
+          ResponsiveContent(
+            maxWidth: 720,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _Panel(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(option.label),
-                      if ((attentionCounts[option.key] ?? 0) > 0) ...[
-                        const SizedBox(width: 6),
-                        AttentionBadge(
-                          count: attentionCounts[option.key] ?? 0,
-                          small: true,
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'État de la commande',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          _StatusChip(status: _order.status),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        orderStatusLabel(_order.status),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        _order.status == 'pending'
+                            ? 'Vérifiez les informations avant de confirmer.'
+                            : orderStatusDescription(_order.status),
+                        style: TextStyle(
+                          color: AppColors.textSecondary(context),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      for (final step in orderTimelineSteps(_order.status))
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 5),
+                          child: Row(
+                            children: [
+                              Icon(
+                                step.isCompleted
+                                    ? Icons.check_circle
+                                    : Icons.radio_button_unchecked,
+                                size: 18,
+                                color: step.isCompleted
+                                    ? AppColors.accent(context)
+                                    : AppColors.textSecondary(context),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                step.label,
+                                style: TextStyle(
+                                  fontWeight: step.isCurrent
+                                      ? FontWeight.w800
+                                      : FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      const Divider(height: 24),
+                      for (final item in _order.items)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            children: [
+                              VendzaContextImage(
+                                imageUrl: item.productImage,
+                                icon: Icons.inventory_2_outlined,
+                                size: 48,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  '${item.productName ?? 'Produit'} × ${item.quantity}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              Text('${item.totalPrice.toStringAsFixed(0)} CDF'),
+                            ],
+                          ),
+                        ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          'Total · ${_order.totalAmount.toStringAsFixed(0)} CDF',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _Panel(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Livraison et client',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 12),
+                      _DetailRow(
+                        label: 'Adresse',
+                        value: address.isEmpty
+                            ? 'Adresse non renseignée'
+                            : address,
+                      ),
+                      const SizedBox(height: 10),
+                      _DetailRow(
+                        label: 'Téléphone',
+                        value: phone.isEmpty ? 'Numéro non renseigné' : phone,
+                      ),
+                      if ((_order.customerNote ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        _DetailRow(
+                          label: 'Note client',
+                          value: _order.customerNote!.trim(),
                         ),
                       ],
                     ],
                   ),
-                  selected: selected == option.key,
-                  onSelected: (_) => onSelected(option.key),
-                  showCheckmark: false,
                 ),
-              ),
-            )
-            .toList(growable: false),
-      ),
-    );
-  }
-}
-
-class _AdvancedFilterButton extends StatelessWidget {
-  const _AdvancedFilterButton({
-    required this.selected,
-    required this.onSelected,
-  });
-
-  final OrderFilterKey selected;
-  final ValueChanged<OrderFilterKey> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasFilter = selected != OrderFilterKey.all;
-    return PopupMenuButton<OrderFilterKey>(
-      tooltip: 'Filtrer',
-      onSelected: onSelected,
-      itemBuilder: (context) => orderAdvancedFilterOptions
-          .map(
-            (option) => PopupMenuItem<OrderFilterKey>(
-              value: option.key,
-              child: Row(
-                children: [
-                  if (selected == option.key)
-                    Icon(
-                      Icons.check_rounded,
-                      size: 18,
-                      color: AppColors.iconAccent(context),
-                    )
-                  else
-                    const SizedBox(width: 18),
-                  const SizedBox(width: 8),
-                  Text(option.label),
+                const SizedBox(height: 12),
+                if (next != null && action != null)
+                  FilledButton(
+                    onPressed: _updating ? null : () => _changeStatus(next),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          action == 'Confirmer'
+                              ? 'Confirmer la commande'
+                              : '$action la commande',
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.arrow_forward, size: 18),
+                      ],
+                    ),
+                  ),
+                if (phone.isNotEmpty)
+                  TextButton(
+                    onPressed: _contact,
+                    child: const Text('Contacter le client'),
+                  ),
+                if (_order.status != 'cancelled' &&
+                    _order.status != 'delivered') ...[
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: _updating ? null : _cancel,
+                    child: const Text('Annuler la commande'),
+                  ),
                 ],
-              ),
-            ),
-          )
-          .toList(growable: false),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: hasFilter
-              ? AppColors.accent(context).withValues(alpha: 0.10)
-              : AppColors.card(context),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.border(context)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.tune_rounded,
-              size: 18,
-              color: AppColors.iconAccent(context),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              hasFilter ? 'Filtre' : 'Filtrer',
-              style: TextStyle(
-                color: AppColors.textPrimary(context),
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoBox extends StatelessWidget {
-  const _InfoBox({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return _InfoBoxWithAction(icon: icon, title: title, value: value);
-  }
-}
-
-class _InfoBoxWithAction extends StatelessWidget {
-  const _InfoBoxWithAction({
-    required this.icon,
-    required this.title,
-    required this.value,
-    this.action,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
-  final Widget? action;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.accent(context).withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border(context)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: AppColors.iconAccent(context), size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: AppColors.textSecondary(context),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                if (widget.onHide != null && canHideOrder(_order))
+                  TextButton(
+                    onPressed: () {
+                      widget.onHide!();
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Masquer de l’historique'),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: AppColors.textPrimary(context),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
               ],
             ),
           ),
-          ?action,
         ],
       ),
     );
   }
 }
 
-class _OrderItemsPreview extends StatelessWidget {
-  const _OrderItemsPreview({required this.order});
-
-  final OrderModel order;
-
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
+  final String label;
+  final String value;
   @override
-  Widget build(BuildContext context) {
-    if (order.items.isEmpty) return const SizedBox.shrink();
-    return Column(
-      children: order.items
-          .map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  VendzaContextImage(
-                    imageUrl: item.productImage,
-                    icon: Icons.inventory_2_outlined,
-                    size: 36,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${item.productName ?? 'Produit'} × ${item.quantity}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: AppColors.textPrimary(context),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (orderItemNeedsSellerAttention(order, item)) ...[
-                          const SizedBox(height: 4),
-                          const AttentionBadge(
-                            count: 1,
-                            small: true,
-                            label: 'À préparer',
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  Text(
-                    item.totalPrice.toStringAsFixed(0),
-                    style: TextStyle(
-                      color: AppColors.textSecondary(context),
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-          .toList(growable: false),
-    );
-  }
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: TextStyle(color: AppColors.textSecondary(context))),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Text(
+          value,
+          textAlign: TextAlign.end,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+    ],
+  );
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.status});
-
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.status});
   final String status;
-
   @override
   Widget build(BuildContext context) {
     final color = orderStatusColor(status, context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
+        color: color.withValues(alpha: .12),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        orderStatusLabel(status),
+        status == 'pending' ? 'À confirmer' : orderStatusLabel(status),
         style: TextStyle(
-          color: color,
           fontSize: 11,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w800,
+          color: color,
         ),
       ),
     );
   }
 }
 
-class _OrderTimeline extends StatelessWidget {
-  const _OrderTimeline({required this.status});
-
-  final String status;
-
+class _Panel extends StatelessWidget {
+  const _Panel({required this.child, this.color});
+  final Widget child;
+  final Color? color;
   @override
-  Widget build(BuildContext context) {
-    final steps = orderTimelineSteps(status);
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: steps
-          .map((step) {
-            final color = orderStatusColor(step.status, context);
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  step.isCompleted
-                      ? Icons.check_circle_rounded
-                      : Icons.radio_button_unchecked_rounded,
-                  size: 15,
-                  color: step.isCompleted
-                      ? color
-                      : AppColors.textSecondary(
-                          context,
-                        ).withValues(alpha: 0.45),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  step.label,
-                  style: TextStyle(
-                    color: step.isCurrent
-                        ? color
-                        : AppColors.textSecondary(context),
-                    fontSize: 11,
-                    fontWeight: step.isCurrent
-                        ? FontWeight.w900
-                        : FontWeight.w600,
-                  ),
-                ),
-              ],
-            );
-          })
-          .toList(growable: false),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: color ?? AppColors.card(context),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: AppColors.border(context)),
+    ),
+    child: child,
+  );
 }
