@@ -28,6 +28,18 @@ class NotificationApiService {
     );
   }
 
+  Future<List<Map<String, dynamic>>> notificationsForThread(
+    String threadId,
+  ) async {
+    final response = await _client.get(
+      ApiEndpoints.notificationThread(Uri.encodeComponent(threadId)),
+      authenticated: true,
+    );
+    return List<Map<String, dynamic>>.from(
+      (response as List).map((item) => Map<String, dynamic>.from(item as Map)),
+    );
+  }
+
   Future<Map<String, dynamic>> markAsSeen(int notificationId) async {
     final response = await _client.put(
       ApiEndpoints.notificationSeen(notificationId),

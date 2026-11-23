@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
+import 'package:vendza/core/services/api_mappers.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
+import 'package:vendza/features/notification/data/services/notification_api_service.dart';
 import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/notification/presantation/helpers/notification_presentation.dart';
 import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
@@ -34,7 +36,9 @@ String _contextLabel(NotificationModel notification) =>
     };
 
 class NotificationPage extends StatefulWidget {
-  const NotificationPage({super.key});
+  const NotificationPage({super.key, this.apiService});
+
+  final NotificationApiService? apiService;
 
   @override
   State<NotificationPage> createState() => _NotificationPageState();
@@ -74,13 +78,39 @@ class _NotificationPageState extends State<NotificationPage> {
     }
   }
 
-  void _openDetail(
+  Future<void> _openDetail(
     NotificationModel notification,
     List<NotificationModel> notifications,
-  ) {
-    final thread = groupNotificationThreads(
+  ) async {
+    var thread = groupNotificationThreads(
       notifications,
     ).firstWhere((t) => t.id == notification.threadKey);
+    var historyMayBeIncomplete = notifications.length >= 100;
+    // The inbox endpoint provides only its 100 most recent alerts. For a
+    // server-backed thread, fetch the complete history before presenting it.
+    if (notifications.length >= 100 && notification.threadId != null) {
+      try {
+        final rows = await (widget.apiService ?? NotificationApiService())
+            .notificationsForThread(thread.id);
+        final messages = rows
+            .map(notificationFromApi)
+            .where((n) => n.threadKey == thread.id)
+            .toList();
+        if (!mounted) return;
+        if (messages.isNotEmpty) {
+          final byId = {
+            for (final n in notificationStore.value) n.id: n,
+            for (final n in messages) n.id: n,
+          };
+          notificationStore.value = byId.values.toList();
+          thread = NotificationThreadModel(id: thread.id, messages: messages);
+          historyMayBeIncomplete = false;
+        }
+      } on Object {
+        // Keep the recent inbox available if the history request fails.
+      }
+    }
+    if (!mounted) return;
     for (final message in thread.messages) {
       if (!message.isRead) markNotificationAsRead(message.id);
     }
@@ -91,6 +121,7 @@ class _NotificationPageState extends State<NotificationPage> {
           onOpenNotification: _openDestination,
           onDeleteNotification: _deleteMessage,
           onDeleteThread: () => _deleteThread(thread),
+          historyMayBeIncomplete: historyMayBeIncomplete,
         ),
       ),
     );
@@ -456,11 +487,13 @@ class NotificationThreadPage extends StatelessWidget {
     required this.onOpenNotification,
     required this.onDeleteNotification,
     required this.onDeleteThread,
+    this.historyMayBeIncomplete = false,
   });
   final NotificationThreadModel thread;
   final ValueChanged<NotificationModel> onOpenNotification;
   final ValueChanged<NotificationModel> onDeleteNotification;
   final VoidCallback onDeleteThread;
+  final bool historyMayBeIncomplete;
 
   @override
   Widget build(
@@ -555,6 +588,13 @@ class NotificationThreadPage extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               const _SectionTitle('Historique des notifications'),
+              if (historyMayBeIncomplete) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Historique récent : des alertes plus anciennes peuvent manquer.',
+                  style: TextStyle(color: AppColors.textSecondary(context)),
+                ),
+              ],
               for (final message in messages)
                 Container(
                   margin: const EdgeInsets.only(bottom: 10),
@@ -599,6 +639,17 @@ class NotificationThreadPage extends StatelessWidget {
                         message.description,
                         style: TextStyle(color: muted, height: 1.4),
                       ),
+                      if (message.actionLabel case final actionLabel?) ...[
+                        const SizedBox(height: 6),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            key: Key('open_notification_${message.id}'),
+                            onPressed: () => onOpenNotification(message),
+                            child: Text('$actionLabel →'),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

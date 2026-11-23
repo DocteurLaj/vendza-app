@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
+import 'package:vendza/features/notification/data/services/notification_api_service.dart';
 import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/notification/presantation/pages/notification_page.dart';
 import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
@@ -25,6 +26,44 @@ NotificationModel alert(
   storeName: storeId == null ? null : 'Boutique $storeId',
   createdAt: DateTime(2026, 10, 20, int.parse(id)),
 );
+
+class _FullThreadApi extends NotificationApiService {
+  @override
+  Future<List<Map<String, dynamic>>> notificationsForThread(
+    String threadId,
+  ) async {
+    if (threadId != 'shared') throw StateError('wrong thread');
+    return [
+      {
+        'idnotification': 101,
+        'type': 'store_order',
+        'title': 'Ancien événement',
+        'content': 'Texte historique',
+        'seen': true,
+        'thread_id': 'shared',
+        'store_idstore': 7,
+        'createdAt': '2026-01-01T00:00:00Z',
+      },
+      {
+        'idnotification': 999,
+        'type': 'store_order',
+        'title': 'Nouvel événement',
+        'content': 'Texte 999',
+        'seen': false,
+        'thread_id': 'shared',
+        'store_idstore': 7,
+        'createdAt': '2026-12-01T00:00:00Z',
+      },
+    ];
+  }
+}
+
+class _FailingThreadApi extends NotificationApiService {
+  @override
+  Future<List<Map<String, dynamic>>> notificationsForThread(String threadId) {
+    throw StateError('history unavailable');
+  }
+}
 
 void main() {
   setUp(() => notificationStore.value = []);
@@ -214,6 +253,75 @@ void main() {
     },
   );
 
+  testWidgets('detail loads older events beyond the recent inbox page', (
+    tester,
+  ) async {
+    notificationStore.value = [
+      alert('999', 'store_order', false, thread: 'shared', storeId: 7),
+      for (var i = 1; i < 100; i++)
+        alert('$i', 'general', true, thread: 'other-$i'),
+    ];
+    await tester.pumpWidget(
+      MaterialApp(home: NotificationPage(apiService: _FullThreadApi())),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Texte 999'));
+    await tester.pumpAndSettle();
+    expect(find.text('Texte historique'), findsOneWidget);
+  });
+
+  testWidgets('partial history is identified when the thread endpoint fails', (
+    tester,
+  ) async {
+    notificationStore.value = [
+      alert('999', 'store_order', false, thread: 'shared', storeId: 7),
+      for (var i = 1; i < 100; i++)
+        alert('$i', 'general', true, thread: 'other-$i'),
+    ];
+    await tester.pumpWidget(
+      MaterialApp(home: NotificationPage(apiService: _FailingThreadApi())),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Texte 999'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Historique récent : des alertes plus anciennes peuvent manquer.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('history action preserves the specific event context', (
+    tester,
+  ) async {
+    notificationStore.value = [
+      alert(
+        '1',
+        'store_order',
+        true,
+        thread: 'shared',
+        storeId: 7,
+        orderId: 12,
+      ),
+      alert('2', 'general', true, thread: 'shared'),
+    ];
+    String? openedId;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NotificationThreadPage(
+          thread: groupNotificationThreads(notificationStore.value).single,
+          onOpenNotification: (n) => openedId = n.id,
+          onDeleteNotification: (_) {},
+          onDeleteThread: () {},
+        ),
+      ),
+    );
+    await tester.ensureVisible(find.text('Texte 1'));
+    await tester.tap(find.byKey(const Key('open_notification_1')));
+    expect(openedId, '1');
+  });
+
   testWidgets('removing the final event returns to the inbox once', (
     tester,
   ) async {
@@ -256,7 +364,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Texte 1'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Suivre la commande →'));
+    await tester.tap(find.text('Suivre la commande →').last);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(BuyerOrderDetailPage), findsOneWidget);
