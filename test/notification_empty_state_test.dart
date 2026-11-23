@@ -98,7 +98,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: NotificationPage()));
     await tester.pump();
 
-    expect(find.text('Toutes les conversations sont lues'), findsOneWidget);
+    expect(find.text('Aucune nouvelle alerte'), findsOneWidget);
     expect(find.text('Aucune notification pour le moment'), findsNothing);
     expect(find.text('Explorer les boutiques'), findsNothing);
   });

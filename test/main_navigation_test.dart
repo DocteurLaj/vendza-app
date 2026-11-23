@@ -2,11 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
 import 'package:vendza/features/notification/presantation/pages/notification_page.dart';
+import 'package:vendza/features/notification/data/models/notification_model.dart';
+import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/profil/presantation/pages/profile_page.dart';
 import 'package:vendza/navigation/main_page.dart';
-import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 
 void main() {
+  testWidgets(
+    'opening inbox keeps unread alerts until their detail is opened',
+    (tester) async {
+      notificationStore.value = [
+        NotificationModel(
+          id: 'nav-alert',
+          name: 'general',
+          title: 'Alerte',
+          description: 'Nouvelle information',
+          imageUrl: '',
+          isRead: false,
+          createdAt: DateTime(2026, 11, 23),
+        ),
+      ];
+      addTearDown(() => notificationStore.value = []);
+      await tester.pumpWidget(const MaterialApp(home: MainPage()));
+      await tester.pump();
+      await tester.tap(find.text('Notifications').last);
+      await tester.pump();
+      expect(notificationStore.value.single.isRead, isFalse);
+      expect(find.text('Nouvelles'), findsOneWidget);
+    },
+  );
+
   testWidgets('navigation keeps notifications and exposes buyer orders', (
     tester,
   ) async {
@@ -36,7 +61,14 @@ void main() {
           'Le bouton de découverte doit changer l’onglet racine vers Accueil.',
     );
     expect(
-      tester.widget<VendzaPageHeader>(find.byType(VendzaPageHeader)).showBack,
+      tester
+          .widget<AppBar>(
+            find.descendant(
+              of: find.byType(BuyerOrdersPage),
+              matching: find.byType(AppBar),
+            ),
+          )
+          .automaticallyImplyLeading,
       isFalse,
     );
   });
@@ -58,6 +90,50 @@ void main() {
       expect(find.byTooltip('Ouvrir le profil'), findsOneWidget);
     },
   );
+
+  testWidgets('opening orders does not dismiss unread purchase alerts', (
+    tester,
+  ) async {
+    notificationStore.value = [
+      NotificationModel(
+        id: 'purchase-alert',
+        name: 'order',
+        title: 'Commande',
+        description: 'État mis à jour',
+        imageUrl: '',
+        isRead: false,
+        orderId: 2481,
+      ),
+    ];
+    addTearDown(() => notificationStore.value = []);
+    await tester.pumpWidget(const MaterialApp(home: MainPage()));
+    await tester.pump();
+    await tester.tap(find.text('Commandes').last);
+    await tester.pump();
+    expect(notificationStore.value.single.isRead, false);
+  });
+
+  testWidgets('opening Store does not dismiss unread boutique alerts', (
+    tester,
+  ) async {
+    notificationStore.value = [
+      NotificationModel(
+        id: 'stock-alert',
+        name: 'product_low_stock',
+        title: 'Stock faible',
+        description: 'Stock à surveiller',
+        imageUrl: '',
+        isRead: false,
+        storeId: 7,
+      ),
+    ];
+    addTearDown(() => notificationStore.value = []);
+    await tester.pumpWidget(const MaterialApp(home: MainPage()));
+    await tester.pump();
+    await tester.tap(find.text('Store').last);
+    await tester.pump();
+    expect(notificationStore.value.single.isRead, false);
+  });
 
   testWidgets('Store starts with owned boutiques and keeps favorites', (
     tester,
