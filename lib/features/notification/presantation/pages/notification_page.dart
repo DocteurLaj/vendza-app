@@ -1,19 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:vendza/core/constants/colors.dart';
-import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
-import 'package:vendza/features/order/presentation/pages/store_orders_page.dart';
-import 'package:vendza/features/store/presentation/pages/my_store_product_page.dart';
-import 'package:vendza/features/store/presentation/pages/all_stores_page.dart';
 import 'package:vendza/features/notification/data/models/notification_model.dart';
 import 'package:vendza/features/notification/data/services/notification_store.dart';
 import 'package:vendza/features/notification/presantation/helpers/notification_presentation.dart';
-
+import 'package:vendza/features/order/presentation/pages/buyer_orders_page.dart';
+import 'package:vendza/features/order/presentation/pages/store_orders_page.dart';
 import 'package:vendza/features/store/data/models/store_model.dart';
+import 'package:vendza/features/store/presentation/pages/all_stores_page.dart';
+import 'package:vendza/features/store/presentation/pages/my_store_product_page.dart';
 import 'package:vendza/shared/utils/date_time_label.dart';
 import 'package:vendza/shared/widgets/dialog/destructive_action_dialog.dart';
 import 'package:vendza/shared/widgets/layout/responsive_content.dart';
 import 'package:vendza/shared/widgets/layout/vendza_page_header.dart';
 import 'package:vendza/shared/widgets/media/context_image.dart';
+
+enum _InboxFilter { all, purchases, stores, info }
+
+_InboxFilter _contextFor(NotificationModel notification) =>
+    switch (notification.name) {
+      'order' => _InboxFilter.purchases,
+      'store_order' ||
+      'product_low_stock' ||
+      'product_out_of_stock' => _InboxFilter.stores,
+      _ => _InboxFilter.info,
+    };
+
+String _contextLabel(NotificationModel notification) =>
+    switch (notification.name) {
+      'order' => 'Achat',
+      'store_order' => 'Vente',
+      'product_low_stock' || 'product_out_of_stock' => 'Boutique',
+      _ => 'Information Vendza',
+    };
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
@@ -23,59 +41,76 @@ class NotificationPage extends StatefulWidget {
 }
 
 class _NotificationPageState extends State<NotificationPage> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      markChatNotificationsAsRead();
-    });
-  }
+  _InboxFilter filter = _InboxFilter.all;
 
-  void _openNotification(NotificationModel notification) {
-    markNotificationAsRead(notification.id);
+  ListStoreModel _store(NotificationModel n) => ListStoreModel(
+    id: '${n.storeId}',
+    name: n.storeName ?? 'Boutique',
+    description: '',
+    imageUrl: n.storeImage ?? n.imageUrl,
+    rating: 0,
+  );
 
-    final storeId = notification.storeId;
-    if (notification.name == 'store_order' && storeId != null) {
+  void _openDestination(NotificationModel n) {
+    if (n.name == 'store_order' && n.storeId != null) {
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => StoreOrdersPage(
-            store: ListStoreModel(
-              id: '$storeId',
-              name: notification.storeName ?? 'Store',
-              description: '',
-              imageUrl: notification.storeImage ?? notification.imageUrl,
-              rating: 0,
-            ),
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => StoreOrdersPage(store: _store(n))),
       );
-      return;
-    }
-
-    if (notification.name == 'order' && notification.orderId != null) {
+    } else if (n.name == 'order' && n.orderId != null) {
       Navigator.of(
         context,
       ).push(MaterialPageRoute(builder: (_) => const BuyerOrdersPage()));
-      return;
-    }
-
-    if ((notification.name == 'product_low_stock' ||
-            notification.name == 'product_out_of_stock') &&
-        storeId != null) {
+    } else if ((n.name == 'product_low_stock' ||
+            n.name == 'product_out_of_stock') &&
+        n.storeId != null) {
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => MyStoreProductPage(
-            store: ListStoreModel(
-              id: '$storeId',
-              name: notification.storeName ?? 'Store',
-              description: '',
-              imageUrl: notification.storeImage ?? notification.imageUrl,
-              rating: 0,
-            ),
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => MyStoreProductPage(store: _store(n))),
       );
     }
+  }
+
+  void _openDetail(
+    NotificationModel notification,
+    List<NotificationModel> notifications,
+  ) {
+    final thread = groupNotificationThreads(
+      notifications,
+    ).firstWhere((t) => t.id == notification.threadKey);
+    for (final message in thread.messages) {
+      if (!message.isRead) markNotificationAsRead(message.id);
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NotificationThreadPage(
+          thread: thread,
+          onOpenNotification: _openDestination,
+          onDeleteNotification: _deleteMessage,
+          onDeleteThread: () => _deleteThread(thread),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteMessage(NotificationModel notification) async {
+    final confirmed = await showDestructiveActionDialog(
+      context: context,
+      title: 'Supprimer cette notification ?',
+      message: 'Cette notification sera masquée seulement pour votre compte.',
+      details: ['Les autres utilisateurs gardent leur propre historique.'],
+      confirmLabel: 'Supprimer la notification',
+    );
+    if (!confirmed || !mounted) return;
+    final success = await deleteNotificationLocallyAndRemote(notification.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Notification supprimée pour vous.'
+              : 'Suppression impossible. La notification a été restaurée.',
+        ),
+      ),
+    );
   }
 
   Future<void> _deleteThread(NotificationThreadModel thread) async {
@@ -85,9 +120,8 @@ class _NotificationPageState extends State<NotificationPage> {
       message:
           'La conversation "${thread.title}" sera masquée seulement pour votre compte.',
       details: [
-        '${thread.messageCount} message${thread.messageCount > 1 ? 's' : ''} masqué${thread.messageCount > 1 ? 's' : ''} de votre boîte.',
+        '${thread.messageCount} notification${thread.messageCount > 1 ? 's' : ''} masquée${thread.messageCount > 1 ? 's' : ''} de votre boîte.',
         'Les autres utilisateurs gardent leur propre historique.',
-        'Dernier message : ${_shortPreview(thread.latest.description)}',
       ],
       confirmLabel: 'Supprimer la conversation',
     );
@@ -103,668 +137,470 @@ class _NotificationPageState extends State<NotificationPage> {
         ),
       ),
     );
-  }
-
-  Future<void> _deleteMessage(NotificationModel notification) async {
-    final confirmed = await showDestructiveActionDialog(
-      context: context,
-      title: 'Supprimer ce message ?',
-      message: 'Ce message sera masqué seulement pour votre compte.',
-      details: [
-        'Aperçu : ${_shortPreview(notification.description)}',
-        'La conversation restera disponible si elle contient d’autres messages.',
-        'Les autres utilisateurs gardent leur propre historique.',
-      ],
-      confirmLabel: 'Supprimer le message',
-    );
-    if (!confirmed || !mounted) return;
-    final success = await deleteNotificationLocallyAndRemote(notification.id);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? 'Message supprimé pour vous.'
-              : 'Suppression impossible. Le message a été restauré.',
-        ),
-      ),
-    );
-  }
-
-  String _shortPreview(String value) {
-    final normalized = value.trim().replaceAll(RegExp(r'\s+'), ' ');
-    if (normalized.isEmpty) return 'Aucun contenu';
-    if (normalized.length <= 90) return normalized;
-    return '${normalized.substring(0, 87)}...';
-  }
-
-  void _openThread(NotificationThreadModel thread) {
-    for (final message in thread.messages) {
-      if (!message.isRead) markNotificationAsRead(message.id);
+    if (success && ModalRoute.of(context)?.isCurrent == false) {
+      Navigator.of(context).pop();
     }
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => NotificationThreadPage(
-          thread: thread,
-          onOpenNotification: _openNotification,
-          onDeleteNotification: _deleteMessage,
-        ),
-      ),
-    );
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.appBackground(context),
-      appBar: const VendzaPageHeader.root(
-        title: 'Notifications',
-        subtitle: 'Messages, commandes et alertes',
-        icon: Icons.notifications_none_rounded,
-      ),
-      body: SafeArea(
-        top: false,
-        child: ValueListenableBuilder<List<NotificationModel>>(
-          valueListenable: notificationStore,
-          builder: (context, notifications, _) {
-            final threads = groupNotificationThreads(notifications);
-            final unreadCount = unreadNotificationCount(notifications);
-
-            return ResponsiveContent(
-              maxWidth: 720,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (threads.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
-                      child: _NotificationHeader(unreadCount: unreadCount),
-                    ),
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 320),
-                      child: threads.isEmpty
-                          ? _EmptyNotificationState(
-                              key: const ValueKey('empty-notification-chats'),
-                            )
-                          : ListView.separated(
-                              key: ValueKey('threads-${threads.length}'),
-                              padding: const EdgeInsets.fromLTRB(16, 4, 16, 22),
-                              itemCount: threads.length,
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(height: 10),
-                              itemBuilder: (context, index) {
-                                final thread = threads[index];
-                                return _NotificationThreadTile(
-                                  thread: thread,
-                                  onTap: () => _openThread(thread),
-                                  onDelete: () => _deleteThread(thread),
-                                );
-                              },
-                            ),
-                    ),
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: AppColors.appBackground(context),
+    appBar: const VendzaPageHeader.root(
+      title: 'Notifications',
+      subtitle: 'Achats, boutiques et informations au même endroit',
+      icon: Icons.notifications_none_rounded,
+    ),
+    body: SafeArea(
+      top: false,
+      child: ValueListenableBuilder<List<NotificationModel>>(
+        valueListenable: notificationStore,
+        builder: (context, notifications, _) {
+          final filtered =
+              notifications
+                  .where(
+                    (n) =>
+                        filter == _InboxFilter.all || _contextFor(n) == filter,
+                  )
+                  .toList()
+                ..sort(
+                  (a, b) =>
+                      (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+                          .compareTo(
+                            a.createdAt ??
+                                DateTime.fromMillisecondsSinceEpoch(0),
+                          ),
+                );
+          final fresh = filtered.where((n) => !n.isRead).toList();
+          final read = filtered.where((n) => n.isRead).toList();
+          final count = unreadNotificationCount(notifications);
+          return ResponsiveContent(
+            maxWidth: 720,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          count == 0
+                              ? 'Aucune nouvelle alerte'
+                              : '$count nouvelle${count > 1 ? 's' : ''} alerte${count > 1 ? 's' : ''}',
+                          style: TextStyle(
+                            color: AppColors.textPrimary(context),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'Les plus récentes d’abord',
+                        style: TextStyle(
+                          color: AppColors.textSecondary(context),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+                SizedBox(
+                  height: 52,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      for (final (choice, label) in [
+                        (_InboxFilter.all, 'Tout'),
+                        (_InboxFilter.purchases, 'Achats'),
+                        (_InboxFilter.stores, 'Boutiques'),
+                        (_InboxFilter.info, 'Infos'),
+                      ])
+                        Padding(
+                          padding: const EdgeInsets.only(right: 7),
+                          child: ChoiceChip(
+                            label: Text(label),
+                            selected: filter == choice,
+                            onSelected: (_) => setState(() => filter = choice),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: notifications.isEmpty
+                      ? const _EmptyNotificationState()
+                      : filtered.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Aucune notification dans cette catégorie',
+                            style: TextStyle(
+                              color: AppColors.textSecondary(context),
+                            ),
+                          ),
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+                          children: [
+                            if (fresh.isNotEmpty) ...[
+                              const _SectionTitle('Nouvelles'),
+                              for (final n in fresh)
+                                _NotificationTile(
+                                  notification: n,
+                                  onTap: () => _openDetail(n, notifications),
+                                  onDeleteThread: () => _deleteThread(
+                                    groupNotificationThreads(
+                                      notifications,
+                                    ).firstWhere((t) => t.id == n.threadKey),
+                                  ),
+                                ),
+                            ],
+                            if (read.isNotEmpty) ...[
+                              const _SectionTitle('Déjà consultées'),
+                              for (final n in read)
+                                _NotificationTile(
+                                  notification: n,
+                                  onTap: () => _openDetail(n, notifications),
+                                  onDeleteThread: () => _deleteThread(
+                                    groupNotificationThreads(
+                                      notifications,
+                                    ).firstWhere((t) => t.id == n.threadKey),
+                                  ),
+                                ),
+                            ],
+                          ],
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.title);
+  final String title;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(2, 12, 2, 8),
+    child: Text(
+      title,
+      style: TextStyle(
+        color: AppColors.textPrimary(context),
+        fontSize: 13,
+        fontWeight: FontWeight.w900,
+      ),
+    ),
+  );
+}
+
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile({
+    required this.notification,
+    required this.onTap,
+    required this.onDeleteThread,
+  });
+  final NotificationModel notification;
+  final VoidCallback onTap;
+  final VoidCallback onDeleteThread;
+  @override
+  Widget build(BuildContext context) {
+    final n = notification;
+    final fg = AppColors.textPrimary(context);
+    final muted = AppColors.textSecondary(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: AppColors.card(context),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: n.isRead
+                    ? AppColors.border(context)
+                    : AppColors.accent(context).withValues(alpha: .3),
               ),
-            );
-          },
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    VendzaContextImage(
+                      imageUrl: n.storeImage ?? n.imageUrl,
+                      icon: n.icon,
+                      size: 38,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              if (!n.isRead)
+                                Container(
+                                  width: 7,
+                                  height: 7,
+                                  margin: const EdgeInsets.only(right: 5),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accent(context),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              Expanded(
+                                child: Text(
+                                  '${_contextLabel(n)}${n.storeName == null ? '' : ' · ${n.storeName}'}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: muted,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              if (n.createdAt != null)
+                                Text(
+                                  vendzaDateTimeLabel(n.createdAt!),
+                                  style: TextStyle(color: muted, fontSize: 10),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            n.displayTitle,
+                            style: TextStyle(
+                              color: fg,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            n.description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: muted, fontSize: 12.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        n.productName ?? n.categoryLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: muted, fontSize: 11),
+                      ),
+                    ),
+                    Text(
+                      n.actionLabel ?? 'Lire',
+                      style: TextStyle(
+                        color: fg,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    Icon(Icons.arrow_forward, size: 13, color: fg),
+                    PopupMenuButton<String>(
+                      tooltip: 'Options de la conversation',
+                      onSelected: (value) {
+                        if (value == 'delete') onDeleteThread();
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Supprimer la conversation'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
+/// A history of events, not a conversation: no reply composer or fabricated status.
 class NotificationThreadPage extends StatelessWidget {
   const NotificationThreadPage({
     super.key,
     required this.thread,
     required this.onOpenNotification,
     required this.onDeleteNotification,
+    required this.onDeleteThread,
   });
-
   final NotificationThreadModel thread;
   final ValueChanged<NotificationModel> onOpenNotification;
   final ValueChanged<NotificationModel> onDeleteNotification;
+  final VoidCallback onDeleteThread;
 
   @override
   Widget build(BuildContext context) {
     final messages = List<NotificationModel>.from(thread.messages)
-      ..sort((a, b) {
-        final ad = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bd = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return ad.compareTo(bd);
-      });
-
+      ..sort(
+        (a, b) => (a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+            .compareTo(b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)),
+      );
+    final latest = thread.latest;
+    final fg = AppColors.textPrimary(context);
+    final muted = AppColors.textSecondary(context);
     return Scaffold(
       backgroundColor: AppColors.appBackground(context),
       appBar: AppBar(
-        backgroundColor: AppColors.appBackground(context),
-        foregroundColor: AppColors.textPrimary(context),
-        elevation: 0,
-        title: Row(
-          children: [
-            VendzaContextImage(
-              imageUrl: thread.imageUrl,
-              icon: thread.latest.icon,
-              size: 36,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                thread.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w900),
+        backgroundColor: AppColors.card(context),
+        foregroundColor: fg,
+        title: Text(thread.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: [
+          PopupMenuButton<String>(
+            tooltip: 'Options',
+            onSelected: (value) {
+              if (value == 'delete') onDeleteNotification(latest);
+              if (value == 'thread') onDeleteThread();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'thread',
+                child: Text('Supprimer la conversation'),
               ),
-            ),
-          ],
-        ),
-      ),
-      body: ResponsiveContent(
-        maxWidth: 720,
-        child: ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 22),
-          itemCount: messages.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 10),
-          itemBuilder: (context, index) {
-            final message = messages[index];
-            final previous = index == 0 ? null : messages[index - 1];
-            final showDate =
-                previous == null ||
-                !_sameDay(previous.createdAt, message.createdAt);
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (showDate && message.createdAt != null)
-                  _ChatDateDivider(date: message.createdAt!),
-                _ChatMessageBubble(
-                  notification: message,
-                  onOpen: onOpenNotification,
-                  onDelete: onDeleteNotification,
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _ChatDateDivider extends StatelessWidget {
-  const _ChatDateDivider({required this.date});
-
-  final DateTime date;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: AppColors.border(context)),
-        ),
-        child: Text(
-          vendzaDateTimeLabel(date),
-          style: TextStyle(
-            color: AppColors.textSecondary(context),
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ChatMessageBubble extends StatelessWidget {
-  const _ChatMessageBubble({
-    required this.notification,
-    required this.onOpen,
-    required this.onDelete,
-  });
-
-  final NotificationModel notification;
-  final ValueChanged<NotificationModel> onOpen;
-  final ValueChanged<NotificationModel> onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
-          decoration: BoxDecoration(
-            color: AppColors.card(context),
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(6),
-              topRight: Radius.circular(18),
-              bottomLeft: Radius.circular(18),
-              bottomRight: Radius.circular(18),
-            ),
-            border: Border.all(color: AppColors.border(context)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      notification.displayTitle,
-                      style: TextStyle(
-                        color: AppColors.textPrimary(context),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    icon: Icon(
-                      Icons.more_vert_rounded,
-                      size: 18,
-                      color: AppColors.textSecondary(context),
-                    ),
-                    onSelected: (value) {
-                      if (value == 'open') onOpen(notification);
-                      if (value == 'delete') onDelete(notification);
-                    },
-                    itemBuilder: (context) => [
-                      if (notification.actionLabel != null)
-                        const PopupMenuItem(
-                          value: 'open',
-                          child: Text('Ouvrir'),
-                        ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Supprimer'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent(context).withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      notification.categoryLabel,
-                      style: TextStyle(
-                        color: AppColors.accent(context),
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                notification.description,
-                style: TextStyle(
-                  color: AppColors.textPrimary(context),
-                  fontSize: 13.5,
-                  height: 1.35,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (notification.actionLabel != null) ...[
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: FilledButton.icon(
-                    onPressed: () => onOpen(notification),
-                    icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                    label: Text(notification.actionLabel!),
-                    style: FilledButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 6),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (notification.productName != null) ...[
-                    Icon(
-                      Icons.shopping_bag_outlined,
-                      color: AppColors.textSecondary(context),
-                      size: 13,
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        notification.productName!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: AppColors.textSecondary(context),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  if (notification.createdAt != null)
-                    Text(
-                      vendzaDateTimeLabel(notification.createdAt!),
-                      style: TextStyle(
-                        color: AppColors.textSecondary(context),
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                ],
+              PopupMenuItem(
+                value: 'delete',
+                child: Text('Supprimer cette notification'),
               ),
             ],
           ),
-        ),
+        ],
       ),
-    );
-  }
-}
-
-bool _sameDay(DateTime? a, DateTime? b) {
-  if (a == null || b == null) return false;
-  return a.year == b.year && a.month == b.month && a.day == b.day;
-}
-
-class _NotificationThreadTile extends StatelessWidget {
-  const _NotificationThreadTile({
-    required this.thread,
-    required this.onTap,
-    required this.onDelete,
-  });
-
-  final NotificationThreadModel thread;
-  final VoidCallback onTap;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final latest = thread.latest;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border(context)),
-        ),
-        child: Row(
+      body: ResponsiveContent(
+        maxWidth: 720,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
           children: [
-            VendzaContextImage(
-              imageUrl: thread.imageUrl,
-              icon: latest.icon,
-              size: 52,
+            Text(
+              '${_contextLabel(latest)}${latest.orderId == null ? '' : ' · Commande #${latest.orderId}'}',
+              style: TextStyle(color: muted, fontSize: 12),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          thread.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: AppColors.textPrimary(context),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
+            const SizedBox(height: 20),
+            const _SectionTitle('Historique des notifications'),
+            for (final message in messages)
+              Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.card(context),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border(context)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (message.createdAt != null)
+                      Text(
+                        vendzaDateTimeLabel(message.createdAt!),
+                        style: TextStyle(color: muted, fontSize: 11),
                       ),
-                      if (latest.createdAt != null)
-                        Text(
-                          vendzaDateTimeLabel(latest.createdAt!),
-                          style: TextStyle(
-                            color: AppColors.textSecondary(context),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    latest.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppColors.textSecondary(context),
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
+                    const SizedBox(height: 6),
+                    Text(
+                      message.displayTitle,
+                      style: TextStyle(color: fg, fontWeight: FontWeight.w800),
                     ),
-                  ),
-                  if ((latest.productName ?? '').isNotEmpty) ...[
                     const SizedBox(height: 5),
                     Text(
-                      latest.productName!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppColors.textSecondary(context),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      message.description,
+                      style: TextStyle(color: muted, height: 1.4),
                     ),
                   ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (thread.unreadCount > 0)
-                  _UnreadBubble(count: thread.unreadCount)
-                else
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.textSecondary(context),
-                  ),
-                IconButton(
-                  tooltip: 'Supprimer la conversation',
-                  onPressed: onDelete,
-                  icon: Icon(
-                    Icons.delete_outline_rounded,
-                    color: AppColors.textSecondary(context),
-                    size: 19,
-                  ),
                 ),
-              ],
-            ),
+              ),
+            if (latest.actionLabel != null) ...[
+              const SizedBox(height: 5),
+              FilledButton(
+                onPressed: () => onOpenNotification(latest),
+                child: Text('${latest.actionLabel} →'),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Cette action ouvre la page concernée ; elle ne confirme rien automatiquement.',
+                style: TextStyle(color: muted, fontSize: 11),
+              ),
+            ],
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _UnreadBubble extends StatelessWidget {
-  const _UnreadBubble({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.accent(context),
-        shape: count < 10 ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: count < 10 ? null : BorderRadius.circular(999),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        count > 99 ? '99+' : '$count',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
-class _NotificationHeader extends StatelessWidget {
-  const _NotificationHeader({required this.unreadCount});
-
-  final int unreadCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border(context)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.accent(context).withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              Icons.mark_chat_unread_outlined,
-              color: AppColors.accent(context),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Conversations notifications',
-                  style: TextStyle(
-                    color: AppColors.textPrimary(context),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  unreadCount == 0
-                      ? 'Toutes les conversations sont lues'
-                      : '$unreadCount message${unreadCount > 1 ? 's' : ''} non lu${unreadCount > 1 ? 's' : ''}',
-                  style: TextStyle(
-                    color: AppColors.textSecondary(context),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
 }
 
 class _EmptyNotificationState extends StatelessWidget {
-  const _EmptyNotificationState({super.key});
-
+  const _EmptyNotificationState();
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) => ListView(
-        children: [
-          ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        color: AppColors.accent(
-                          context,
-                        ).withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Icon(
-                        Icons.notifications_none_rounded,
-                        color: AppColors.accent(context),
-                      ),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => ListView(
+      children: [
+        ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.notifications_none_rounded,
+                    size: 52,
+                    color: AppColors.accent(context),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Aucune notification pour le moment',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textPrimary(context),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
                     ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Aucune notification pour le moment',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppColors.textPrimary(context),
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Les nouvelles de vos commandes et les messages des boutiques apparaîtront ici.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textSecondary(context),
+                      fontSize: 13,
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Les nouvelles de vos commandes et les messages des boutiques apparaîtront ici.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppColors.textSecondary(context),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AllStoresPage()),
                     ),
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const AllStoresPage(),
-                        ),
-                      ),
-                      child: const Text('Explorer les boutiques'),
-                    ),
-                  ],
-                ),
+                    child: const Text('Explorer les boutiques'),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 }
