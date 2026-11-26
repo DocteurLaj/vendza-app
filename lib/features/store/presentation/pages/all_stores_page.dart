@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:vendza/core/catalog/catalog_repository.dart'
-    show catalogLoading, catalogRevision;
+    show catalogLoading, catalogRevision, stores;
 import 'package:vendza/core/constants/colors.dart';
 import 'package:vendza/core/theme/app_text_styles.dart';
 import 'package:vendza/features/home/data/models/store_model.dart';
-import 'package:vendza/features/home/data/services/data_exemple.dart';
+import 'package:vendza/features/store/data/models/store_model.dart' show ListStoreModel;
 import 'package:vendza/features/store/presentation/pages/store_detail_page.dart';
 import 'package:vendza/features/store/presentation/widgets/store_catalog_card.dart';
 import 'package:vendza/shared/widgets/empty/empty_state_widget.dart';
@@ -32,11 +32,19 @@ class _AllStoresPageState extends State<AllStoresPage>
   bool _keyboardWasOpen = false;
   DateTime? _searchOpenedAt;
 
-  List<StoreModel> get _filteredStores {
-    final normalizedQuery = _query.trim().toLowerCase();
-    if (normalizedQuery.isEmpty) return stores;
+  static StoreModel _toHomeModel(ListStoreModel s) => StoreModel(
+        id: s.id,
+        name: s.name,
+        image: s.imageUrl,
+        description: s.description,
+      );
 
-    return stores.where((store) {
+  List<StoreModel> get _filteredStores {
+    final all = stores.map(_toHomeModel).toList();
+    final normalizedQuery = _query.trim().toLowerCase();
+    if (normalizedQuery.isEmpty) return all;
+
+    return all.where((store) {
       return store.name.toLowerCase().contains(normalizedQuery) ||
           store.getDescription().toLowerCase().contains(normalizedQuery);
     }).toList();
